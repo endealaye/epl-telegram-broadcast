@@ -7,9 +7,9 @@ from bs4 import BeautifulSoup
 from collections import defaultdict
 from supabase import create_client, Client
 
-# Load .env file
 def load_env():
-    if os.getenv('TELEGRAM_BOT_TOKEN') and os.getenv('TELEGRAM_CHAT_ID'):
+    # Only load from file if required variables are not already in environment (e.g. GitHub Actions)
+    if os.getenv('TELEGRAM_BOT_TOKEN') and os.getenv('TELEGRAM_CHAT_ID') and os.getenv('SUPABASE_URL'):
         return
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -25,11 +25,25 @@ load_env()
 
 # Configuration
 JSON_URL = 'https://fixturedownload.com/feed/json/epl-2025'
-DB_FILE = 'epl_2025.db' # Kept for local compatibility, but we use Supabase
+BBC_SCORES_URL = 'https://www.bbc.com/sport/football/premier-league/scores-fixtures'
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+
+# Validate critical config
+missing = []
+if not TELEGRAM_BOT_TOKEN: missing.append('TELEGRAM_BOT_TOKEN')
+if not TELEGRAM_CHAT_ID: missing.append('TELEGRAM_CHAT_ID')
+if not SUPABASE_URL: missing.append('SUPABASE_URL')
+if not SUPABASE_KEY: missing.append('SUPABASE_KEY')
+
+if missing:
+    print(f"CRITICAL ERROR: Missing environment variables: {', '.join(missing)}")
+    # Exit with non-zero code so GitHub Actions marks the run as failed
+    import sys
+    sys.exit(1)
+
 
 # Timezone helper (EAT is UTC+3)
 def get_eat_now():
