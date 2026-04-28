@@ -1,11 +1,11 @@
 import json
-import sqlite3
 import requests
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from bs4 import BeautifulSoup
 from collections import defaultdict
+from supabase import create_client, Client
 
 # Load .env file
 def load_env():
@@ -25,10 +25,18 @@ load_env()
 
 # Configuration
 JSON_URL = 'https://fixturedownload.com/feed/json/epl-2025'
-BBC_SCORES_URL = 'https://www.bbc.com/sport/football/premier-league/scores-fixtures'
-DB_FILE = 'epl_2025.db'
+DB_FILE = 'epl_2025.db' # Kept for local compatibility, but we use Supabase
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+
+# Timezone helper (EAT is UTC+3)
+def get_eat_now():
+    return datetime.now(timezone.utc) + timedelta(hours=3)
+
+def get_eat_today():
+    return get_eat_now().strftime('%Y-%m-%d')
 
 # Team name mapping: BBC Name -> Database Name
 TEAM_MAPPING = {
@@ -78,228 +86,169 @@ AMHARIC_TEAMS = {
     "Wolves": "ዉልቭስ"
 }
 
+# Supabase Client
+supabase: Client = None
+if SUPABASE_URL and SUPABASE_KEY:
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 def update_fixtures_from_json():
+    if not supabase:
+        print("Supabase not configured. Skipping update.")
+        return False
     try:
         response = requests.get(JSON_URL)
         response.raise_for_status()
         data = response.json()
-
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS fixtures (
-                MatchNumber INTEGER PRIMARY KEY,
-                RoundNumber INTEGER,
-                DateUtc TEXT,
-                Location TEXT,
-                HomeTeam TEXT,
-                AwayTeam TEXT,
-                MatchGroup TEXT,
-                HomeTeamScore INTEGER,
-                AwayTeamScore INTEGER,
-                DateEAT TEXT,
-                BroadcastStatus TEXT DEFAULT 'pending'
-            )
-        ''')
 
         for match in data:
             utc_date = match.get('DateUtc')
             eat_date = None
             if utc_date:
                 try:
-                    dt = datetime.strptime(utc_date, '%Y-%m-%d %H:%M:%SZ')
+                    dt = datetime.strptime(utc_date, '%Y-%m-%d %H:%M:%SZ').replace(tzinfo=timezone.utc)
                     eat_date = (dt + timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
                 except ValueError:
                     pass
 
-            cursor.execute('''
-                INSERT OR REPLACE INTO fixtures 
-                (MatchNumber, RoundNumber, DateUtc, Location, HomeTeam, AwayTeam, MatchGroup, HomeTeamScore, AwayTeamScore, DateEAT)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                match.get('MatchNumber'),
-                match.get('RoundNumber'),
-                utc_date,
-                match.get('Location'),
-                match.get('HomeTeam'),
-                match.get('AwayTeam'),
-                match.get('Group'),
-                match.get('HomeTeamScore'),
-                match.get('AwayTeamScore'),
-                eat_date
-            ))
-
-        conn.commit()
-        conn.close()
+            # Upsert into Supabase
+            supabase.table('fixtures').upsert({
+                "MatchNumber": match.get('MatchNumber'),
+                "RoundNumber": match.get('RoundNumber'),
+                "DateUtc": utc_date,
+                "Location": match.get('Location'),
+                "HomeTeam": match.get('HomeTeam'),
+                "AwayTeam": match.get('AwayTeam'),
+                "MatchGroup": match.get('Group'),
+                "HomeTeamScore": match.get('HomeTeamScore'),
+                "AwayTeamScore": match.get('AwayTeamScore'),
+                "DateEAT": eat_date
+            }).execute()
         return True
     except Exception as e:
         print(f"Error updating fixtures: {e}")
         return False
 
-def scrape_bbc_scores():
+def scrape_scores():
+    if not supabase: return False
+    
+    # Start with BBC
+    success = scrape_bbc()
+    # Future: if not success: success = scrape_sky() etc.
+    return success
+
+def scrape_bbc():
     try:
-        response = requests.get(BBC_SCORES_URL)
+        url = 'https://www.bbc.com/sport/football/premier-league/scores-fixtures'
+        response = requests.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
-        
-        matches_found = 0
+        matches_updated = 0
         for link in soup.find_all('a', href=re.compile(r'/sport/football/live/')):
             text = link.get_text(" ", strip=True)
-            match = re.search(r'(.+?)\s+(\d+)\s*,\s*(.+?)\s+(\d+)\s+at\s+Full\s+time', text)
-            if match:
-                home_raw, home_score, away_raw, away_score = match.groups()
+            match_data = re.search(r'(.+?)\s+(\d+)\s*,\s*(.+?)\s+(\d+)\s+at\s+Full\s+time', text)
+            if match_data:
+                home_raw, home_score, away_raw, away_score = match_data.groups()
                 home_team = TEAM_MAPPING.get(home_raw.strip())
                 away_team = TEAM_MAPPING.get(away_raw.strip())
                 
                 if home_team and away_team:
-                    cursor.execute('''
-                        UPDATE fixtures 
-                        SET HomeTeamScore = ?, AwayTeamScore = ? 
-                        WHERE HomeTeam = ? AND AwayTeam = ?
-                    ''', (home_score, away_score, home_team, away_team))
-                    if cursor.rowcount > 0:
-                        matches_found += 1
+                    supabase.table('fixtures').update({
+                        "HomeTeamScore": int(home_score),
+                        "AwayTeamScore": int(away_score)
+                    }).eq("HomeTeam", home_team).eq("AwayTeam", away_team).execute()
+                    matches_updated += 1
         
-        conn.commit()
-        conn.close()
-        print(f"Scraped and updated {matches_found} match scores from BBC.")
+        print(f"Scraped {matches_updated} scores from BBC.")
         return True
     except Exception as e:
-        print(f"Error scraping BBC scores: {e}")
+        print(f"BBC Scraper Error: {e}")
         return False
 
 def send_telegram_message(message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("Telegram credentials not set. Printing to console instead:")
         print(message)
         return
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}
-    try:
-        requests.post(url, json=payload)
-    except Exception as e:
-        print(f"Error sending telegram message: {e}")
+    requests.post(url, json=payload)
 
 def broadcast_daily():
-    """Daily summary of matches in Amharic grouped by time."""
-    today = datetime.now().strftime('%Y-%m-%d')
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT DateEAT, HomeTeam, AwayTeam, MatchNumber FROM fixtures WHERE DateEAT LIKE ?", (f'{today}%',))
-    matches = cursor.fetchall()
+    today = get_eat_today()
+    if not supabase: return
+    
+    res = supabase.table('fixtures').select("*").ilike('DateEAT', f'{today}%').execute()
+    matches = res.data
     
     if matches:
-        # Group by time
         time_groups = defaultdict(list)
         match_ids = []
         for m in matches:
-            time = m[0].split(' ')[1]
-            home_am = AMHARIC_TEAMS.get(m[1], m[1])
-            away_am = AMHARIC_TEAMS.get(m[2], m[2])
+            time = m['DateEAT'].split(' ')[1]
+            home_am = AMHARIC_TEAMS.get(m['HomeTeam'], m['HomeTeam'])
+            away_am = AMHARIC_TEAMS.get(m['AwayTeam'], m['AwayTeam'])
             time_groups[time].append(f"• {home_am} vs {away_am}")
-            match_ids.append(m[3])
+            match_ids.append(m['MatchNumber'])
         
-        # Build message
-        msg = f"📅 *የዛሬ የኢንግሊዝ ፕሪሚየር ሊግ ጨዋታዎች ({today})*\n\n"
+        msg = f"✅ *System Online*\n📅 *የዛሬ የኢንግሊዝ ፕሪሚየር ሊግ ጨዋታዎች ({today})*\n\n"
         for time in sorted(time_groups.keys()):
             msg += f"⏰ *{time}*\n" + "\n".join(time_groups[time]) + "\n\n"
         
         send_telegram_message(msg)
-        
-        cursor.execute(f"UPDATE fixtures SET BroadcastStatus = 'scheduled' WHERE MatchNumber IN ({','.join(map(str, match_ids))})")
-        conn.commit()
+        supabase.table('fixtures').update({"BroadcastStatus": 'scheduled'}).in_('MatchNumber', match_ids).execute()
     else:
         print("No matches today.")
-    conn.close()
 
 def broadcast_reminders():
-    """Reminders for matches starting in the next 60 minutes in Amharic."""
-    now = datetime.now()
+    now = get_eat_now()
     window_start = now.strftime('%Y-%m-%d %H:%M:%S')
     window_end = (now + timedelta(minutes=60)).strftime('%Y-%m-%d %H:%M:%S')
     
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT DateEAT, HomeTeam, AwayTeam, MatchNumber 
-        FROM fixtures 
-        WHERE DateEAT BETWEEN ? AND ? AND (BroadcastStatus = 'pending' OR BroadcastStatus = 'scheduled')
-    ''', (window_start, window_end))
+    if not supabase: return
     
-    matches = cursor.fetchall()
+    res = supabase.table('fixtures').select("*").gte('DateEAT', window_start).lte('DateEAT', window_end).or_('BroadcastStatus.eq.pending,BroadcastStatus.eq.scheduled').execute()
+    matches = res.data
+    
     for m in matches:
-        time = m[0].split(' ')[1]
-        home_am = AMHARIC_TEAMS.get(m[1], m[1])
-        away_am = AMHARIC_TEAMS.get(m[2], m[2])
+        time = m['DateEAT'].split(' ')[1]
+        home_am = AMHARIC_TEAMS.get(m['HomeTeam'], m['HomeTeam'])
+        away_am = AMHARIC_TEAMS.get(m['AwayTeam'], m['AwayTeam'])
         msg = f"🔔 *የጨዋታ ማሳሰቢያ!*\n\n⏰ {time} | {home_am} vs {away_am}\nተዘጋጁ! ⚽"
         send_telegram_message(msg)
-        cursor.execute("UPDATE fixtures SET BroadcastStatus = 'reminded' WHERE MatchNumber = ?", (m[3],))
-    
-    conn.commit()
-    conn.close()
+        supabase.table('fixtures').update({"BroadcastStatus": 'reminded'}).eq('MatchNumber', m['MatchNumber']).execute()
 
 def broadcast_results():
-    """Broadcast a consolidated roundup of final scores for today in Amharic."""
-    today = datetime.now().strftime('%Y-%m-%d')
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
+    today = get_eat_today()
+    if not supabase: return
     
-    # Check if there are any results today that haven't been sent
-    cursor.execute('''
-        SELECT count(*) FROM fixtures 
-        WHERE DateEAT LIKE ? AND HomeTeamScore IS NOT NULL AND (BroadcastStatus != 'result_sent')
-    ''', (f'{today}%',))
+    res = supabase.table('fixtures').select("*").ilike('DateEAT', f'{today}%').not_.eq('BroadcastStatus', 'result_sent').not_.is_('HomeTeamScore', 'null').execute()
+    results = res.data
     
-    if cursor.fetchone()[0] == 0:
-        conn.close()
-        print("No new results to broadcast.")
+    if not results:
+        print("No new results.")
         return
 
-    # Gather ALL results for today to create a roundup
-    cursor.execute('''
-        SELECT HomeTeam, AwayTeam, HomeTeamScore, AwayTeamScore, MatchNumber 
-        FROM fixtures 
-        WHERE DateEAT LIKE ? AND HomeTeamScore IS NOT NULL
-    ''', (f'{today}%',))
-    
-    results = cursor.fetchall()
-    
     msg = f"🏁 *የጨዋታዎች ውጤት ({today})*\n\n"
     sent_ids = []
     for r in results:
-        home_am = AMHARIC_TEAMS.get(r[0], r[0])
-        away_am = AMHARIC_TEAMS.get(r[1], r[1])
-        msg += f"• {home_am} {r[2]} - {r[3]} {away_am}\n"
-        sent_ids.append(r[4])
+        home_am = AMHARIC_TEAMS.get(r['HomeTeam'], r['HomeTeam'])
+        away_am = AMHARIC_TEAMS.get(r['AwayTeam'], r['AwayTeam'])
+        msg += f"• {home_am} {r['HomeTeamScore']} - {r['AwayTeamScore']} {away_am}\n"
+        sent_ids.append(r['MatchNumber'])
     
     send_telegram_message(msg)
-    
-    # Mark all today's results as sent
-    if sent_ids:
-        cursor.execute(f"UPDATE fixtures SET BroadcastStatus = 'result_sent' WHERE MatchNumber IN ({','.join(map(str, sent_ids))})")
-        conn.commit()
-    
-    conn.close()
+    supabase.table('fixtures').update({"BroadcastStatus": 'result_sent'}).in_('MatchNumber', sent_ids).execute()
 
 if __name__ == '__main__':
     import sys
     update_fixtures_from_json()
-    scrape_bbc_scores()
+    scrape_scores()
     
     if len(sys.argv) > 1:
         mode = sys.argv[1]
-        if mode == 'daily':
-            broadcast_daily()
-        elif mode == 'reminders':
-            broadcast_reminders()
-        elif mode == 'results':
-            broadcast_results()
-        else:
-            print("Usage: python3 telegram_broadcast.py [daily|reminders|results]")
+        if mode == 'daily': broadcast_daily()
+        elif mode == 'reminders': broadcast_reminders()
+        elif mode == 'results': broadcast_results()
     else:
         print("Usage: python3 telegram_broadcast.py [daily|reminders|results]")
