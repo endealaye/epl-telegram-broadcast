@@ -5,10 +5,10 @@ import os
 import re
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
+from collections import defaultdict
 
 # Load .env file
 def load_env():
-    # Only load from file if required variables are not already in environment (e.g. GitHub Actions)
     if os.getenv('TELEGRAM_BOT_TOKEN') and os.getenv('TELEGRAM_CHAT_ID'):
         return
 
@@ -30,6 +30,7 @@ DB_FILE = 'epl_2025.db'
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
+# Team name mapping: BBC Name -> Database Name
 TEAM_MAPPING = {
     "Manchester United": "Man Utd",
     "Brentford": "Brentford",
@@ -51,6 +52,30 @@ TEAM_MAPPING = {
     "Manchester City": "Man City",
     "Brighton & Hove Albion": "Brighton",
     "Chelsea": "Chelsea"
+}
+
+# Amharic Transliterations: Database Name -> Amharic Name
+AMHARIC_TEAMS = {
+    "Arsenal": "አርሰናል",
+    "Aston Villa": "አስቶን ቪላ",
+    "Bournemouth": "ቦርንሙዝ",
+    "Brentford": "ብሬንትፎርድ",
+    "Brighton": "ብራይተን",
+    "Burnley": "በርንሌይ",
+    "Chelsea": "ቼልሲ",
+    "Crystal Palace": "ክሪስታል ፓላስ",
+    "Everton": "ኤቨርተን",
+    "Fulham": "ፉልሃም",
+    "Leeds": "ሊድስ",
+    "Liverpool": "ሊቨርፑል",
+    "Man City": "ማንቸስተር ሲቲ",
+    "Man Utd": "ማንቸስተር ዩናይትድ",
+    "Newcastle": "ኒውካስል",
+    "Nott'm Forest": "ኖቲንግሃም ፎረስት",
+    "Spurs": "ስፐርስ",
+    "Sunderland": "ሰንደርላንድ",
+    "West Ham": "ዌስትሃም",
+    "Wolves": "ዉልቭስ"
 }
 
 def update_fixtures_from_json():
@@ -161,7 +186,7 @@ def send_telegram_message(message):
         print(f"Error sending telegram message: {e}")
 
 def broadcast_daily():
-    """Daily summary of matches."""
+    """Daily summary of matches in Amharic grouped by time."""
     today = datetime.now().strftime('%Y-%m-%d')
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -169,16 +194,23 @@ def broadcast_daily():
     matches = cursor.fetchall()
     
     if matches:
-        msg = f"📅 *Today's EPL Matches ({today})*\n\n"
+        # Group by time
+        time_groups = defaultdict(list)
         match_ids = []
         for m in matches:
             time = m[0].split(' ')[1]
-            msg += f"⏰ {time} | {m[1]} vs {m[2]}\n"
+            home_am = AMHARIC_TEAMS.get(m[1], m[1])
+            away_am = AMHARIC_TEAMS.get(m[2], m[2])
+            time_groups[time].append(f"• {home_am} vs {away_am}")
             match_ids.append(m[3])
+        
+        # Build message
+        msg = f"📅 *የዛሬ የኢንግሊዝ ፕሪሚየር ሊግ ጨዋታዎች ({today})*\n\n"
+        for time in sorted(time_groups.keys()):
+            msg += f"⏰ *{time}*\n" + "\n".join(time_groups[time]) + "\n\n"
         
         send_telegram_message(msg)
         
-        # Mark as scheduled
         cursor.execute(f"UPDATE fixtures SET BroadcastStatus = 'scheduled' WHERE MatchNumber IN ({','.join(map(str, match_ids))})")
         conn.commit()
     else:
@@ -186,14 +218,13 @@ def broadcast_daily():
     conn.close()
 
 def broadcast_reminders():
-    """Reminders for matches starting in the next 60 minutes."""
+    """Reminders for matches starting in the next 60 minutes in Amharic."""
     now = datetime.now()
     window_start = now.strftime('%Y-%m-%d %H:%M:%S')
     window_end = (now + timedelta(minutes=60)).strftime('%Y-%m-%d %H:%M:%S')
     
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    # Matches starting in the next hour that haven't been reminded yet
     cursor.execute('''
         SELECT DateEAT, HomeTeam, AwayTeam, MatchNumber 
         FROM fixtures 
@@ -203,7 +234,9 @@ def broadcast_reminders():
     matches = cursor.fetchall()
     for m in matches:
         time = m[0].split(' ')[1]
-        msg = f"🔔 *Upcoming Match Alert!*\n\n⏰ {time} | {m[1]} vs {m[2]}\nGet ready! ⚽"
+        home_am = AMHARIC_TEAMS.get(m[1], m[1])
+        away_am = AMHARIC_TEAMS.get(m[2], m[2])
+        msg = f"🔔 *የጨዋታ ማሳሰቢያ!*\n\n⏰ {time} | {home_am} vs {away_am}\nተዘጋጁ! ⚽"
         send_telegram_message(msg)
         cursor.execute("UPDATE fixtures SET BroadcastStatus = 'reminded' WHERE MatchNumber = ?", (m[3],))
     
@@ -211,24 +244,46 @@ def broadcast_reminders():
     conn.close()
 
 def broadcast_results():
-    """Broadcast final scores for matches that just finished today."""
+    """Broadcast a consolidated roundup of final scores for today in Amharic."""
     today = datetime.now().strftime('%Y-%m-%d')
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    # Only broadcast results for matches that happened TODAY and haven't been sent
+    
+    # Check if there are any results today that haven't been sent
     cursor.execute('''
-        SELECT HomeTeam, AwayTeam, HomeTeamScore, AwayTeamScore, MatchNumber 
-        FROM fixtures 
+        SELECT count(*) FROM fixtures 
         WHERE DateEAT LIKE ? AND HomeTeamScore IS NOT NULL AND (BroadcastStatus != 'result_sent')
     ''', (f'{today}%',))
     
-    results = cursor.fetchall()
-    for r in results:
-        msg = f"🏁 *Final Score*\n{r[0]} {r[2]} - {r[3]} {r[1]}"
-        send_telegram_message(msg)
-        cursor.execute("UPDATE fixtures SET BroadcastStatus = 'result_sent' WHERE MatchNumber = ?", (r[4],))
+    if cursor.fetchone()[0] == 0:
+        conn.close()
+        print("No new results to broadcast.")
+        return
+
+    # Gather ALL results for today to create a roundup
+    cursor.execute('''
+        SELECT HomeTeam, AwayTeam, HomeTeamScore, AwayTeamScore, MatchNumber 
+        FROM fixtures 
+        WHERE DateEAT LIKE ? AND HomeTeamScore IS NOT NULL
+    ''', (f'{today}%',))
     
-    conn.commit()
+    results = cursor.fetchall()
+    
+    msg = f"🏁 *የጨዋታዎች ውጤት ({today})*\n\n"
+    sent_ids = []
+    for r in results:
+        home_am = AMHARIC_TEAMS.get(r[0], r[0])
+        away_am = AMHARIC_TEAMS.get(r[1], r[1])
+        msg += f"• {home_am} {r[2]} - {r[3]} {away_am}\n"
+        sent_ids.append(r[4])
+    
+    send_telegram_message(msg)
+    
+    # Mark all today's results as sent
+    if sent_ids:
+        cursor.execute(f"UPDATE fixtures SET BroadcastStatus = 'result_sent' WHERE MatchNumber IN ({','.join(map(str, sent_ids))})")
+        conn.commit()
+    
     conn.close()
 
 if __name__ == '__main__':
