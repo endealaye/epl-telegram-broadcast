@@ -211,15 +211,16 @@ def broadcast_reminders():
     conn.close()
 
 def broadcast_results():
-    """Broadcast final scores for matches that just finished."""
+    """Broadcast final scores for matches that just finished today."""
+    today = datetime.now().strftime('%Y-%m-%d')
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    # Matches that have scores but haven't been broadcast as results yet
+    # Only broadcast results for matches that happened TODAY and haven't been sent
     cursor.execute('''
         SELECT HomeTeam, AwayTeam, HomeTeamScore, AwayTeamScore, MatchNumber 
         FROM fixtures 
-        WHERE HomeTeamScore IS NOT NULL AND (BroadcastStatus != 'result_sent')
-    ''', ())
+        WHERE DateEAT LIKE ? AND HomeTeamScore IS NOT NULL AND (BroadcastStatus != 'result_sent')
+    ''', (f'{today}%',))
     
     results = cursor.fetchall()
     for r in results:
