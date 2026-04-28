@@ -27,10 +27,12 @@ def migrate():
             
         print(f"Found {len(rows)} rows to migrate...")
         
-        # Prepare data for Supabase upsert
+        # Prepare data for Supabase upsert with lowercase keys
         data_to_push = []
         for row in rows:
-            data_to_push.append(dict(row))
+            # Convert SQLite CamelCase keys to Supabase lowercase keys
+            lowered_row = {k.lower(): row[k] for k in row.keys()}
+            data_to_push.append(lowered_row)
             
         # Push to Supabase in chunks to avoid payload size limits
         chunk_size = 100
