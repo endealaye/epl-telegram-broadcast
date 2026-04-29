@@ -1,5 +1,4 @@
 import sqlite3
-import os
 from supabase import create_client, Client
 
 # Configuration

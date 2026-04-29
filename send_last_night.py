@@ -1,6 +1,5 @@
 import os
 import requests
-from datetime import datetime
 
 def load_env():
     env_path = '.env'
@@ -23,4 +22,3 @@ payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
 response = requests.post(url, json=payload)
 print(f"Status Code: {response.status_code}")
 print(f"Response: {response.text}")
-
