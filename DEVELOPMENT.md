@@ -82,7 +82,15 @@ This is used to persist the Telegram `last_update_id` for command polling.
 
 ## Runtime Execution Model
 
-The main entrypoint is `telegram_broadcast.py`.
+The CLI entrypoint is `telegram_broadcast.py`.
+
+Operational responsibilities are split across modules:
+
+- `sync.py`
+- `commands.py`
+- `live.py`
+- `broadcasts.py`
+- shared config/state helpers in `bot_config.py` and `store.py`
 
 Each invocation runs only the mode requested on the CLI:
 
