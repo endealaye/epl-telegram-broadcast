@@ -91,6 +91,7 @@ Operational responsibilities are split across modules:
 - `live.py`
 - `broadcasts.py`
 - shared config/state helpers in `bot_config.py` and `store.py`
+- agent-facing routing and result models in `orchestrator.py`, `worker_services.py`, and `service_models.py`
 
 Each invocation runs only the mode requested on the CLI:
 
@@ -101,6 +102,18 @@ Each invocation runs only the mode requested on the CLI:
 - `reminders`
 - `results`
 - `heartbeat`
+- `event` for structured agent/orchestrator input
+
+The `event` mode accepts a JSON object shaped like:
+
+```json
+{
+  "intent": "results",
+  "source": "voice",
+  "locale": "am",
+  "payload": {}
+}
+```
 
 Important operational consequence:
 

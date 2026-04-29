@@ -1,0 +1,76 @@
+DELETE FROM fixtures
+WHERE matchnumber IN (990001, 990002, 990003);
+
+INSERT INTO fixtures (
+    matchnumber,
+    roundnumber,
+    dateutc,
+    dateeat,
+    location,
+    hometeam,
+    awayteam,
+    matchgroup,
+    hometeamscore,
+    awayteamscore,
+    broadcaststatus,
+    last_broadcast_score,
+    half_time_sent,
+    daily_sent,
+    reminder_sent,
+    result_sent
+)
+VALUES
+(
+    990001,
+    999,
+    NULL,
+    to_char(timezone('Africa/Addis_Ababa', now()) + interval '4 hours', 'YYYY-MM-DD HH24:MI:SS'),
+    'TEST Ground',
+    'TEST Daily Home',
+    'TEST Daily Away',
+    'TEST',
+    NULL,
+    NULL,
+    'pending',
+    NULL,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE
+),
+(
+    990002,
+    999,
+    NULL,
+    to_char(timezone('Africa/Addis_Ababa', now()) + interval '30 minutes', 'YYYY-MM-DD HH24:MI:SS'),
+    'TEST Ground',
+    'TEST Reminder Home',
+    'TEST Reminder Away',
+    'TEST',
+    NULL,
+    NULL,
+    'pending',
+    NULL,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE
+),
+(
+    990003,
+    999,
+    NULL,
+    to_char(timezone('Africa/Addis_Ababa', now()) - interval '2 hours', 'YYYY-MM-DD HH24:MI:SS'),
+    'TEST Ground',
+    'TEST Result Home',
+    'TEST Result Away',
+    'TEST',
+    2,
+    1,
+    'pending',
+    NULL,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE
+);

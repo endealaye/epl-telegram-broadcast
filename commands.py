@@ -8,19 +8,23 @@ def send_telegram_message(message, chat_id=None):
     target_chat = chat_id or TELEGRAM_CHAT_ID
     if not TELEGRAM_BOT_TOKEN or not target_chat:
         print(message)
-        return
+        return False
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": target_chat, "text": message, "parse_mode": "Markdown"}
-    requests.post(url, json=payload)
+    response = requests.post(url, json=payload)
+    response.raise_for_status()
+    return True
 
 
 def send_admin_alert(message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_ADMIN_ID:
         print(f"Admin Alert: {message}")
-        return
+        return False
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_ADMIN_ID, "text": f"⚠️ *System Alert*\n\n{message}", "parse_mode": "Markdown"}
-    requests.post(url, json=payload)
+    response = requests.post(url, json=payload)
+    response.raise_for_status()
+    return True
 
 
 def broadcast_heartbeat(chat_id=None):
@@ -28,11 +32,11 @@ def broadcast_heartbeat(chat_id=None):
         now = get_eat_now()
         msg = f"✅ *System Heartbeat*\n\nBot is running normally.\nTime: {now.strftime('%Y-%m-%d %H:%M:%S')} EAT"
         if chat_id:
-            send_telegram_message(msg, chat_id=chat_id)
-        else:
-            send_admin_alert(msg.replace("⚠️ *System Alert*", "✅ *System Status*"))
+            return send_telegram_message(msg, chat_id=chat_id)
+        return send_admin_alert(msg.replace("⚠️ *System Alert*", "✅ *System Status*"))
     except Exception as e:
         print(f"Heartbeat error: {e}")
+        return False
 
 
 def process_commands():

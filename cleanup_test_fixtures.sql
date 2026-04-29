@@ -1,0 +1,2 @@
+DELETE FROM fixtures
+WHERE matchnumber IN (990001, 990002, 990003);

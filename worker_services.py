@@ -1,0 +1,95 @@
+from broadcasts import broadcast_daily, broadcast_reminders, broadcast_results
+from commands import broadcast_heartbeat, process_commands
+from live import process_live_updates
+from service_models import ServiceResult
+from store import has_live_window_matches, has_matches_today, has_pending_results, has_upcoming_matches
+from sync import update_fixtures_from_json
+
+
+def sync_fixtures_service():
+    success = update_fixtures_from_json()
+    message = "Fixtures refreshed." if success else "Fixture refresh failed."
+    return ServiceResult(action="refresh", success=success, message=message)
+
+
+def process_admin_commands_service():
+    process_commands()
+    return ServiceResult(
+        action="commands",
+        success=True,
+        message="Admin command polling completed.",
+    )
+
+
+def process_live_window_service():
+    if not has_live_window_matches():
+        return ServiceResult(
+            action="live",
+            success=True,
+            skipped=True,
+            message="Skip live: no fixtures in the active live window.",
+        )
+    process_live_updates()
+    return ServiceResult(
+        action="live",
+        success=True,
+        message="Live update processing completed.",
+    )
+
+
+def send_daily_broadcast_service():
+    if not has_matches_today():
+        return ServiceResult(
+            action="daily",
+            success=True,
+            skipped=True,
+            message="Skip daily: no fixtures scheduled today.",
+        )
+    broadcast_daily()
+    return ServiceResult(
+        action="daily",
+        success=True,
+        message="Daily broadcast processing completed.",
+    )
+
+
+def send_reminders_service():
+    if not has_upcoming_matches():
+        return ServiceResult(
+            action="reminders",
+            success=True,
+            skipped=True,
+            message="Skip reminders: no fixtures in the next 60 minutes.",
+        )
+    broadcast_reminders()
+    return ServiceResult(
+        action="reminders",
+        success=True,
+        message="Reminder broadcast processing completed.",
+    )
+
+
+def send_results_service():
+    if not has_pending_results():
+        return ServiceResult(
+            action="results",
+            success=True,
+            skipped=True,
+            message="Skip results: no completed fixtures awaiting a results post.",
+        )
+    broadcast_results()
+    return ServiceResult(
+        action="results",
+        success=True,
+        message="Results broadcast processing completed.",
+    )
+
+
+def send_heartbeat_service(chat_id=None):
+    success = broadcast_heartbeat(chat_id=chat_id)
+    return ServiceResult(
+        action="heartbeat",
+        success=success,
+        message="Heartbeat sent." if success else "Heartbeat failed.",
+        data={"chat_id": chat_id} if chat_id else {},
+    )
