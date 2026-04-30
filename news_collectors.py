@@ -8,7 +8,13 @@ from urllib.parse import urljoin
 import requests
 
 
-MEDIA_NS = {"media": "http://search.yahoo.com/mrss/"}
+RSS_NS = {
+    "media": "http://search.yahoo.com/mrss/",
+    "content": "http://purl.org/rss/1.0/modules/content/",
+    "dc": "http://purl.org/dc/elements/1.1/",
+    "atom": "http://www.w3.org/2005/Atom",
+}
+MEDIA_NS = {"media": RSS_NS["media"]}
 IMAGE_META_PATTERNS = [
     re.compile(
         r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
@@ -115,9 +121,115 @@ PREMIER_LEAGUE_CLUB_RSS_SOURCES = [
 def extract_tag_values(item_element):
     tags = []
     for category in item_element.findall("category"):
-        if category.text:
-            tags.append(category.text.strip())
+        value = (category.text or "").strip()
+        if not value:
+            value = (category.get("term") or "").strip()
+        if value:
+            tags.append(value)
+    for category in item_element.findall("atom:category", RSS_NS):
+        value = (category.get("term") or "").strip() or (category.text or "").strip()
+        if value:
+            tags.append(value)
     return tags
+
+
+def element_text(element):
+    if element is None:
+        return ""
+    text = "".join(element.itertext())
+    return (text or "").strip()
+
+
+def get_text_candidates(item_element, paths):
+    values = []
+    for path in paths:
+        node = item_element.find(path, RSS_NS)
+        if node is not None:
+            raw = element_text(node)
+            if raw:
+                values.append(raw)
+        direct = (item_element.findtext(path, default="", namespaces=RSS_NS) or "").strip()
+        if direct:
+            values.append(direct)
+    return values
+
+
+def normalize_text_candidate(value):
+    return strip_html(value)
+
+
+def extract_entry_link(item_element):
+    direct_link = (item_element.findtext("link") or "").strip()
+    if direct_link:
+        return direct_link
+
+    atom_link = item_element.find("atom:link", RSS_NS)
+    if atom_link is None:
+        atom_link = item_element.find("link")
+    if atom_link is not None:
+        href = (atom_link.get("href") or "").strip()
+        if href:
+            return href
+    return ""
+
+
+def extract_entry_author(item_element):
+    candidates = get_text_candidates(
+        item_element,
+        [
+            "author",
+            "dc:creator",
+            "{http://purl.org/dc/elements/1.1/}creator",
+            "atom:author/atom:name",
+            "author/name",
+        ],
+    )
+    for candidate in candidates:
+        normalized = normalize_text_candidate(candidate)
+        if normalized:
+            return normalized
+    return None
+
+
+def extract_summary_and_story(item_element):
+    summary_candidates = get_text_candidates(
+        item_element,
+        [
+            "description",
+            "summary",
+            "atom:summary",
+            "media:description",
+        ],
+    )
+    content_candidates = get_text_candidates(
+        item_element,
+        [
+            "content:encoded",
+            "{http://purl.org/rss/1.0/modules/content/}encoded",
+            "content",
+            "atom:content",
+        ],
+    )
+
+    summary = None
+    for candidate in summary_candidates:
+        cleaned = normalize_text_candidate(candidate)
+        if cleaned:
+            summary = cleaned
+            break
+
+    story = None
+    for candidate in content_candidates:
+        cleaned = normalize_text_candidate(candidate)
+        if cleaned:
+            story = cleaned
+            break
+
+    if not summary and story:
+        summary = story
+    if summary and story and story == summary:
+        story = None
+    return summary or "", story
 
 
 def extract_image_url(item_element):
@@ -283,20 +395,44 @@ def enrich_item_image(item, session):
 
 def _build_rss_items(root, max_items=None):
     items = []
-    for entry in root.findall("./channel/item"):
+
+    entries = root.findall("./channel/item")
+    if not entries:
+        entries = root.findall("./item")
+    if not entries:
+        entries = root.findall("./{http://www.w3.org/2005/Atom}entry")
+    if not entries:
+        entries = root.findall("./entry")
+
+    for entry in entries:
+        summary, story = extract_summary_and_story(entry)
+        title_candidates = get_text_candidates(entry, ["title", "atom:title"])
+        published_candidates = get_text_candidates(
+            entry,
+            [
+                "pubDate",
+                "atom:published",
+                "atom:updated",
+                "updated",
+                "dc:date",
+            ],
+        )
+        title = ""
+        for candidate in title_candidates:
+            cleaned = normalize_text_candidate(candidate)
+            if cleaned:
+                title = cleaned
+                break
+
         items.append(
             {
-                "title": (entry.findtext("title") or "").strip(),
-                "summary": (entry.findtext("description") or "").strip(),
-                "story": None,
-                "article_url": (entry.findtext("link") or "").strip(),
+                "title": title,
+                "summary": summary,
+                "story": story,
+                "article_url": extract_entry_link(entry),
                 "image_url": extract_image_url(entry),
-                "published_at": (entry.findtext("pubDate") or "").strip(),
-                "author": (
-                    (entry.findtext("author") or "").strip()
-                    or (entry.findtext("{http://purl.org/dc/elements/1.1/}creator") or "").strip()
-                    or None
-                ),
+                "published_at": published_candidates[0] if published_candidates else "",
+                "author": extract_entry_author(entry),
                 "language": "en",
                 "topic_tags": extract_tag_values(entry),
             }

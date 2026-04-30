@@ -36,6 +36,7 @@ NEWS_IMAGE_MAX_PIXELS = int(os.getenv("NEWS_IMAGE_MAX_PIXELS", str(40_000_000)))
 NEWS_IMAGE_TIMEOUT = (8, 20)
 NEWS_IMAGE_CHUNK_SIZE = 64 * 1024
 NEWS_FETCH_MAX_WORKERS = int(os.getenv("NEWS_FETCH_MAX_WORKERS", "8"))
+MIN_NEWS_COPY_LENGTH = int(os.getenv("NEWS_MIN_COPY_LENGTH", "40"))
 WATERMARK_ASSET_CANDIDATES = (
     "gatanga_watermark.svg",
     "gatanga_watermark_clean.png",
@@ -246,18 +247,24 @@ def fetch_news_items():
                 "fetched_count": len(raw_items),
             }
         )
-        normalized_items.extend(
-            [
+        for item in raw_items:
+            title = (item.get("title") or "").strip()
+            article_url = (item.get("article_url") or "").strip()
+            summary = (item.get("summary") or "").strip()
+            story = (item.get("story") or "").strip()
+            best_copy = story if len(story) >= len(summary) else summary
+            if not title or not article_url:
+                continue
+            if len(best_copy) < MIN_NEWS_COPY_LENGTH:
+                continue
+            normalized_items.append(
                 normalize_news_item(
                     source_key=source["source_key"],
                     source_name=source["source_name"],
                     source_url=source["source_url"],
                     item=item,
                 )
-                for item in raw_items
-                if item.get("article_url") and item.get("title")
-            ]
-        )
+            )
 
     bbc_source = next(
         (row for row in source_breakdown if row.get("source_key") == "bbc_football_rss"),
