@@ -2,8 +2,13 @@ import os
 from datetime import datetime, timedelta, timezone
 
 
+def _clean_env(name):
+    value = os.getenv(name)
+    return value.strip() if isinstance(value, str) else value
+
+
 def load_env():
-    if os.getenv('TELEGRAM_BOT_TOKEN') and os.getenv('TELEGRAM_CHAT_ID'):
+    if _clean_env('TELEGRAM_BOT_TOKEN') and _clean_env('TELEGRAM_CHAT_ID'):
         return
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -21,11 +26,11 @@ load_env()
 JSON_URL = 'https://fixturedownload.com/feed/json/epl-2025'
 BBC_SCORES_URL = 'https://www.bbc.com/sport/football/premier-league/scores-fixtures'
 SKY_SCORES_URL = 'https://www.skysports.com/premier-league/scores'
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-TELEGRAM_ADMIN_ID = os.getenv('TELEGRAM_ADMIN_ID')
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+TELEGRAM_BOT_TOKEN = _clean_env('TELEGRAM_BOT_TOKEN')
+TELEGRAM_CHAT_ID = _clean_env('TELEGRAM_CHAT_ID')
+TELEGRAM_ADMIN_ID = _clean_env('TELEGRAM_ADMIN_ID')
+SUPABASE_URL = _clean_env('SUPABASE_URL')
+SUPABASE_KEY = _clean_env('SUPABASE_KEY')
 
 
 def get_eat_now():

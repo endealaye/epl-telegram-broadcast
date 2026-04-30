@@ -30,6 +30,33 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
+      - name: Validate required secrets
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+
+          required = ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "SUPABASE_URL", "SUPABASE_KEY"]
+          missing = [k for k in required if not (os.getenv(k) or "").strip()]
+          if missing:
+              print(f"Missing required secrets: {', '.join(missing)}")
+              sys.exit(1)
+
+          supabase_url = (os.getenv("SUPABASE_URL") or "").strip()
+          if not supabase_url.startswith("https://"):
+              print("SUPABASE_URL must start with https://")
+              sys.exit(1)
+
+          if "supabase.co" not in supabase_url:
+              print("SUPABASE_URL looks unusual; expected a *.supabase.co URL.")
+          print("Secrets validation passed.")
+          PY
+
       - name: Refresh Fixtures
         if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 5 * * *' || github.event.schedule == '0 17 * * *'
         env:

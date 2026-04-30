@@ -24,67 +24,95 @@ def process_admin_commands_service():
 
 
 def process_live_window_service():
-    if not has_live_window_matches():
+    try:
+        if not has_live_window_matches():
+            return ServiceResult(
+                action="live",
+                success=True,
+                skipped=True,
+                message="Skip live: no fixtures in the active live window.",
+            )
+        process_live_updates()
         return ServiceResult(
             action="live",
             success=True,
-            skipped=True,
-            message="Skip live: no fixtures in the active live window.",
+            message="Live update processing completed.",
         )
-    process_live_updates()
-    return ServiceResult(
-        action="live",
-        success=True,
-        message="Live update processing completed.",
-    )
+    except Exception as e:
+        return ServiceResult(
+            action="live",
+            success=False,
+            message=f"Live update processing failed: {e}",
+        )
 
 
 def send_daily_broadcast_service():
-    if not has_matches_today():
+    try:
+        if not has_matches_today():
+            return ServiceResult(
+                action="daily",
+                success=True,
+                skipped=True,
+                message="Skip daily: no fixtures scheduled today.",
+            )
+        broadcast_daily()
         return ServiceResult(
             action="daily",
             success=True,
-            skipped=True,
-            message="Skip daily: no fixtures scheduled today.",
+            message="Daily broadcast processing completed.",
         )
-    broadcast_daily()
-    return ServiceResult(
-        action="daily",
-        success=True,
-        message="Daily broadcast processing completed.",
-    )
+    except Exception as e:
+        return ServiceResult(
+            action="daily",
+            success=False,
+            message=f"Daily broadcast processing failed: {e}",
+        )
 
 
 def send_reminders_service():
-    if not has_upcoming_matches():
+    try:
+        if not has_upcoming_matches():
+            return ServiceResult(
+                action="reminders",
+                success=True,
+                skipped=True,
+                message="Skip reminders: no fixtures in the next 60 minutes.",
+            )
+        broadcast_reminders()
         return ServiceResult(
             action="reminders",
             success=True,
-            skipped=True,
-            message="Skip reminders: no fixtures in the next 60 minutes.",
+            message="Reminder broadcast processing completed.",
         )
-    broadcast_reminders()
-    return ServiceResult(
-        action="reminders",
-        success=True,
-        message="Reminder broadcast processing completed.",
-    )
+    except Exception as e:
+        return ServiceResult(
+            action="reminders",
+            success=False,
+            message=f"Reminder broadcast processing failed: {e}",
+        )
 
 
 def send_results_service():
-    if not has_pending_results():
+    try:
+        if not has_pending_results():
+            return ServiceResult(
+                action="results",
+                success=True,
+                skipped=True,
+                message="Skip results: no completed fixtures awaiting a results post.",
+            )
+        broadcast_results()
         return ServiceResult(
             action="results",
             success=True,
-            skipped=True,
-            message="Skip results: no completed fixtures awaiting a results post.",
+            message="Results broadcast processing completed.",
         )
-    broadcast_results()
-    return ServiceResult(
-        action="results",
-        success=True,
-        message="Results broadcast processing completed.",
-    )
+    except Exception as e:
+        return ServiceResult(
+            action="results",
+            success=False,
+            message=f"Results broadcast processing failed: {e}",
+        )
 
 
 def send_standings_service(format_name=None):
