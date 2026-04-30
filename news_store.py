@@ -81,7 +81,7 @@ ALLOWED_REVIEW_STATUSES = {
 }
 
 ALLOWED_STATUS_TRANSITIONS = {
-    "filtered": {"filtered", "approved", "translated", "rejected"},
+    "filtered": {"filtered", "approved", "translated", "published", "rejected"},
     "approved": {"approved", "translated", "published", "rejected"},
     "translated": {"translated", "approved", "published", "rejected"},
     "rejected": {"rejected", "filtered", "approved", "translated"},
