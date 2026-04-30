@@ -13,18 +13,22 @@ on:
 jobs:
   broadcast:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
-          pip install requests beautifulsoup4 supabase
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Refresh Fixtures
         if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 5 * * *' || github.event.schedule == '0 17 * * *'
