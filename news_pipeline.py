@@ -1,19 +1,27 @@
 import re
 import tempfile
 from io import BytesIO
+import os
 from pathlib import Path
 
 import requests
 from PIL import Image
 
 from commands import send_telegram_message, send_telegram_photo_file
-from news_collectors import fetch_bbc_football_rss
+from news_collectors import (
+    PREMIER_LEAGUE_CLUB_RSS_SOURCES,
+    fetch_bbc_football_rss,
+    fetch_guardian_premier_league_rss,
+    fetch_rss_source,
+    fetch_sky_sports_premier_league_rss,
+)
 from news_store import (
     get_news_item,
     list_news_queue,
     mark_news_item,
     normalize_news_item,
     upsert_news_items,
+    validate_status_transition,
 )
 
 TELEGRAM_CAPTION_LIMIT = 1024
@@ -21,6 +29,10 @@ WATERMARK_MARGIN_RATIO = 0.04
 WATERMARK_WIDTH_RATIO = 0.24
 WATERMARK_MAX_WIDTH = 320
 WATERMARK_MIN_WIDTH = 120
+NEWS_IMAGE_MAX_BYTES = int(os.getenv("NEWS_IMAGE_MAX_BYTES", str(8 * 1024 * 1024)))
+NEWS_IMAGE_MAX_PIXELS = int(os.getenv("NEWS_IMAGE_MAX_PIXELS", str(40_000_000)))
+NEWS_IMAGE_TIMEOUT = (8, 20)
+NEWS_IMAGE_CHUNK_SIZE = 64 * 1024
 WATERMARK_ASSET_CANDIDATES = (
     "gatanga_watermark.svg",
     "gatanga_watermark_clean.png",
@@ -95,10 +107,39 @@ def build_watermark_overlay(width, height):
 
 
 def create_watermarked_image(image_url):
-    response = requests.get(image_url, timeout=20)
+    response = requests.get(image_url, timeout=NEWS_IMAGE_TIMEOUT, stream=True)
     response.raise_for_status()
 
-    with Image.open(BytesIO(response.content)) as original:
+    content_type = (response.headers.get("Content-Type") or "").lower()
+    if not content_type.startswith("image/"):
+        raise ValueError(f"Unsupported content type for image: {content_type or 'unknown'}")
+
+    content_length = response.headers.get("Content-Length")
+    if content_length:
+        try:
+            parsed_length = int(content_length)
+        except (TypeError, ValueError):
+            parsed_length = None
+        if parsed_length and parsed_length > NEWS_IMAGE_MAX_BYTES:
+            raise ValueError("Image is too large to process.")
+
+    image_bytes = bytearray()
+    try:
+        for chunk in response.iter_content(chunk_size=NEWS_IMAGE_CHUNK_SIZE):
+            if not chunk:
+                continue
+            image_bytes.extend(chunk)
+            if len(image_bytes) > NEWS_IMAGE_MAX_BYTES:
+                raise ValueError("Image is too large to process.")
+    finally:
+        response.close()
+
+    with Image.open(BytesIO(bytes(image_bytes))) as original:
+        width, height = original.size
+        if width <= 0 or height <= 0:
+            raise ValueError("Invalid image dimensions.")
+        if width * height > NEWS_IMAGE_MAX_PIXELS:
+            raise ValueError("Image dimensions are too large to process.")
         base = original.convert("RGBA")
 
     overlay = build_watermark_overlay(*base.size)
@@ -141,17 +182,66 @@ def format_news_broadcast(item):
 
 
 def fetch_news_items():
-    source, raw_items = fetch_bbc_football_rss()
-    normalized_items = [
-        normalize_news_item(
-            source_key=source["source_key"],
-            source_name=source["source_name"],
-            source_url=source["source_url"],
-            item=item,
-        )
-        for item in raw_items
-        if item.get("article_url") and item.get("title")
+    attempted_sources = []
+    failed_sources = []
+    collected_batches = []
+
+    base_collectors = [
+        ("bbc", fetch_bbc_football_rss),
+        ("guardian", fetch_guardian_premier_league_rss),
+        ("sky_sports", fetch_sky_sports_premier_league_rss),
     ]
+
+    for source_name, collector in base_collectors:
+        attempted_sources.append(source_name)
+        try:
+            source, raw_items = collector()
+            if raw_items:
+                collected_batches.append((source, raw_items))
+        except Exception as exc:
+            failed_sources.append({"source": source_name, "error": str(exc)})
+
+    for source_config in PREMIER_LEAGUE_CLUB_RSS_SOURCES:
+        source_key = source_config.get("source_key", "club_unknown")
+        attempted_sources.append(source_key)
+        try:
+            source, raw_items = fetch_rss_source(source_config, enrich=False)
+            if raw_items:
+                collected_batches.append((source, raw_items))
+        except Exception as exc:
+            failed_sources.append({"source": source_key, "error": str(exc)})
+
+    if not collected_batches:
+        raise RuntimeError("All news sources failed or returned no items.")
+
+    source_breakdown = []
+    normalized_items = []
+    fetched_total = 0
+
+    for source, raw_items in collected_batches:
+        fetched_total += len(raw_items)
+        source_breakdown.append(
+            {
+                "source_key": source.get("source_key"),
+                "source_name": source.get("source_name"),
+                "source_url": source.get("source_url"),
+                "fetched_count": len(raw_items),
+            }
+        )
+        normalized_items.extend(
+            [
+                normalize_news_item(
+                    source_key=source["source_key"],
+                    source_name=source["source_name"],
+                    source_url=source["source_url"],
+                    item=item,
+                )
+                for item in raw_items
+                if item.get("article_url") and item.get("title")
+            ]
+        )
+
+    primary_source = source_breakdown[0] if source_breakdown else {}
 
     deduped_items = {}
     for item in normalized_items:
@@ -159,8 +249,19 @@ def fetch_news_items():
 
     stored_items = upsert_news_items(list(deduped_items.values()))
     return {
-        "source": source,
-        "fetched_count": len(raw_items),
+        "source": {
+            "source_key": primary_source.get("source_key"),
+            "source_name": primary_source.get("source_name"),
+            "source_url": primary_source.get("source_url"),
+        },
+        "source_breakdown": source_breakdown,
+        "attempted_sources": attempted_sources,
+        "failed_sources": failed_sources,
+        "fallback_used": any(
+            row.get("source_key") != "bbc_football_rss"
+            for row in source_breakdown
+        ),
+        "fetched_count": fetched_total,
         "normalized_count": len(normalized_items),
         "deduped_count": len(deduped_items),
         "stored_count": len(stored_items),
@@ -178,6 +279,7 @@ def mark_review_item(
     translated_story_am=None,
     notes=None,
 ):
+    status = (status or "").strip().lower()
     if status != "published":
         return mark_news_item(
             item_id=item_id,
@@ -192,6 +294,7 @@ def mark_review_item(
         raise ValueError("News item not found.")
     if item.get("review_status") == "published":
         raise ValueError("News item is already published.")
+    validate_status_transition(item.get("review_status"), status)
 
     final_title = translated_title_am if translated_title_am is not None else item.get("translated_title_am")
     final_story = translated_story_am if translated_story_am is not None else item.get("translated_story_am")

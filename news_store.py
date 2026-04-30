@@ -71,6 +71,45 @@ EXCLUDE_PATTERNS = [
     r"\bask me anything\b",
 ]
 
+ALLOWED_REVIEW_STATUSES = {
+    "filtered",
+    "approved",
+    "translated",
+    "published",
+    "rejected",
+}
+
+ALLOWED_STATUS_TRANSITIONS = {
+    "filtered": {"filtered", "approved", "translated", "rejected"},
+    "approved": {"approved", "translated", "published", "rejected"},
+    "translated": {"translated", "approved", "published", "rejected"},
+    "rejected": {"rejected", "filtered", "approved", "translated"},
+    "published": {"published"},
+}
+
+
+def normalize_review_status(status):
+    return (status or "").strip().lower()
+
+
+def validate_review_status(status):
+    normalized = normalize_review_status(status)
+    if normalized not in ALLOWED_REVIEW_STATUSES:
+        allowed = ", ".join(sorted(ALLOWED_REVIEW_STATUSES))
+        raise ValueError(f"Invalid review status '{status}'. Allowed values: {allowed}.")
+    return normalized
+
+
+def validate_status_transition(current_status, target_status):
+    current = normalize_review_status(current_status)
+    target = validate_review_status(target_status)
+    if not current:
+        return target
+    allowed_targets = ALLOWED_STATUS_TRANSITIONS.get(current, set())
+    if target not in allowed_targets:
+        raise ValueError(f"Invalid status transition: '{current_status}' -> '{target_status}'.")
+    return target
+
 
 def parse_rss_datetime(value):
     if not value:
@@ -214,6 +253,12 @@ def mark_news_item(
 ):
     if not supabase:
         return None
+
+    status = validate_review_status(status)
+    current_item = get_news_item(item_id)
+    if not current_item:
+        return None
+    status = validate_status_transition(current_item.get("review_status"), status)
 
     payload = {
         "review_status": status,

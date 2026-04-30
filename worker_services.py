@@ -3,6 +3,7 @@ from commands import broadcast_heartbeat, process_commands
 from live import process_live_updates
 from news_pipeline import fetch_news_items, get_review_queue, mark_review_item
 from service_models import ServiceResult
+from standings import broadcast_standings
 from store import has_live_window_matches, has_matches_today, has_pending_results, has_upcoming_matches
 from sync import update_fixtures_from_json
 
@@ -83,6 +84,17 @@ def send_results_service():
         action="results",
         success=True,
         message="Results broadcast processing completed.",
+    )
+
+
+def send_standings_service(format_name=None):
+    result = broadcast_standings(format_name=format_name)
+    return ServiceResult(
+        action="standings",
+        success=result.get("success", False),
+        skipped=result.get("skipped", False),
+        message=result.get("message", ""),
+        data=result.get("data", {}),
     )
 
 

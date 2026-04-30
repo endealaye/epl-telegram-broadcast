@@ -74,8 +74,35 @@ BYLINE_PATTERN = re.compile(
 BBC_FOOTBALL_SOURCE = {
     "source_key": "bbc_football_rss",
     "source_name": "BBC Sport Football",
-    "source_url": "http://newsrss.bbc.co.uk/rss/sportonline_uk_edition/football/rss.xml",
+    "source_url": "https://feeds.bbci.co.uk/sport/football/rss.xml",
 }
+
+GUARDIAN_PREMIER_LEAGUE_SOURCE = {
+    "source_key": "guardian_premier_league_rss",
+    "source_name": "The Guardian Premier League",
+    "source_url": "https://www.theguardian.com/football/premierleague/rss",
+}
+
+SKY_SPORTS_PREMIER_LEAGUE_SOURCE = {
+    "source_key": "sky_sports_premier_league_rss",
+    "source_name": "Sky Sports Premier League",
+    "source_url": "https://www.skysports.com/rss/11661",
+}
+
+PREMIER_LEAGUE_CLUB_RSS_SOURCES = [
+    {"source_key": "club_arsenal_rss", "source_name": "Arsenal", "source_url": "https://www.arsenal.com/rss.xml"},
+    {"source_key": "club_aston_villa_rss", "source_name": "Aston Villa", "source_url": "https://www.avfc.co.uk/rss.xml"},
+    {"source_key": "club_bournemouth_rss", "source_name": "Bournemouth", "source_url": "https://www.afcb.co.uk/rss.xml"},
+    {"source_key": "club_brighton_rss", "source_name": "Brighton", "source_url": "https://www.brightonandhovealbion.com/rss"},
+    {"source_key": "club_burnley_rss", "source_name": "Burnley", "source_url": "https://www.burnleyfootballclub.com/rss.xml"},
+    {"source_key": "club_crystal_palace_rss", "source_name": "Crystal Palace", "source_url": "https://www.cpfc.co.uk/rss.xml"},
+    {"source_key": "club_everton_rss", "source_name": "Everton", "source_url": "https://www.evertonfc.com/rss.xml"},
+    {"source_key": "club_fulham_rss", "source_name": "Fulham", "source_url": "https://www.fulhamfc.com/rss.xml"},
+    {"source_key": "club_manchester_united_rss", "source_name": "Manchester United", "source_url": "https://www.manutd.com/rss"},
+    {"source_key": "club_nottingham_forest_rss", "source_name": "Nottingham Forest", "source_url": "https://www.nottinghamforest.co.uk/rss.xml"},
+    {"source_key": "club_sunderland_rss", "source_name": "Sunderland", "source_url": "https://www.safc.com/rss.xml"},
+    {"source_key": "club_wolves_rss", "source_name": "Wolves", "source_url": "https://www.wolves.co.uk/news/rss"},
+]
 
 
 def extract_tag_values(item_element):
@@ -247,21 +274,7 @@ def enrich_item_image(item, session):
     return item
 
 
-def fetch_bbc_football_rss():
-    session = requests.Session()
-    session.headers.update(
-        {
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0 Safari/537.36"
-            )
-        }
-    )
-
-    response = session.get(BBC_FOOTBALL_SOURCE["source_url"], timeout=20)
-    response.raise_for_status()
-
-    root = ET.fromstring(response.content)
+def _build_rss_items(root):
     items = []
     for entry in root.findall("./channel/item"):
         items.append(
@@ -272,11 +285,37 @@ def fetch_bbc_football_rss():
                 "article_url": (entry.findtext("link") or "").strip(),
                 "image_url": extract_image_url(entry),
                 "published_at": (entry.findtext("pubDate") or "").strip(),
-                "author": (entry.findtext("author") or "").strip() or None,
+                "author": (
+                    (entry.findtext("author") or "").strip()
+                    or (entry.findtext("{http://purl.org/dc/elements/1.1/}creator") or "").strip()
+                    or None
+                ),
                 "language": "en",
                 "topic_tags": extract_tag_values(entry),
             }
         )
+    return items
+
+
+def _fetch_rss_source(source_config, enrich=True):
+    session = requests.Session()
+    session.headers.update(
+        {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0 Safari/537.36"
+            )
+        }
+    )
+
+    response = session.get(source_config["source_url"], timeout=20)
+    response.raise_for_status()
+
+    root = ET.fromstring(response.content)
+    items = _build_rss_items(root)
+
+    if not enrich:
+        return source_config, items
 
     enriched_items = [None] * len(items)
     with ThreadPoolExecutor(max_workers=6) as executor:
@@ -287,4 +326,30 @@ def fetch_bbc_football_rss():
         for future in as_completed(futures):
             enriched_items[futures[future]] = future.result()
 
-    return BBC_FOOTBALL_SOURCE, enriched_items
+    return source_config, enriched_items
+
+
+def fetch_bbc_football_rss():
+    return _fetch_rss_source(BBC_FOOTBALL_SOURCE, enrich=True)
+
+
+def fetch_guardian_premier_league_rss():
+    return _fetch_rss_source(GUARDIAN_PREMIER_LEAGUE_SOURCE, enrich=False)
+
+
+def fetch_sky_sports_premier_league_rss():
+    return _fetch_rss_source(SKY_SPORTS_PREMIER_LEAGUE_SOURCE, enrich=False)
+
+
+def fetch_rss_source(source_config, enrich=False):
+    return _fetch_rss_source(source_config, enrich=enrich)
+
+
+def fetch_premier_league_club_rss_feeds():
+    results = []
+    for source_config in PREMIER_LEAGUE_CLUB_RSS_SOURCES:
+        try:
+            results.append(_fetch_rss_source(source_config, enrich=False))
+        except Exception:
+            continue
+    return results

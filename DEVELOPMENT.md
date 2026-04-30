@@ -122,6 +122,7 @@ Each invocation runs only the mode requested on the CLI:
 - `daily`
 - `reminders`
 - `results`
+- `standings`
 - `heartbeat`
 - `event` for structured agent/orchestrator input
 - `news-fetch`
@@ -146,7 +147,26 @@ The news workflow is intentionally human-in-the-loop:
 3. `news-queue` shows reviewable items by default
 4. `news-mark` moves items through review states such as `approved`, `translated`, and `published`
 
+`news-mark` enforces status validation:
+
+- Allowed statuses: `filtered`, `approved`, `translated`, `published`, `rejected`
+- `published` is terminal for normal flow (only `published -> published` is allowed)
+- Publishing still requires both `translated_title_am` and `translated_story_am`
+
+Image handling for publishing with photo now includes safety limits:
+
+- Validates remote `Content-Type` is `image/*`
+- Enforces max download size (default 8MB; env `NEWS_IMAGE_MAX_BYTES`)
+- Enforces max decoded pixel area (default 40,000,000; env `NEWS_IMAGE_MAX_PIXELS`)
+
 The default initial filter is Premier League-oriented and excludes low-priority categories such as generic features, podcasts, videos, women's football, and non-target domestic leagues.
+
+News source aggregation:
+
+- Core sources: BBC Sport Football RSS + The Guardian Premier League RSS + Sky Sports Premier League RSS
+- Club sources: available official Premier League club RSS feeds (where exposed)
+- `news-fetch` now pulls from all configured sources in one run
+- Source-level failures are isolated; one failing feed does not stop the whole fetch job
 
 Important operational consequence:
 
@@ -175,6 +195,9 @@ Important operational consequence:
 - Query: today’s fixtures where score data exists and `result_sent` is false
 - Output: consolidated results roundup in Amharic
 - State change: updates sent rows to `result_sent = true`
+- Locking: per-day lock in `bot_state` prevents overlapping runs from sending duplicate results
+- Post-step: sends `standings short` automatically when the latest kickoff match(es) of the day have final scores
+- Idempotency: auto-standings post is capped to once per day via `bot_state`
 
 ### `live updates`
 
@@ -237,6 +260,9 @@ python3 telegram_broadcast.py live
 python3 telegram_broadcast.py daily
 python3 telegram_broadcast.py reminders
 python3 telegram_broadcast.py results
+python3 telegram_broadcast.py standings
+python3 telegram_broadcast.py standings short
+python3 telegram_broadcast.py standings full
 python3 telegram_broadcast.py heartbeat
 python3 telegram_broadcast.py news-fetch
 ```

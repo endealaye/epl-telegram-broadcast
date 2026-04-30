@@ -11,6 +11,7 @@ from worker_services import (
     send_heartbeat_service,
     send_reminders_service,
     send_results_service,
+    send_standings_service,
     sync_fixtures_service,
 )
 
@@ -22,6 +23,7 @@ INTENT_HANDLERS = {
     "daily": lambda payload: send_daily_broadcast_service(),
     "reminders": lambda payload: send_reminders_service(),
     "results": lambda payload: send_results_service(),
+    "standings": lambda payload: send_standings_service(format_name=payload.get("format")),
     "heartbeat": lambda payload: send_heartbeat_service(chat_id=payload.get("chat_id")),
     "news_fetch": lambda payload: fetch_news_service(),
     "news_queue": lambda payload: list_news_queue_service(limit=payload.get("limit", 20)),
