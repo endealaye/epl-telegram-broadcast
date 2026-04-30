@@ -1,7 +1,8 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import os
 import re
 import tempfile
 from io import BytesIO
-import os
 from pathlib import Path
 
 import requests
@@ -10,6 +11,7 @@ from PIL import Image
 from commands import send_telegram_message, send_telegram_photo_file
 from news_collectors import (
     PREMIER_LEAGUE_CLUB_RSS_SOURCES,
+    RSS_MAX_ITEMS_CLUB,
     fetch_bbc_football_rss,
     fetch_guardian_premier_league_rss,
     fetch_rss_source,
@@ -33,6 +35,7 @@ NEWS_IMAGE_MAX_BYTES = int(os.getenv("NEWS_IMAGE_MAX_BYTES", str(8 * 1024 * 1024
 NEWS_IMAGE_MAX_PIXELS = int(os.getenv("NEWS_IMAGE_MAX_PIXELS", str(40_000_000)))
 NEWS_IMAGE_TIMEOUT = (8, 20)
 NEWS_IMAGE_CHUNK_SIZE = 64 * 1024
+NEWS_FETCH_MAX_WORKERS = int(os.getenv("NEWS_FETCH_MAX_WORKERS", "8"))
 WATERMARK_ASSET_CANDIDATES = (
     "gatanga_watermark.svg",
     "gatanga_watermark_clean.png",
@@ -192,24 +195,39 @@ def fetch_news_items():
         ("sky_sports", fetch_sky_sports_premier_league_rss),
     ]
 
+    jobs = []
     for source_name, collector in base_collectors:
         attempted_sources.append(source_name)
-        try:
-            source, raw_items = collector()
-            if raw_items:
-                collected_batches.append((source, raw_items))
-        except Exception as exc:
-            failed_sources.append({"source": source_name, "error": str(exc)})
+        jobs.append((source_name, collector))
 
     for source_config in PREMIER_LEAGUE_CLUB_RSS_SOURCES:
         source_key = source_config.get("source_key", "club_unknown")
         attempted_sources.append(source_key)
-        try:
-            source, raw_items = fetch_rss_source(source_config, enrich=False)
-            if raw_items:
-                collected_batches.append((source, raw_items))
-        except Exception as exc:
-            failed_sources.append({"source": source_key, "error": str(exc)})
+        jobs.append(
+            (
+                source_key,
+                lambda cfg=source_config: fetch_rss_source(
+                    cfg,
+                    enrich=False,
+                    max_items=RSS_MAX_ITEMS_CLUB,
+                ),
+            )
+        )
+
+    max_workers = max(2, min(NEWS_FETCH_MAX_WORKERS, len(jobs) or 2))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_map = {
+            executor.submit(job_fn): source_name
+            for source_name, job_fn in jobs
+        }
+        for future in as_completed(future_map):
+            source_name = future_map[future]
+            try:
+                source, raw_items = future.result()
+                if raw_items:
+                    collected_batches.append((source, raw_items))
+            except Exception as exc:
+                failed_sources.append({"source": source_name, "error": str(exc)})
 
     if not collected_batches:
         raise RuntimeError("All news sources failed or returned no items.")
@@ -241,7 +259,11 @@ def fetch_news_items():
             ]
         )
 
-    primary_source = source_breakdown[0] if source_breakdown else {}
+    bbc_source = next(
+        (row for row in source_breakdown if row.get("source_key") == "bbc_football_rss"),
+        None,
+    )
+    primary_source = bbc_source or (source_breakdown[0] if source_breakdown else {})
 
     deduped_items = {}
     for item in normalized_items:

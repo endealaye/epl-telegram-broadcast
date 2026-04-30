@@ -174,6 +174,8 @@ News source aggregation:
 - Club sources: available official Premier League club RSS feeds (where exposed)
 - `news-fetch` now pulls from all configured sources in one run
 - Source-level failures are isolated; one failing feed does not stop the whole fetch job
+- Source fetches run concurrently to reduce dashboard request latency
+- Per-source item caps are enforced (`NEWS_RSS_MAX_ITEMS_CORE`, `NEWS_RSS_MAX_ITEMS_CLUB`)
 
 Important operational consequence:
 

@@ -1,4 +1,5 @@
 import html
+import os
 import re
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -76,6 +77,12 @@ BBC_FOOTBALL_SOURCE = {
     "source_name": "BBC Sport Football",
     "source_url": "https://feeds.bbci.co.uk/sport/football/rss.xml",
 }
+
+RSS_CONNECT_TIMEOUT = float(os.getenv("NEWS_RSS_CONNECT_TIMEOUT", "5"))
+RSS_READ_TIMEOUT = float(os.getenv("NEWS_RSS_READ_TIMEOUT", "10"))
+RSS_TIMEOUT = (RSS_CONNECT_TIMEOUT, RSS_READ_TIMEOUT)
+RSS_MAX_ITEMS_CORE = int(os.getenv("NEWS_RSS_MAX_ITEMS_CORE", "60"))
+RSS_MAX_ITEMS_CLUB = int(os.getenv("NEWS_RSS_MAX_ITEMS_CLUB", "25"))
 
 GUARDIAN_PREMIER_LEAGUE_SOURCE = {
     "source_key": "guardian_premier_league_rss",
@@ -274,7 +281,7 @@ def enrich_item_image(item, session):
     return item
 
 
-def _build_rss_items(root):
+def _build_rss_items(root, max_items=None):
     items = []
     for entry in root.findall("./channel/item"):
         items.append(
@@ -294,10 +301,12 @@ def _build_rss_items(root):
                 "topic_tags": extract_tag_values(entry),
             }
         )
+        if max_items and len(items) >= max_items:
+            break
     return items
 
 
-def _fetch_rss_source(source_config, enrich=True):
+def _fetch_rss_source(source_config, enrich=True, max_items=None):
     session = requests.Session()
     session.headers.update(
         {
@@ -308,11 +317,11 @@ def _fetch_rss_source(source_config, enrich=True):
         }
     )
 
-    response = session.get(source_config["source_url"], timeout=20)
+    response = session.get(source_config["source_url"], timeout=RSS_TIMEOUT)
     response.raise_for_status()
 
     root = ET.fromstring(response.content)
-    items = _build_rss_items(root)
+    items = _build_rss_items(root, max_items=max_items)
 
     if not enrich:
         return source_config, items
@@ -330,26 +339,26 @@ def _fetch_rss_source(source_config, enrich=True):
 
 
 def fetch_bbc_football_rss():
-    return _fetch_rss_source(BBC_FOOTBALL_SOURCE, enrich=True)
+    return _fetch_rss_source(BBC_FOOTBALL_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
 
 
 def fetch_guardian_premier_league_rss():
-    return _fetch_rss_source(GUARDIAN_PREMIER_LEAGUE_SOURCE, enrich=False)
+    return _fetch_rss_source(GUARDIAN_PREMIER_LEAGUE_SOURCE, enrich=False, max_items=RSS_MAX_ITEMS_CORE)
 
 
 def fetch_sky_sports_premier_league_rss():
-    return _fetch_rss_source(SKY_SPORTS_PREMIER_LEAGUE_SOURCE, enrich=False)
+    return _fetch_rss_source(SKY_SPORTS_PREMIER_LEAGUE_SOURCE, enrich=False, max_items=RSS_MAX_ITEMS_CORE)
 
 
-def fetch_rss_source(source_config, enrich=False):
-    return _fetch_rss_source(source_config, enrich=enrich)
+def fetch_rss_source(source_config, enrich=False, max_items=None):
+    return _fetch_rss_source(source_config, enrich=enrich, max_items=max_items)
 
 
 def fetch_premier_league_club_rss_feeds():
     results = []
     for source_config in PREMIER_LEAGUE_CLUB_RSS_SOURCES:
         try:
-            results.append(_fetch_rss_source(source_config, enrich=False))
+            results.append(_fetch_rss_source(source_config, enrich=False, max_items=RSS_MAX_ITEMS_CLUB))
         except Exception:
             continue
     return results
