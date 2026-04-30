@@ -144,7 +144,7 @@ The news workflow is intentionally human-in-the-loop:
 1. `news-fetch` collects and normalizes source items
 2. source items are auto-classified into `filtered` or `rejected`
 3. `news-queue` shows reviewable items by default
-3. `news-mark` moves items through review states such as `approved`, `translated`, and `published`
+4. `news-mark` moves items through review states such as `approved`, `translated`, and `published`
 
 The default initial filter is Premier League-oriented and excludes low-priority categories such as generic features, podcasts, videos, women's football, and non-target domestic leagues.
 
@@ -223,6 +223,7 @@ And the 30-minute schedule executes:
 - `commands`
 - `live`
 - `reminders`
+- `news-fetch`
 - `results`
 
 ## Manual Operations
@@ -237,6 +238,7 @@ python3 telegram_broadcast.py daily
 python3 telegram_broadcast.py reminders
 python3 telegram_broadcast.py results
 python3 telegram_broadcast.py heartbeat
+python3 telegram_broadcast.py news-fetch
 ```
 
 Before manual execution, ensure the required environment variables are present or available through `.env`.

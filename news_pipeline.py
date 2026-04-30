@@ -8,14 +8,60 @@ from PIL import Image
 
 from commands import send_telegram_message, send_telegram_photo_file
 from news_collectors import fetch_bbc_football_rss
-from news_store import get_news_item, list_news_queue, mark_news_item, normalize_news_item, upsert_news_items
+from news_store import (
+    get_news_item,
+    list_news_queue,
+    mark_news_item,
+    normalize_news_item,
+    upsert_news_items,
+)
 
 TELEGRAM_CAPTION_LIMIT = 1024
 WATERMARK_MARGIN_RATIO = 0.04
 WATERMARK_WIDTH_RATIO = 0.24
 WATERMARK_MAX_WIDTH = 320
 WATERMARK_MIN_WIDTH = 120
-WATERMARK_ASSET_PATH = Path(__file__).with_name("gatanga_watermark_clean.png")
+WATERMARK_ASSET_CANDIDATES = (
+    "gatanga_watermark.svg",
+    "gatanga_watermark_clean.png",
+    "gatanga_watermark.svg.svg.png",
+)
+
+
+def resolve_watermark_asset():
+    base_path = Path(__file__).resolve().parent
+    for filename in WATERMARK_ASSET_CANDIDATES:
+        candidate = base_path / filename
+        if candidate.exists():
+            return candidate
+    raise FileNotFoundError(
+        "Watermark asset not found. Checked: "
+        + ", ".join(str(Path(__file__).resolve().parent / name) for name in WATERMARK_ASSET_CANDIDATES)
+    )
+
+
+def load_watermark_image(asset_path):
+    if asset_path.suffix.lower() == ".svg":
+        try:
+            import cairosvg
+        except Exception:
+            for fallback_name in WATERMARK_ASSET_CANDIDATES:
+                if fallback_name.endswith(".svg"):
+                    continue
+                fallback_path = Path(__file__).resolve().parent / fallback_name
+                if fallback_path.exists():
+                    with Image.open(fallback_path) as fallback_image:
+                        return fallback_image.convert("RGBA")
+            raise RuntimeError(
+                "SVG watermark found but cairosvg is not installed and no raster fallback is available."
+            )
+
+        rendered_png = cairosvg.svg2png(url=str(asset_path))
+        with Image.open(BytesIO(rendered_png)) as watermark_image:
+            return watermark_image.convert("RGBA")
+
+    with Image.open(asset_path) as watermark_image:
+        return watermark_image.convert("RGBA")
 
 
 def escape_telegram_markdown(text):
@@ -31,14 +77,11 @@ def truncate_caption_body(text, max_length):
 
 
 def build_watermark_overlay(width, height):
-    if not WATERMARK_ASSET_PATH.exists():
-        raise FileNotFoundError(f"Watermark asset not found: {WATERMARK_ASSET_PATH}")
+    watermark_asset_path = resolve_watermark_asset()
 
     overlay = Image.new("RGBA", (width, height), (255, 255, 255, 0))
     margin = max(24, int(width * WATERMARK_MARGIN_RATIO))
-
-    with Image.open(WATERMARK_ASSET_PATH) as watermark_image:
-        watermark = watermark_image.convert("RGBA")
+    watermark = load_watermark_image(watermark_asset_path)
 
     target_width = min(max(int(width * WATERMARK_WIDTH_RATIO), WATERMARK_MIN_WIDTH), WATERMARK_MAX_WIDTH)
     scale = target_width / watermark.width
