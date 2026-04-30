@@ -2,6 +2,9 @@ import json
 
 from service_models import AgentEvent, ServiceResult
 from worker_services import (
+    fetch_news_service,
+    list_news_queue_service,
+    mark_news_item_service,
     process_admin_commands_service,
     process_live_window_service,
     send_daily_broadcast_service,
@@ -20,6 +23,15 @@ INTENT_HANDLERS = {
     "reminders": lambda payload: send_reminders_service(),
     "results": lambda payload: send_results_service(),
     "heartbeat": lambda payload: send_heartbeat_service(chat_id=payload.get("chat_id")),
+    "news_fetch": lambda payload: fetch_news_service(),
+    "news_queue": lambda payload: list_news_queue_service(limit=payload.get("limit", 20)),
+    "news_mark": lambda payload: mark_news_item_service(
+        item_id=payload.get("item_id"),
+        status=payload.get("status", ""),
+        translated_title_am=payload.get("translated_title_am"),
+        translated_story_am=payload.get("translated_story_am"),
+        notes=payload.get("notes"),
+    ),
 }
 
 

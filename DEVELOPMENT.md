@@ -80,6 +80,27 @@ The runtime also expects a `bot_state` table with:
 
 This is used to persist the Telegram `last_update_id` for command polling.
 
+### Table: `news_items`
+
+The review queue for football news uses a dedicated `news_items` table.
+
+The repository includes [rebuild_news_schema.sql](/Users/nebiyou.yirga/Downloads/ft_dd/rebuild_news_schema.sql) to create it.
+
+Core fields:
+
+- `source_key`
+- `source_name`
+- `article_url`
+- `title`
+- `summary`
+- `story`
+- `published_at`
+- `review_status`
+- `relevance_score`
+- `translated_title_am`
+- `translated_story_am`
+- `content_hash`
+
 ## Runtime Execution Model
 
 The CLI entrypoint is `telegram_broadcast.py`.
@@ -103,6 +124,9 @@ Each invocation runs only the mode requested on the CLI:
 - `results`
 - `heartbeat`
 - `event` for structured agent/orchestrator input
+- `news-fetch`
+- `news-queue`
+- `news-mark`
 
 The `event` mode accepts a JSON object shaped like:
 
@@ -114,6 +138,15 @@ The `event` mode accepts a JSON object shaped like:
   "payload": {}
 }
 ```
+
+The news workflow is intentionally human-in-the-loop:
+
+1. `news-fetch` collects and normalizes source items
+2. source items are auto-classified into `filtered` or `rejected`
+3. `news-queue` shows reviewable items by default
+3. `news-mark` moves items through review states such as `approved`, `translated`, and `published`
+
+The default initial filter is Premier League-oriented and excludes low-priority categories such as generic features, podcasts, videos, women's football, and non-target domestic leagues.
 
 Important operational consequence:
 

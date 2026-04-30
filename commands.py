@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import requests
 
 from bot_config import TELEGRAM_ADMIN_ID, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, get_eat_now
@@ -12,6 +14,40 @@ def send_telegram_message(message, chat_id=None):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": target_chat, "text": message, "parse_mode": "Markdown"}
     response = requests.post(url, json=payload)
+    response.raise_for_status()
+    return True
+
+
+def send_telegram_photo(photo_url, caption, chat_id=None):
+    target_chat = chat_id or TELEGRAM_CHAT_ID
+    if not TELEGRAM_BOT_TOKEN or not target_chat:
+        print(caption)
+        return False
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+    payload = {
+        "chat_id": target_chat,
+        "photo": photo_url,
+        "caption": caption,
+        "parse_mode": "Markdown",
+    }
+    response = requests.post(url, json=payload)
+    response.raise_for_status()
+    return True
+
+
+def send_telegram_photo_file(photo_path, caption, chat_id=None):
+    target_chat = chat_id or TELEGRAM_CHAT_ID
+    if not TELEGRAM_BOT_TOKEN or not target_chat:
+        print(caption)
+        return False
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+    data = {
+        "chat_id": target_chat,
+        "caption": caption,
+        "parse_mode": "Markdown",
+    }
+    with Path(photo_path).open("rb") as photo_file:
+        response = requests.post(url, data=data, files={"photo": photo_file})
     response.raise_for_status()
     return True
 

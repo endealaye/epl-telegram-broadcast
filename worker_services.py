@@ -1,6 +1,7 @@
 from broadcasts import broadcast_daily, broadcast_reminders, broadcast_results
 from commands import broadcast_heartbeat, process_commands
 from live import process_live_updates
+from news_pipeline import fetch_news_items, get_review_queue, mark_review_item
 from service_models import ServiceResult
 from store import has_live_window_matches, has_matches_today, has_pending_results, has_upcoming_matches
 from sync import update_fixtures_from_json
@@ -93,3 +94,67 @@ def send_heartbeat_service(chat_id=None):
         message="Heartbeat sent." if success else "Heartbeat failed.",
         data={"chat_id": chat_id} if chat_id else {},
     )
+
+
+def fetch_news_service():
+    try:
+        result = fetch_news_items()
+        return ServiceResult(
+            action="news_fetch",
+            success=True,
+            message="News fetch completed.",
+            data=result,
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="news_fetch",
+            success=False,
+            message=f"News fetch failed: {e}",
+        )
+
+
+def list_news_queue_service(limit=20):
+    try:
+        queue = get_review_queue(limit=limit)
+        return ServiceResult(
+            action="news_queue",
+            success=True,
+            message=f"Loaded {len(queue)} review items.",
+            data={"items": queue, "count": len(queue)},
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="news_queue",
+            success=False,
+            message=f"News queue load failed: {e}",
+        )
+
+
+def mark_news_item_service(
+    item_id,
+    status,
+    translated_title_am=None,
+    translated_story_am=None,
+    notes=None,
+):
+    try:
+        updated = mark_review_item(
+            item_id=item_id,
+            status=status,
+            translated_title_am=translated_title_am,
+            translated_story_am=translated_story_am,
+            notes=notes,
+        )
+        success = updated is not None
+        return ServiceResult(
+            action="news_mark",
+            success=success,
+            message="News item published to Telegram." if success and status == "published" else "News item updated." if success else "News item update failed.",
+            data={"item": updated} if updated else {},
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="news_mark",
+            success=False,
+            message=f"News item update failed: {e}",
+        )

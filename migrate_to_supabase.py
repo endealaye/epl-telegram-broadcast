@@ -1,13 +1,16 @@
 import sqlite3
 from supabase import create_client, Client
 
-# Configuration
+from bot_config import SUPABASE_KEY, SUPABASE_URL
+
 LOCAL_DB_FILE = 'epl_2025.db'
-SUPABASE_URL = "https://urqgbjtgrilgaltrmrmk.supabase.co"
-SUPABASE_KEY = "sb_publishable_iVSr4QF92Ox-PRSaIUaLVA_c7j_xbOt"
 
 def migrate():
     # Initialize Supabase
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        print("Migration failed: missing SUPABASE_URL or SUPABASE_KEY in environment.")
+        return
+
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     
     # Connect to local SQLite
