@@ -140,6 +140,13 @@ The `event` mode accepts a JSON object shaped like:
 }
 ```
 
+## Render Web Service
+
+For the News Desk web UI on Render, use:
+
+- Build command: `pip install -r requirements.txt`
+- Start command: `gunicorn news_dashboard:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120`
+
 The news workflow is intentionally human-in-the-loop:
 
 1. `news-fetch` collects and normalizes source items

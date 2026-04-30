@@ -4,3 +4,4 @@ supabase
 flask
 pillow
 cairosvg
+gunicorn
