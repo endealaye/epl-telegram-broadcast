@@ -1,4 +1,5 @@
 import hashlib
+import html
 import re
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
@@ -86,6 +87,7 @@ ALLOWED_STATUS_TRANSITIONS = {
     "rejected": {"rejected", "filtered", "approved", "translated"},
     "published": {"published"},
 }
+MAX_SUMMARY_LENGTH = 500
 
 
 def normalize_review_status(status):
@@ -182,11 +184,34 @@ def compute_relevance_score(title, summary, topic_tags, story=None):
     return score
 
 
+def sanitize_copy_text(value):
+    raw = html.unescape(value or "")
+    if not raw:
+        return ""
+    raw = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", raw)
+    raw = re.sub(r"(?s)<[^>]+>", " ", raw)
+    raw = html.unescape(raw)
+    raw = raw.replace("\xa0", " ")
+    return re.sub(r"\s+", " ", raw).strip()
+
+
+def normalize_summary(summary, story):
+    cleaned_summary = sanitize_copy_text(summary)
+    if not cleaned_summary:
+        cleaned_summary = sanitize_copy_text(story)
+    if len(cleaned_summary) > MAX_SUMMARY_LENGTH:
+        trimmed = cleaned_summary[:MAX_SUMMARY_LENGTH].rsplit(" ", 1)[0].strip()
+        cleaned_summary = f"{trimmed}…" if trimmed else cleaned_summary[:MAX_SUMMARY_LENGTH]
+    return cleaned_summary
+
+
 def normalize_news_item(source_key, source_name, source_url, item):
-    article_url = item.get("article_url") or ""
-    summary = item.get("summary") or ""
-    story = item.get("story") or summary
-    title = item.get("title") or ""
+    article_url = (item.get("article_url") or "").strip()
+    raw_summary = item.get("summary") or ""
+    raw_story = item.get("story") or raw_summary
+    summary = normalize_summary(raw_summary, raw_story)
+    story = sanitize_copy_text(raw_story) or summary
+    title = sanitize_copy_text(item.get("title") or "")
     derived_tags = derive_topic_tags(title, summary, story)
     review_status = "filtered" if should_include_item(title, summary, article_url, story) else "rejected"
     return {
