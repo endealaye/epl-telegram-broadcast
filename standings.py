@@ -19,7 +19,7 @@ OFFICIAL_STANDINGS_API_BASE = os.getenv(
 OFFICIAL_COMPETITION_ID = os.getenv("PL_STANDINGS_COMPETITION_ID", "8")
 OFFICIAL_SEASON_ID = os.getenv("PL_STANDINGS_SEASON_ID", "2025")
 DEFAULT_STANDINGS_FORMAT = os.getenv("PL_STANDINGS_FORMAT", "short").strip().lower()
-STANDINGS_IMAGE_ROW_HEIGHT = int(os.getenv("STANDINGS_IMAGE_ROW_HEIGHT", "56"))
+STANDINGS_IMAGE_ROW_HEIGHT = int(os.getenv("STANDINGS_IMAGE_ROW_HEIGHT", "60"))
 STANDINGS_IMAGE_PADDING = int(os.getenv("STANDINGS_IMAGE_PADDING", "24"))
 STANDINGS_IMAGE_WIDTH = int(os.getenv("STANDINGS_IMAGE_WIDTH", "1280"))
 STANDINGS_LOGO_SIZE = int(os.getenv("STANDINGS_LOGO_SIZE", "30"))
@@ -486,7 +486,7 @@ def render_short_standings_image(rows, matchweek=None):
     title_font = _load_latin_font(24, bold=True)
     subtitle_font = _load_latin_font(20, bold=True)
     head_font = _load_latin_font(17, bold=True)
-    row_font = _load_font(18, bold=False)
+    row_font = _load_font(22, bold=False)
     row_num_font = _load_latin_font(18, bold=False)
 
     title = "English Premier League"
@@ -511,19 +511,11 @@ def render_short_standings_image(rows, matchweek=None):
         for idx, key in enumerate(stat_cols)
     }
 
-    line_color = (206, 208, 211)
-    draw.line((panel_x0 + 4, table_top - 8, panel_x1 - 4, table_top - 8), fill=line_color, width=1)
-    draw.line((panel_x0 + 4, table_top + 44, panel_x1 - 4, table_top + 44), fill=line_color, width=1)
-    draw.line((team_col_right, table_top - 8, team_col_right, panel_y1 - 8), fill=(198, 200, 204), width=1)
-
     for key in stat_cols:
         _draw_cell_text(draw, key, col_positions[key] - 40, col_positions[key], table_top + 16, "right", head_font, (36, 38, 42))
 
     y = table_top + 56
     for row in rows:
-        row_bottom = y + row_height - 4
-        draw.line((panel_x0 + 4, row_bottom, panel_x1 - 4, row_bottom), fill=line_color, width=1)
-
         pos_text = f"{int(row['position']):02d}"
         team_text = _short_team_name(row)
         gd_text = f"{int(row['gd']):+d}"
