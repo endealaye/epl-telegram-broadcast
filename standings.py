@@ -293,6 +293,37 @@ def format_short_table(rows):
 
 def _load_font(size, bold=False):
     candidates = []
+    candidates.extend(
+        [
+            "/usr/share/fonts/truetype/noto/NotoSansEthiopic-Regular.ttf",
+            "/usr/share/fonts/truetype/abyssinica/AbyssinicaSIL-Regular.ttf",
+            "/System/Library/Fonts/GeezaPro.ttc",
+            "/System/Library/Fonts/Supplemental/NotoSansEthiopic-Regular.ttf",
+        ]
+    )
+    if bold:
+        candidates.extend(
+            [
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+                "/Library/Fonts/Arial Bold.ttf",
+            ]
+        )
+    candidates.extend(
+        [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/System/Library/Fonts/Supplemental/Arial.ttf",
+            "/Library/Fonts/Arial.ttf",
+        ]
+    )
+    for path in candidates:
+        if os.path.exists(path):
+            return ImageFont.truetype(path, size=size)
+    return ImageFont.load_default()
+
+
+def _load_latin_font(size, bold=False):
+    candidates = []
     if bold:
         candidates.extend(
             [
@@ -337,7 +368,9 @@ def _draw_cell_text(draw, text, x0, x1, y, align, font, fill):
 
 
 def _short_team_name(row):
-    team = (row.get("team_display") or row.get("team") or "").strip()
+    team_key = row.get("team") or ""
+    team_display = (row.get("team_display") or row.get("team") or "").strip()
+    team = AMHARIC_TEAMS.get(team_key, AMHARIC_TEAMS.get(team_display, team_display))
     if len(team) <= 22:
         return team
     return f"{team[:19].rstrip()}..."
@@ -355,7 +388,7 @@ def render_short_standings_image(rows, matchweek=None):
     content_height = title_height + header_height + (row_height * len(rows)) + padding
     height = content_height + (padding * 2)
 
-    image = Image.new("RGB", (width, height), (31, 0, 45))
+    image = Image.new("RGB", (width, height), (241, 245, 249))
     draw = ImageDraw.Draw(image)
 
     panel_x0 = padding
@@ -365,18 +398,20 @@ def render_short_standings_image(rows, matchweek=None):
     draw.rounded_rectangle(
         (panel_x0, panel_y0, panel_x1, panel_y1),
         radius=22,
-        fill=(45, 0, 63),
+        fill=(255, 255, 255),
     )
 
     title_font = _load_font(30, bold=True)
     subtitle_font = _load_font(18, bold=False)
     head_font = _load_font(18, bold=False)
+    head_num_font = _load_latin_font(18, bold=False)
     row_font = _load_font(20, bold=True)
+    row_num_font = _load_latin_font(20, bold=True)
 
-    title = "Premier League Table"
-    draw.text((panel_x0 + 22, panel_y0 + 14), title, font=title_font, fill=(255, 255, 255))
-    subtitle = f"Matchweek {matchweek}" if matchweek else "Current standings"
-    draw.text((panel_x0 + 24, panel_y0 + 50), subtitle, font=subtitle_font, fill=(188, 171, 205))
+    title = "የፕሪሚየር ሊግ ሰንጠረዥ"
+    draw.text((panel_x0 + 22, panel_y0 + 14), title, font=title_font, fill=(15, 23, 42))
+    subtitle = f"የሳምንቱ ጨዋታ {matchweek}" if matchweek else "የአሁኑ ደረጃ"
+    draw.text((panel_x0 + 24, panel_y0 + 50), subtitle, font=subtitle_font, fill=(71, 85, 105))
 
     table_top = panel_y0 + title_height + 20
     col_pos = panel_x0 + 24
@@ -386,12 +421,12 @@ def render_short_standings_image(rows, matchweek=None):
     col_gd = panel_x1 - 134
     col_pts = panel_x1 - 44
 
-    draw.text((col_pos, table_top), "Pos", font=head_font, fill=(182, 160, 196))
-    draw.text((col_team, table_top), "Team", font=head_font, fill=(182, 160, 196))
-    _draw_cell_text(draw, "Pl", col_p - 48, col_p, table_top + 14, "right", head_font, (182, 160, 196))
-    _draw_cell_text(draw, "W", col_w - 38, col_w, table_top + 14, "right", head_font, (182, 160, 196))
-    _draw_cell_text(draw, "GD", col_gd - 52, col_gd, table_top + 14, "right", head_font, (182, 160, 196))
-    _draw_cell_text(draw, "Pts", col_pts - 60, col_pts, table_top + 14, "right", head_font, (182, 160, 196))
+    draw.text((col_pos, table_top), "ደረጃ", font=head_font, fill=(100, 116, 139))
+    draw.text((col_team, table_top), "ቡድን", font=head_font, fill=(100, 116, 139))
+    _draw_cell_text(draw, "ጨ", col_p - 48, col_p, table_top + 14, "right", head_font, (100, 116, 139))
+    _draw_cell_text(draw, "ድ", col_w - 38, col_w, table_top + 14, "right", head_font, (100, 116, 139))
+    _draw_cell_text(draw, "ግድ", col_gd - 52, col_gd, table_top + 14, "right", head_font, (100, 116, 139))
+    _draw_cell_text(draw, "ነጥብ", col_pts - 60, col_pts, table_top + 14, "right", head_font, (100, 116, 139))
 
     y = table_top + 42
     for row in rows:
@@ -401,7 +436,7 @@ def render_short_standings_image(rows, matchweek=None):
             draw.rounded_rectangle(
                 (panel_x0 + 10, y - 8, panel_x1 - 10, row_bottom + 6),
                 radius=14,
-                fill=(66, 0, 90),
+                fill=(248, 250, 252),
             )
 
         accent = _row_accent_color(int(row.get("position", 0)))
@@ -415,14 +450,14 @@ def render_short_standings_image(rows, matchweek=None):
         pos_text = f"{int(row['position']):02d}"
         team_text = _short_team_name(row)
         gd_text = f"{int(row['gd']):+d}"
-        color = (255, 255, 255)
+        color = (15, 23, 42)
 
-        draw.text((col_pos, y), pos_text, font=row_font, fill=color)
+        draw.text((col_pos, y), pos_text, font=row_num_font, fill=color)
         draw.text((col_team, y), team_text, font=row_font, fill=color)
-        _draw_cell_text(draw, int(row["played"]), col_p - 48, col_p, y + 14, "right", row_font, color)
-        _draw_cell_text(draw, int(row["won"]), col_w - 38, col_w, y + 14, "right", row_font, color)
-        _draw_cell_text(draw, gd_text, col_gd - 52, col_gd, y + 14, "right", row_font, color)
-        _draw_cell_text(draw, int(row["points"]), col_pts - 60, col_pts, y + 14, "right", row_font, color)
+        _draw_cell_text(draw, int(row["played"]), col_p - 48, col_p, y + 14, "right", row_num_font, color)
+        _draw_cell_text(draw, int(row["won"]), col_w - 38, col_w, y + 14, "right", row_num_font, color)
+        _draw_cell_text(draw, gd_text, col_gd - 52, col_gd, y + 14, "right", row_num_font, color)
+        _draw_cell_text(draw, int(row["points"]), col_pts - 60, col_pts, y + 14, "right", row_num_font, color)
         y += row_height
 
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
