@@ -8,7 +8,7 @@ from pathlib import Path
 import requests
 from PIL import Image
 
-from commands import send_telegram_message, send_telegram_photo_file
+from commands import send_telegram_message, send_telegram_photo
 from news_collectors import (
     PREMIER_LEAGUE_CLUB_RSS_SOURCES,
     RSS_MAX_ITEMS_CLUB,
@@ -336,11 +336,7 @@ def mark_review_item(
         "translated_story_am": final_story,
     })
     if payload["image_url"]:
-        temp_path = create_watermarked_image(payload["image_url"])
-        try:
-            sent = send_telegram_photo_file(temp_path, payload["caption"])
-        finally:
-            temp_path.unlink(missing_ok=True)
+        sent = send_telegram_photo(payload["image_url"], payload["caption"])
     else:
         sent = send_telegram_message(payload["caption"])
     if not sent:
