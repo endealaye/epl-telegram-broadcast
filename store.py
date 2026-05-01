@@ -10,6 +10,13 @@ supabase: Client = None
 if SUPABASE_URL and SUPABASE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+def _safe_execute(query, default=None, context="supabase"):
+    try:
+        return query.execute()
+    except Exception as exc:
+        print(f"Supabase query failed ({context}): {exc}")
+        return default
+
 
 def _parse_iso_datetime(value):
     if not value:
@@ -23,7 +30,13 @@ def _parse_iso_datetime(value):
 def get_bot_state_value(key):
     if not supabase:
         return None
-    res = supabase.table('bot_state').select('key,value').eq('key', key).limit(1).execute()
+    res = _safe_execute(
+        supabase.table('bot_state').select('key,value').eq('key', key).limit(1),
+        default=None,
+        context=f"bot_state.get:{key}",
+    )
+    if res is None:
+        return None
     rows = res.data or []
     return rows[0].get('value') if rows else None
 
@@ -31,11 +44,15 @@ def get_bot_state_value(key):
 def set_bot_state_value(key, value):
     if not supabase:
         return False
-    supabase.table('bot_state').upsert(
-        {"key": key, "value": value},
-        on_conflict="key",
-    ).execute()
-    return True
+    res = _safe_execute(
+        supabase.table('bot_state').upsert(
+            {"key": key, "value": value},
+            on_conflict="key",
+        ),
+        default=None,
+        context=f"bot_state.set:{key}",
+    )
+    return res is not None
 
 
 def _parse_lock_value(raw_value):
@@ -100,7 +117,13 @@ def fetch_fixtures_for_dates(date_strings):
     fixtures = []
     seen_match_numbers = set()
     for date_string in date_strings:
-        res = supabase.table('fixtures').select("*").ilike('dateeat', f'{date_string}%').execute()
+        res = _safe_execute(
+            supabase.table('fixtures').select("*").ilike('dateeat', f'{date_string}%'),
+            default=None,
+            context=f"fixtures.fetch:{date_string}",
+        )
+        if res is None:
+            continue
         for fixture in res.data or []:
             match_number = fixture.get('matchnumber')
             if match_number in seen_match_numbers:
@@ -148,4 +171,8 @@ def has_pending_results():
 def mark_match_state(match_number, **fields):
     if not supabase:
         return
-    supabase.table('fixtures').update(fields).eq('matchnumber', match_number).execute()
+    _safe_execute(
+        supabase.table('fixtures').update(fields).eq('matchnumber', match_number),
+        default=None,
+        context=f"fixtures.update:{match_number}",
+    )
