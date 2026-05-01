@@ -19,12 +19,47 @@ OFFICIAL_STANDINGS_API_BASE = os.getenv(
 OFFICIAL_COMPETITION_ID = os.getenv("PL_STANDINGS_COMPETITION_ID", "8")
 OFFICIAL_SEASON_ID = os.getenv("PL_STANDINGS_SEASON_ID", "2025")
 DEFAULT_STANDINGS_FORMAT = os.getenv("PL_STANDINGS_FORMAT", "short").strip().lower()
-STANDINGS_IMAGE_ROW_HEIGHT = int(os.getenv("STANDINGS_IMAGE_ROW_HEIGHT", "54"))
+STANDINGS_IMAGE_ROW_HEIGHT = int(os.getenv("STANDINGS_IMAGE_ROW_HEIGHT", "56"))
 STANDINGS_IMAGE_PADDING = int(os.getenv("STANDINGS_IMAGE_PADDING", "24"))
-STANDINGS_IMAGE_WIDTH = int(os.getenv("STANDINGS_IMAGE_WIDTH", "1024"))
+STANDINGS_IMAGE_WIDTH = int(os.getenv("STANDINGS_IMAGE_WIDTH", "1280"))
+STANDINGS_LOGO_SIZE = int(os.getenv("STANDINGS_LOGO_SIZE", "30"))
 LOCAL_ETHIOPIC_FONT = (
     Path(__file__).resolve().parent / "NotoSansEthiopic-VariableFont_wdth,wght.ttf"
 )
+LOGO_DIR = Path(__file__).resolve().parent / "logo"
+_LOGO_CACHE = {}
+TEAM_LOGO_FILES = {
+    "arsenal": "arsenal.png",
+    "aston villa": "Aston Villa.png",
+    "bournemouth": "Bournemouth.png",
+    "brentford": "Brentford.png",
+    "brighton": "Brighton & Hove Albion.png",
+    "brighton & hove albion": "Brighton & Hove Albion.png",
+    "burnley": "Burnley.png",
+    "chelsea": "Chelsea.png",
+    "crystal palace": "Crystal Palace.png",
+    "everton": "Everton.png",
+    "fulham": "Fulham.png",
+    "leeds": "Leeds United F.C..png",
+    "leeds united": "Leeds United F.C..png",
+    "liverpool": "Liverpool.png",
+    "man city": "Manchester City.png",
+    "manchester city": "Manchester City.png",
+    "man utd": "Manchester United.png",
+    "manchester united": "Manchester United.png",
+    "newcastle": "Newcastle United.png",
+    "newcastle united": "Newcastle United.png",
+    "nott'm forest": "Nottingham Forest.png",
+    "nottingham forest": "Nottingham Forest.png",
+    "spurs": "Tottenham_Hotspur.png",
+    "tottenham": "Tottenham_Hotspur.png",
+    "tottenham hotspur": "Tottenham_Hotspur.png",
+    "sunderland": "Sunderland.png",
+    "west ham": "West Ham United.png",
+    "west ham united": "West Ham United.png",
+    "wolves": "Wolverhampton Wanderers.png",
+    "wolverhampton wanderers": "Wolverhampton Wanderers.png",
+}
 
 
 def _sanitize_error_text(text):
@@ -360,6 +395,52 @@ def _row_accent_color(position):
     return None
 
 
+def _normalize_team_lookup(name):
+    value = (name or "").strip().lower()
+    value = value.replace("&", "and")
+    value = re.sub(r"[^a-z0-9 ]+", " ", value)
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def _resolve_logo_path(row):
+    candidates = [
+        row.get("team"),
+        row.get("team_display"),
+    ]
+    for candidate in candidates:
+        key = _normalize_team_lookup(candidate)
+        filename = TEAM_LOGO_FILES.get(key)
+        if filename:
+            path = LOGO_DIR / filename
+            if path.exists():
+                return path
+    return None
+
+
+def _load_logo(path):
+    cache_key = str(path)
+    if cache_key in _LOGO_CACHE:
+        return _LOGO_CACHE[cache_key].copy()
+    with Image.open(path) as image:
+        logo = image.convert("RGBA")
+    _LOGO_CACHE[cache_key] = logo
+    return logo.copy()
+
+
+def _fit_logo(logo, size):
+    width, height = logo.size
+    if width <= 0 or height <= 0:
+        return logo
+    scale = min(size / width, size / height)
+    target = (max(1, int(width * scale)), max(1, int(height * scale)))
+    resized = logo.resize(target, Image.LANCZOS)
+    canvas = Image.new("RGBA", (size, size), (255, 255, 255, 0))
+    x = (size - target[0]) // 2
+    y = (size - target[1]) // 2
+    canvas.alpha_composite(resized, (x, y))
+    return canvas
+
+
 def _draw_cell_text(draw, text, x0, x1, y, align, font, fill):
     text = str(text)
     left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
@@ -376,99 +457,96 @@ def _short_team_name(row):
     team_key = row.get("team") or ""
     team_display = (row.get("team_display") or row.get("team") or "").strip()
     team = AMHARIC_TEAMS.get(team_key, AMHARIC_TEAMS.get(team_display, team_display))
-    if len(team) <= 22:
+    if len(team) <= 26:
         return team
-    return f"{team[:19].rstrip()}..."
+    return f"{team[:23].rstrip()}..."
 
 
 def render_short_standings_image(rows, matchweek=None):
     if not rows:
         raise ValueError("No standings rows to render.")
 
-    width = max(STANDINGS_IMAGE_WIDTH, 860)
+    width = max(STANDINGS_IMAGE_WIDTH, 1120)
     padding = max(16, STANDINGS_IMAGE_PADDING)
     row_height = max(42, STANDINGS_IMAGE_ROW_HEIGHT)
-    header_height = 64
-    title_height = 60
+    header_height = 52
+    title_height = 56
     content_height = title_height + header_height + (row_height * len(rows)) + padding
     height = content_height + (padding * 2)
 
-    image = Image.new("RGB", (width, height), (241, 245, 249))
+    image = Image.new("RGBA", (width, height), (246, 246, 247, 255))
     draw = ImageDraw.Draw(image)
 
     panel_x0 = padding
     panel_y0 = padding
     panel_x1 = width - padding
     panel_y1 = height - padding
-    draw.rounded_rectangle(
-        (panel_x0, panel_y0, panel_x1, panel_y1),
-        radius=22,
-        fill=(255, 255, 255),
-    )
+    draw.rectangle((panel_x0, panel_y0, panel_x1, panel_y1), fill=(246, 246, 247, 255))
 
-    title_font = _load_font(30, bold=True)
-    subtitle_font = _load_font(18, bold=False)
-    head_font = _load_font(18, bold=False)
-    head_num_font = _load_latin_font(18, bold=False)
-    row_font = _load_font(20, bold=True)
-    row_num_font = _load_latin_font(20, bold=True)
+    title_font = _load_latin_font(24, bold=True)
+    subtitle_font = _load_latin_font(20, bold=True)
+    head_font = _load_latin_font(17, bold=True)
+    row_font = _load_font(18, bold=False)
+    row_num_font = _load_latin_font(18, bold=False)
 
-    title = "የፕሪሚየር ሊግ ሰንጠረዥ"
-    draw.text((panel_x0 + 22, panel_y0 + 14), title, font=title_font, fill=(15, 23, 42))
-    subtitle = f"የሳምንቱ ጨዋታ {matchweek}" if matchweek else "የአሁኑ ደረጃ"
-    draw.text((panel_x0 + 24, panel_y0 + 50), subtitle, font=subtitle_font, fill=(71, 85, 105))
+    title = "English Premier League"
+    draw.text((panel_x0 + 4, panel_y0 + 6), title, font=title_font, fill=(47, 51, 57))
+    season_label = f"{OFFICIAL_SEASON_ID}-{int(OFFICIAL_SEASON_ID) + 1}" if str(OFFICIAL_SEASON_ID).isdigit() else str(OFFICIAL_SEASON_ID)
+    if matchweek:
+        season_label = f"{season_label} · Matchweek {matchweek}"
+    draw.text((panel_x0 + 10, panel_y0 + 56), season_label, font=subtitle_font, fill=(79, 84, 90))
 
-    table_top = panel_y0 + title_height + 20
-    col_pos = panel_x0 + 24
-    col_team = col_pos + 82
-    col_p = panel_x1 - 280
-    col_w = panel_x1 - 210
-    col_gd = panel_x1 - 134
-    col_pts = panel_x1 - 44
+    table_top = panel_y0 + title_height + 18
+    col_pos = panel_x0 + 16
+    col_team = col_pos + 76
+    logo_x = col_team
+    team_text_x = logo_x + STANDINGS_LOGO_SIZE + 12
+    team_col_right = panel_x0 + int((panel_x1 - panel_x0) * 0.53)
+    stat_start = team_col_right + 12
+    stat_area = panel_x1 - stat_start - 8
+    stat_cols = ["GP", "W", "GD", "P"]
+    col_step = stat_area / len(stat_cols)
+    col_positions = {
+        key: int(stat_start + (idx + 1) * col_step) - 8
+        for idx, key in enumerate(stat_cols)
+    }
 
-    draw.text((col_pos, table_top), "ደረጃ", font=head_font, fill=(100, 116, 139))
-    draw.text((col_team, table_top), "ቡድን", font=head_font, fill=(100, 116, 139))
-    _draw_cell_text(draw, "ጨ", col_p - 48, col_p, table_top + 14, "right", head_font, (100, 116, 139))
-    _draw_cell_text(draw, "ድ", col_w - 38, col_w, table_top + 14, "right", head_font, (100, 116, 139))
-    _draw_cell_text(draw, "ግድ", col_gd - 52, col_gd, table_top + 14, "right", head_font, (100, 116, 139))
-    _draw_cell_text(draw, "ነጥብ", col_pts - 60, col_pts, table_top + 14, "right", head_font, (100, 116, 139))
+    line_color = (206, 208, 211)
+    draw.line((panel_x0 + 4, table_top - 8, panel_x1 - 4, table_top - 8), fill=line_color, width=1)
+    draw.line((panel_x0 + 4, table_top + 44, panel_x1 - 4, table_top + 44), fill=line_color, width=1)
+    draw.line((team_col_right, table_top - 8, team_col_right, panel_y1 - 8), fill=(198, 200, 204), width=1)
 
-    y = table_top + 42
+    for key in stat_cols:
+        _draw_cell_text(draw, key, col_positions[key] - 40, col_positions[key], table_top + 16, "right", head_font, (36, 38, 42))
+
+    y = table_top + 56
     for row in rows:
-        row_bottom = y + row_height - 8
-        is_highlight = int(row.get("position", 0)) == 1
-        if is_highlight:
-            draw.rounded_rectangle(
-                (panel_x0 + 10, y - 8, panel_x1 - 10, row_bottom + 6),
-                radius=14,
-                fill=(248, 250, 252),
-            )
-
-        accent = _row_accent_color(int(row.get("position", 0)))
-        if accent:
-            draw.rounded_rectangle(
-                (panel_x0 + 2, y - 2, panel_x0 + 10, row_bottom),
-                radius=4,
-                fill=accent,
-            )
+        row_bottom = y + row_height - 4
+        draw.line((panel_x0 + 4, row_bottom, panel_x1 - 4, row_bottom), fill=line_color, width=1)
 
         pos_text = f"{int(row['position']):02d}"
         team_text = _short_team_name(row)
         gd_text = f"{int(row['gd']):+d}"
-        color = (15, 23, 42)
+        color = (74, 78, 84)
 
-        draw.text((col_pos, y), pos_text, font=row_num_font, fill=color)
-        draw.text((col_team, y), team_text, font=row_font, fill=color)
-        _draw_cell_text(draw, int(row["played"]), col_p - 48, col_p, y + 14, "right", row_num_font, color)
-        _draw_cell_text(draw, int(row["won"]), col_w - 38, col_w, y + 14, "right", row_num_font, color)
-        _draw_cell_text(draw, gd_text, col_gd - 52, col_gd, y + 14, "right", row_num_font, color)
-        _draw_cell_text(draw, int(row["points"]), col_pts - 60, col_pts, y + 14, "right", row_num_font, color)
+        draw.text((col_pos, y + 4), str(int(row["position"])), font=row_num_font, fill=(70, 72, 76))
+        logo_path = _resolve_logo_path(row)
+        if logo_path:
+            logo = _fit_logo(_load_logo(logo_path), STANDINGS_LOGO_SIZE)
+            image.alpha_composite(logo, (logo_x, y + 2))
+        draw.text((team_text_x, y + 4), team_text, font=row_font, fill=(17, 94, 196))
+
+        _draw_cell_text(draw, int(row["played"]), col_positions["GP"] - 40, col_positions["GP"], y + 18, "right", row_num_font, color)
+        _draw_cell_text(draw, int(row["won"]), col_positions["W"] - 40, col_positions["W"], y + 18, "right", row_num_font, color)
+        gd_color = (0, 149, 68) if int(row["gd"]) > 0 else (230, 0, 0) if int(row["gd"]) < 0 else color
+        _draw_cell_text(draw, gd_text, col_positions["GD"] - 50, col_positions["GD"], y + 18, "right", row_num_font, gd_color)
+        _draw_cell_text(draw, int(row["points"]), col_positions["P"] - 40, col_positions["P"], y + 18, "right", row_num_font, color)
         y += row_height
 
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     temp_path = Path(temp_file.name)
     temp_file.close()
-    image.save(temp_path, format="PNG", optimize=True)
+    image.convert("RGB").save(temp_path, format="PNG", optimize=True)
     return temp_path
 
 
