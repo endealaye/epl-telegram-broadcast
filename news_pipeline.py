@@ -8,7 +8,7 @@ from pathlib import Path
 import requests
 from PIL import Image
 
-from commands import send_telegram_message, send_telegram_photo
+from commands import send_telegram_message, send_telegram_photo_file
 from news_collectors import (
     PREMIER_LEAGUE_CLUB_RSS_SOURCES,
     RSS_MAX_ITEMS_CLUB,
@@ -38,6 +38,8 @@ NEWS_IMAGE_CHUNK_SIZE = 64 * 1024
 NEWS_FETCH_MAX_WORKERS = int(os.getenv("NEWS_FETCH_MAX_WORKERS", "3"))
 MIN_NEWS_COPY_LENGTH = int(os.getenv("NEWS_MIN_COPY_LENGTH", "40"))
 WATERMARK_ASSET_CANDIDATES = (
+    "6a8.svg",
+    "6a8fac6a-36e3-4c29-a527-b216530317a6.png",
     "gatanga_watermark.svg",
     "gatanga_watermark_clean.png",
     "gatanga_watermark.svg.svg.png",
@@ -336,7 +338,11 @@ def mark_review_item(
         "translated_story_am": final_story,
     })
     if payload["image_url"]:
-        sent = send_telegram_photo(payload["image_url"], payload["caption"])
+        temp_path = create_watermarked_image(payload["image_url"])
+        try:
+            sent = send_telegram_photo_file(temp_path, payload["caption"])
+        finally:
+            temp_path.unlink(missing_ok=True)
     else:
         sent = send_telegram_message(payload["caption"])
     if not sent:
