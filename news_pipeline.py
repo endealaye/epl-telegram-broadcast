@@ -6,7 +6,7 @@ from io import BytesIO
 from pathlib import Path
 
 import requests
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from commands import send_telegram_message, send_telegram_photo_file
 from news_collectors import (
@@ -31,6 +31,9 @@ WATERMARK_MARGIN_RATIO = 0.04
 WATERMARK_WIDTH_RATIO = 0.108
 WATERMARK_MAX_WIDTH = 320
 WATERMARK_MIN_WIDTH = 120
+WATERMARK_BG_ALPHA = int(os.getenv("WATERMARK_BG_ALPHA", "96"))
+WATERMARK_BG_PADDING = int(os.getenv("WATERMARK_BG_PADDING", "10"))
+WATERMARK_BG_RADIUS = int(os.getenv("WATERMARK_BG_RADIUS", "8"))
 NEWS_IMAGE_MAX_BYTES = int(os.getenv("NEWS_IMAGE_MAX_BYTES", str(8 * 1024 * 1024)))
 NEWS_IMAGE_MAX_PIXELS = int(os.getenv("NEWS_IMAGE_MAX_PIXELS", str(40_000_000)))
 NEWS_IMAGE_TIMEOUT = (8, 20)
@@ -108,6 +111,18 @@ def build_watermark_overlay(width, height):
 
     x = width - target_width - margin
     y = margin
+
+    # Improve contrast for light watermarks over bright source images.
+    bg_x0 = x - WATERMARK_BG_PADDING
+    bg_y0 = y - WATERMARK_BG_PADDING
+    bg_x1 = x + target_width + WATERMARK_BG_PADDING
+    bg_y1 = y + target_height + WATERMARK_BG_PADDING
+    draw = ImageDraw.Draw(overlay)
+    draw.rounded_rectangle(
+        (bg_x0, bg_y0, bg_x1, bg_y1),
+        radius=WATERMARK_BG_RADIUS,
+        fill=(0, 0, 0, max(0, min(255, WATERMARK_BG_ALPHA))),
+    )
     overlay.alpha_composite(watermark, (x, y))
     return overlay
 
