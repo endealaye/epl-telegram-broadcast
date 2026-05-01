@@ -51,6 +51,9 @@ LIST_TEMPLATE = """
     .editor-box textarea, .editor-box input[type=text] {
       width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font: inherit; background: white;
     }
+    .editor-box input[type=url] {
+      width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font: inherit; background: white;
+    }
     .editor-box textarea { min-height: 180px; resize: vertical; }
     .danger { color: #7f1d1d; border-color: #b91c1c; }
     .publish { background: var(--accent); color: white; border-color: var(--accent); }
@@ -121,6 +124,8 @@ LIST_TEMPLATE = """
               <input id="translated_title_am_{{ item.id }}" type="text" name="translated_title_am" value="{{ item.translated_title_am or '' }}">
               <label for="translated_story_am_{{ item.id }}">Amharic Story</label>
               <textarea id="translated_story_am_{{ item.id }}" name="translated_story_am">{{ item.translated_story_am or '' }}</textarea>
+              <label for="image_url_{{ item.id }}">Image URL Override</label>
+              <input id="image_url_{{ item.id }}" type="url" name="image_url" value="{{ item.image_url or '' }}" placeholder="https://...">
               <label for="notes_{{ item.id }}">Notes</label>
               <input id="notes_{{ item.id }}" type="text" name="notes" value="{{ item.notes or '' }}">
               <div class="actions">
@@ -166,6 +171,9 @@ DETAIL_TEMPLATE = """
     textarea, input[type=text] {
       width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font: inherit; background: white;
     }
+    input[type=url] {
+      width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font: inherit; background: white;
+    }
     textarea { min-height: 180px; resize: vertical; }
     .row { margin-top: 18px; }
     .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
@@ -204,6 +212,10 @@ DETAIL_TEMPLATE = """
         <div class="row">
           <label for="translated_story_am">Amharic Story</label>
           <textarea id="translated_story_am" name="translated_story_am">{{ item.translated_story_am or '' }}</textarea>
+        </div>
+        <div class="row">
+          <label for="image_url">Image URL Override</label>
+          <input id="image_url" type="url" name="image_url" value="{{ item.image_url or '' }}" placeholder="https://...">
         </div>
         <div class="row">
           <label for="notes">Notes</label>
@@ -269,6 +281,8 @@ def update_item(item_id):
     status = request.form.get("status", "translated")
     translated_title_am = request.form.get("translated_title_am") or None
     translated_story_am = request.form.get("translated_story_am") or None
+    image_url = request.form.get("image_url")
+    image_url = image_url.strip() if image_url is not None else None
     notes = request.form.get("notes") or None
     try:
         mark_review_item(
@@ -277,6 +291,7 @@ def update_item(item_id):
             translated_title_am=translated_title_am,
             translated_story_am=translated_story_am,
             notes=notes,
+            image_url=image_url if image_url else None,
         )
     except ValueError as exc:
         return (str(exc), 400)

@@ -275,6 +275,7 @@ def mark_news_item(
     translated_title_am=None,
     translated_story_am=None,
     notes=None,
+    image_url=None,
 ):
     if not supabase:
         return None
@@ -295,6 +296,8 @@ def mark_news_item(
         payload["translated_story_am"] = translated_story_am
     if notes is not None:
         payload["notes"] = notes
+    if image_url is not None:
+        payload["image_url"] = image_url
 
     res = supabase.table("news_items").update(payload).eq("id", item_id).execute()
     rows = res.data or []

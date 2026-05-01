@@ -309,6 +309,7 @@ def mark_review_item(
     translated_title_am=None,
     translated_story_am=None,
     notes=None,
+    image_url=None,
 ):
     status = (status or "").strip().lower()
     if status != "published":
@@ -318,6 +319,7 @@ def mark_review_item(
             translated_title_am=translated_title_am,
             translated_story_am=translated_story_am,
             notes=notes,
+            image_url=image_url,
         )
 
     item = get_news_item(item_id)
@@ -334,6 +336,7 @@ def mark_review_item(
 
     payload = format_news_broadcast({
         **item,
+        "image_url": image_url if image_url is not None else item.get("image_url"),
         "translated_title_am": final_title,
         "translated_story_am": final_story,
     })
@@ -353,4 +356,5 @@ def mark_review_item(
         translated_title_am=final_title,
         translated_story_am=final_story,
         notes=notes,
+        image_url=image_url,
     )
