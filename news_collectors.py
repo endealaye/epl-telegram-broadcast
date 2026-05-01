@@ -3,7 +3,7 @@ import os
 import re
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from urllib.parse import urljoin
+from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 
 import requests
 
@@ -233,19 +233,37 @@ def extract_summary_and_story(item_element):
 
 
 def extract_image_url(item_element):
-    thumbnail = item_element.find("media:thumbnail", MEDIA_NS)
-    if thumbnail is not None and thumbnail.get("url"):
-        return thumbnail.get("url").strip()
+    candidates = []
+    for node in item_element.findall("media:content", MEDIA_NS):
+        url = (node.get("url") or "").strip()
+        if not url:
+            continue
+        width = node.get("width")
+        try:
+            width_value = int(width) if width else 0
+        except (TypeError, ValueError):
+            width_value = 0
+        candidates.append((width_value, url))
 
-    content = item_element.find("media:content", MEDIA_NS)
-    if content is not None and content.get("url"):
-        return content.get("url").strip()
+    for node in item_element.findall("media:thumbnail", MEDIA_NS):
+        url = (node.get("url") or "").strip()
+        if not url:
+            continue
+        width = node.get("width")
+        try:
+            width_value = int(width) if width else 0
+        except (TypeError, ValueError):
+            width_value = 0
+        candidates.append((width_value, url))
 
     enclosure = item_element.find("enclosure")
     if enclosure is not None and enclosure.get("type", "").startswith("image/") and enclosure.get("url"):
-        return enclosure.get("url").strip()
+        candidates.append((0, enclosure.get("url").strip()))
 
-    return None
+    if not candidates:
+        return None
+    candidates.sort(key=lambda row: row[0], reverse=True)
+    return candidates[0][1]
 
 
 def clean_image_url(value, base_url):
@@ -255,6 +273,32 @@ def clean_image_url(value, base_url):
     if not value:
         return None
     return urljoin(base_url, value)
+
+
+def upscale_image_url(url):
+    if not url:
+        return url
+
+    parsed = urlparse(url)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    host = (parsed.netloc or "").lower()
+    path = parsed.path or ""
+
+    # Guardian/Source images often expose size via query params.
+    if "guim.co.uk" in host or "guardian" in host:
+        for key in ("width", "w", "fit"):
+            if key in query:
+                query.pop(key, None)
+        query["width"] = "1200"
+        query["quality"] = query.get("quality", "85")
+        return urlunparse(parsed._replace(query=urlencode(query)))
+
+    # Generic thumbnail path upsizing (e.g. .../300x200/... -> .../1200x800/...)
+    bigger = re.sub(r"/(\d{2,4})x(\d{2,4})/", "/1200x800/", path)
+    if bigger != path:
+        return urlunparse(parsed._replace(path=bigger))
+
+    return url
 
 
 def strip_html(value):
@@ -381,7 +425,9 @@ def enrich_item_image(item, session):
     body, resolved_url = fetch_article_html(article_url, session)
     article_image_url = extract_article_image_url(body, resolved_url)
     if article_image_url:
-        item["image_url"] = article_image_url
+        item["image_url"] = upscale_image_url(article_image_url)
+    elif item.get("image_url"):
+        item["image_url"] = upscale_image_url(item["image_url"])
     story = extract_article_story(
         body,
         title=item.get("title"),
@@ -430,7 +476,7 @@ def _build_rss_items(root, max_items=None):
                 "summary": summary,
                 "story": story,
                 "article_url": extract_entry_link(entry),
-                "image_url": extract_image_url(entry),
+                "image_url": upscale_image_url(extract_image_url(entry)),
                 "published_at": published_candidates[0] if published_candidates else "",
                 "author": extract_entry_author(entry),
                 "language": "en",
@@ -479,7 +525,7 @@ def fetch_bbc_football_rss():
 
 
 def fetch_guardian_premier_league_rss():
-    return _fetch_rss_source(GUARDIAN_PREMIER_LEAGUE_SOURCE, enrich=False, max_items=RSS_MAX_ITEMS_CORE)
+    return _fetch_rss_source(GUARDIAN_PREMIER_LEAGUE_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
 
 
 def fetch_sky_sports_premier_league_rss():
