@@ -22,6 +22,9 @@ DEFAULT_STANDINGS_FORMAT = os.getenv("PL_STANDINGS_FORMAT", "short").strip().low
 STANDINGS_IMAGE_ROW_HEIGHT = int(os.getenv("STANDINGS_IMAGE_ROW_HEIGHT", "54"))
 STANDINGS_IMAGE_PADDING = int(os.getenv("STANDINGS_IMAGE_PADDING", "24"))
 STANDINGS_IMAGE_WIDTH = int(os.getenv("STANDINGS_IMAGE_WIDTH", "1024"))
+LOCAL_ETHIOPIC_FONT = (
+    Path(__file__).resolve().parent / "NotoSansEthiopic-VariableFont_wdth,wght.ttf"
+)
 
 
 def _sanitize_error_text(text):
@@ -293,6 +296,8 @@ def format_short_table(rows):
 
 def _load_font(size, bold=False):
     candidates = []
+    if LOCAL_ETHIOPIC_FONT.exists():
+        candidates.append(str(LOCAL_ETHIOPIC_FONT))
     candidates.extend(
         [
             "/usr/share/fonts/truetype/noto/NotoSansEthiopic-Regular.ttf",
