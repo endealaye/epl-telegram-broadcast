@@ -19,7 +19,7 @@ OFFICIAL_STANDINGS_API_BASE = os.getenv(
 OFFICIAL_COMPETITION_ID = os.getenv("PL_STANDINGS_COMPETITION_ID", "8")
 OFFICIAL_SEASON_ID = os.getenv("PL_STANDINGS_SEASON_ID", "2025")
 DEFAULT_STANDINGS_FORMAT = os.getenv("PL_STANDINGS_FORMAT", "short").strip().lower()
-STANDINGS_IMAGE_ROW_HEIGHT = int(os.getenv("STANDINGS_IMAGE_ROW_HEIGHT", "60"))
+STANDINGS_IMAGE_ROW_HEIGHT = int(os.getenv("STANDINGS_IMAGE_ROW_HEIGHT", "78"))
 STANDINGS_IMAGE_PADDING = int(os.getenv("STANDINGS_IMAGE_PADDING", "24"))
 STANDINGS_IMAGE_WIDTH = int(os.getenv("STANDINGS_IMAGE_WIDTH", "700"))
 STANDINGS_LOGO_SIZE = int(os.getenv("STANDINGS_LOGO_SIZE", "30"))
@@ -469,8 +469,8 @@ def render_short_standings_image(rows, matchweek=None):
     width = max(STANDINGS_IMAGE_WIDTH, 1120)
     padding = max(16, STANDINGS_IMAGE_PADDING)
     row_height = max(42, STANDINGS_IMAGE_ROW_HEIGHT)
-    header_height = 52
-    title_height = 56
+    header_height = 70
+    title_height = 140
     content_height = title_height + header_height + (row_height * len(rows)) + padding
     height = content_height + (padding * 2)
 
@@ -483,18 +483,24 @@ def render_short_standings_image(rows, matchweek=None):
     panel_y1 = height - padding
     draw.rectangle((panel_x0, panel_y0, panel_x1, panel_y1), fill=(246, 246, 247, 255))
 
-    title_font = _load_latin_font(24, bold=True)
-    subtitle_font = _load_latin_font(20, bold=True)
-    head_font = _load_latin_font(17, bold=True)
-    row_font = _load_font(22, bold=False)
-    row_num_font = _load_latin_font(18, bold=False)
+    title_font = _load_latin_font(48, bold=True)
+    subtitle_font = _load_latin_font(36, bold=True)
+    head_font = _load_latin_font(30, bold=True)
+    row_font = _load_font(28, bold=False)
+    row_num_font = _load_latin_font(28, bold=False)
 
     title = "English Premier League"
-    draw.text((panel_x0 + 4, panel_y0 + 6), title, font=title_font, fill=(47, 51, 57))
+    title_box = draw.textbbox((0, 0), title, font=title_font)
+    title_width = title_box[2] - title_box[0]
+    title_x = panel_x0 + ((panel_x1 - panel_x0 - title_width) // 2)
+    draw.text((title_x, panel_y0 + 8), title, font=title_font, fill=(47, 51, 57))
     season_label = f"{OFFICIAL_SEASON_ID}-{int(OFFICIAL_SEASON_ID) + 1}" if str(OFFICIAL_SEASON_ID).isdigit() else str(OFFICIAL_SEASON_ID)
     if matchweek:
         season_label = f"{season_label} · Matchweek {matchweek}"
-    draw.text((panel_x0 + 10, panel_y0 + 56), season_label, font=subtitle_font, fill=(79, 84, 90))
+    subtitle_box = draw.textbbox((0, 0), season_label, font=subtitle_font)
+    subtitle_width = subtitle_box[2] - subtitle_box[0]
+    subtitle_x = panel_x0 + ((panel_x1 - panel_x0 - subtitle_width) // 2)
+    draw.text((subtitle_x, panel_y0 + 70), season_label, font=subtitle_font, fill=(79, 84, 90))
 
     table_top = panel_y0 + title_height + 18
     col_pos = panel_x0 + 16
@@ -512,7 +518,7 @@ def render_short_standings_image(rows, matchweek=None):
     }
 
     for key in stat_cols:
-        _draw_cell_text(draw, key, col_positions[key] - 40, col_positions[key], table_top + 16, "right", head_font, (36, 38, 42))
+        _draw_cell_text(draw, key, col_positions[key] - 52, col_positions[key], table_top + 28, "right", head_font, (36, 38, 42))
 
     y = table_top + 56
     for row in rows:
@@ -521,18 +527,18 @@ def render_short_standings_image(rows, matchweek=None):
         gd_text = f"{int(row['gd']):+d}"
         color = (74, 78, 84)
 
-        draw.text((col_pos, y + 4), str(int(row["position"])), font=row_num_font, fill=(70, 72, 76))
+        draw.text((col_pos, y + 6), str(int(row["position"])), font=row_num_font, fill=(70, 72, 76))
         logo_path = _resolve_logo_path(row)
         if logo_path:
             logo = _fit_logo(_load_logo(logo_path), STANDINGS_LOGO_SIZE)
-            image.alpha_composite(logo, (logo_x, y + 2))
-        draw.text((team_text_x, y + 4), team_text, font=row_font, fill=(17, 94, 196))
+            image.alpha_composite(logo, (logo_x, y + 12))
+        draw.text((team_text_x, y + 6), team_text, font=row_font, fill=(17, 94, 196))
 
-        _draw_cell_text(draw, int(row["played"]), col_positions["GP"] - 40, col_positions["GP"], y + 18, "right", row_num_font, color)
-        _draw_cell_text(draw, int(row["won"]), col_positions["W"] - 40, col_positions["W"], y + 18, "right", row_num_font, color)
+        _draw_cell_text(draw, int(row["played"]), col_positions["GP"] - 52, col_positions["GP"], y + 32, "right", row_num_font, color)
+        _draw_cell_text(draw, int(row["won"]), col_positions["W"] - 52, col_positions["W"], y + 32, "right", row_num_font, color)
         gd_color = (0, 149, 68) if int(row["gd"]) > 0 else (230, 0, 0) if int(row["gd"]) < 0 else color
-        _draw_cell_text(draw, gd_text, col_positions["GD"] - 50, col_positions["GD"], y + 18, "right", row_num_font, gd_color)
-        _draw_cell_text(draw, int(row["points"]), col_positions["P"] - 40, col_positions["P"], y + 18, "right", row_num_font, color)
+        _draw_cell_text(draw, gd_text, col_positions["GD"] - 64, col_positions["GD"], y + 32, "right", row_num_font, gd_color)
+        _draw_cell_text(draw, int(row["points"]), col_positions["P"] - 52, col_positions["P"], y + 32, "right", row_num_font, color)
         y += row_height
 
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
