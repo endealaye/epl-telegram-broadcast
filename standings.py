@@ -519,6 +519,8 @@ def render_short_standings_image(rows, matchweek=None):
 
     for key in stat_cols:
         _draw_cell_text(draw, key, col_positions[key] - 52, col_positions[key], table_top + 28, "right", head_font, (36, 38, 42))
+    draw.text((col_pos, table_top + 8), "Pos", font=head_font, fill=(36, 38, 42))
+    draw.text((team_text_x, table_top + 8), "Team Name", font=head_font, fill=(36, 38, 42))
 
     y = table_top + 56
     for row in rows:
