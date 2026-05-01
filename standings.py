@@ -21,7 +21,7 @@ OFFICIAL_SEASON_ID = os.getenv("PL_STANDINGS_SEASON_ID", "2025")
 DEFAULT_STANDINGS_FORMAT = os.getenv("PL_STANDINGS_FORMAT", "short").strip().lower()
 STANDINGS_IMAGE_ROW_HEIGHT = int(os.getenv("STANDINGS_IMAGE_ROW_HEIGHT", "60"))
 STANDINGS_IMAGE_PADDING = int(os.getenv("STANDINGS_IMAGE_PADDING", "24"))
-STANDINGS_IMAGE_WIDTH = int(os.getenv("STANDINGS_IMAGE_WIDTH", "1280"))
+STANDINGS_IMAGE_WIDTH = int(os.getenv("STANDINGS_IMAGE_WIDTH", "700"))
 STANDINGS_LOGO_SIZE = int(os.getenv("STANDINGS_LOGO_SIZE", "30"))
 LOCAL_ETHIOPIC_FONT = (
     Path(__file__).resolve().parent / "NotoSansEthiopic-VariableFont_wdth,wght.ttf"
