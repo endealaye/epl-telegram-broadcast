@@ -107,7 +107,7 @@ def build_watermark_overlay(width, height):
     watermark = watermark.resize((target_width, target_height), Image.LANCZOS)
 
     x = width - target_width - margin
-    y = height - target_height - margin
+    y = margin
     overlay.alpha_composite(watermark, (x, y))
     return overlay
 
