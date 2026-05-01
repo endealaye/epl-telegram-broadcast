@@ -145,7 +145,7 @@ The `event` mode accepts a JSON object shaped like:
 For the News Desk web UI on Render, use:
 
 - Build command: `pip install -r requirements.txt`
-- Start command: `gunicorn news_dashboard:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120`
+- Start command: `gunicorn news_dashboard:app --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 120 --max-requests 200 --max-requests-jitter 30`
 
 The news workflow is intentionally human-in-the-loop:
 
@@ -176,6 +176,10 @@ News source aggregation:
 - Source-level failures are isolated; one failing feed does not stop the whole fetch job
 - Source fetches run concurrently to reduce dashboard request latency
 - Per-source item caps are enforced (`NEWS_RSS_MAX_ITEMS_CORE`, `NEWS_RSS_MAX_ITEMS_CLUB`)
+- Recommended low-memory defaults for Render web service:
+  - `NEWS_FETCH_MAX_WORKERS=3`
+  - `NEWS_RSS_MAX_ITEMS_CORE=25`
+  - `NEWS_RSS_MAX_ITEMS_CLUB=10`
 
 Important operational consequence:
 
