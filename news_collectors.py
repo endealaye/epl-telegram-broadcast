@@ -82,6 +82,25 @@ NAV_NOISE_PATTERNS = [
     re.compile(r"Search input", re.IGNORECASE),
     re.compile(r"View all News|View all Opinion|View all Sport|View all Culture|View all Lifestyle", re.IGNORECASE),
 ]
+EXCLUDED_NEWS_PATTERNS = [
+    re.compile(r"\bwomen(?:'s|s)?\b", re.IGNORECASE),
+    re.compile(r"\bwsl\b", re.IGNORECASE),
+    re.compile(r"\buwcl\b", re.IGNORECASE),
+    re.compile(r"\blionesses\b", re.IGNORECASE),
+    re.compile(r"\bunder[\s-]?21s?\b", re.IGNORECASE),
+    re.compile(r"\bu[\s-]?21s?\b", re.IGNORECASE),
+    re.compile(r"\bretail\b", re.IGNORECASE),
+    re.compile(r"\bclub shop\b", re.IGNORECASE),
+    re.compile(r"\bshop\b", re.IGNORECASE),
+    re.compile(r"\bstore\b", re.IGNORECASE),
+    re.compile(r"\bmerch(?:andise)?\b", re.IGNORECASE),
+    re.compile(r"\bseason tickets?\b", re.IGNORECASE),
+    re.compile(r"\bmembership\b", re.IGNORECASE),
+    re.compile(r"\bhospitality\b", re.IGNORECASE),
+    re.compile(r"\bstadium tour\b", re.IGNORECASE),
+    re.compile(r"\bavailable now\b", re.IGNORECASE),
+    re.compile(r"/retail[-/]", re.IGNORECASE),
+]
 BYLINE_PATTERN = re.compile(
     r"^[A-Z][A-Za-z\s'-]+reporter\s*Published\s*\d+\s*hours?\s*ago\s*\d+\s*Comments\s*",
     re.IGNORECASE,
@@ -363,6 +382,17 @@ def is_navigation_or_script_noise(text):
     return matches >= 2
 
 
+def is_excluded_news_item(item):
+    title = item.get("title") or ""
+    summary = item.get("summary") or ""
+    story = item.get("story") or ""
+    article_url = item.get("article_url") or ""
+    topic_tags = item.get("topic_tags") or []
+    tags_text = " ".join(str(tag) for tag in topic_tags)
+    corpus = " ".join([title, summary, story, article_url, tags_text])
+    return any(pattern.search(corpus) for pattern in EXCLUDED_NEWS_PATTERNS)
+
+
 def clean_story_text(story, title=None, summary=None):
     if not story:
         return None
@@ -511,19 +541,20 @@ def _build_rss_items(root, max_items=None):
                 title = cleaned
                 break
 
-        items.append(
-            {
-                "title": title,
-                "summary": summary,
-                "story": story,
-                "article_url": extract_entry_link(entry),
-                "image_url": upscale_image_url(extract_image_url(entry)),
-                "published_at": published_candidates[0] if published_candidates else "",
-                "author": extract_entry_author(entry),
-                "language": "en",
-                "topic_tags": extract_tag_values(entry),
-            }
-        )
+        item = {
+            "title": title,
+            "summary": summary,
+            "story": story,
+            "article_url": extract_entry_link(entry),
+            "image_url": upscale_image_url(extract_image_url(entry)),
+            "published_at": published_candidates[0] if published_candidates else "",
+            "author": extract_entry_author(entry),
+            "language": "en",
+            "topic_tags": extract_tag_values(entry),
+        }
+        if is_excluded_news_item(item):
+            continue
+        items.append(item)
         if max_items and len(items) >= max_items:
             break
     return items

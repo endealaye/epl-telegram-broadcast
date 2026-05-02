@@ -16,6 +16,7 @@ from news_collectors import (
     fetch_guardian_premier_league_rss,
     fetch_rss_source,
     fetch_sky_sports_premier_league_rss,
+    is_excluded_news_item,
 )
 from news_store import (
     get_news_item,
@@ -271,6 +272,8 @@ def fetch_news_items():
             story = (item.get("story") or "").strip()
             best_copy = story if len(story) >= len(summary) else summary
             if not title or not article_url:
+                continue
+            if is_excluded_news_item(item):
                 continue
             if len(best_copy) < MIN_NEWS_COPY_LENGTH:
                 continue
