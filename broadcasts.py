@@ -24,6 +24,12 @@ def _has_final_score(fixture):
     return fixture.get('hometeamscore') is not None and fixture.get('awayteamscore') is not None
 
 
+def _results_date_scope():
+    today = get_eat_today()
+    yesterday = (get_eat_now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    return [yesterday, today]
+
+
 def _should_send_standings_after_results(today_fixtures):
     if not today_fixtures:
         return False
@@ -46,6 +52,11 @@ def broadcast_daily():
     try:
         if not supabase:
             return
+        # Rule: clear unsent final scores before posting today's fixtures list.
+        result_scope = _results_date_scope()
+        if has_pending_results(date_strings=result_scope):
+            broadcast_results(date_strings=result_scope)
+
         if not has_matches_today():
             print("Skip daily: no fixtures scheduled today.")
             return
@@ -109,8 +120,10 @@ def broadcast_reminders():
         send_admin_alert(error_msg)
 
 
-def broadcast_results():
+def broadcast_results(date_strings=None):
     today = get_eat_today()
+    if date_strings is None:
+        date_strings = _results_date_scope()
     lock_key = f"lock:results:{today}"
     lock_owner = f"results:{uuid.uuid4()}"
     try:
@@ -119,12 +132,12 @@ def broadcast_results():
         if not acquire_bot_lock(lock_key=lock_key, owner=lock_owner, ttl_seconds=600):
             print("Skip results: another run currently holds the results lock.")
             return
-        if not has_pending_results():
+        if not has_pending_results(date_strings=date_strings):
             print("Skip results: no completed fixtures awaiting a results post.")
             return
 
         results = [
-            result for result in fetch_fixtures_for_dates([today])
+            result for result in fetch_fixtures_for_dates(date_strings)
             if result.get('hometeamscore') is not None
             and result.get('awayteamscore') is not None
             and not result.get('result_sent')
@@ -132,7 +145,8 @@ def broadcast_results():
         if not results:
             return
 
-        msg = f"🏁 *የጨዋታዎች ውጤት ({today})*\n\n"
+        results.sort(key=lambda item: item.get("dateeat") or "")
+        msg = "🏁 *የጨዋታዎች ውጤት*\n\n"
         sent_ids = []
         for result in results:
             home_am = AMHARIC_TEAMS.get(result['hometeam'], result['hometeam'])

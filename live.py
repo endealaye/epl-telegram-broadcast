@@ -3,7 +3,14 @@ import re
 import requests
 from bs4 import BeautifulSoup
 
-from bot_config import AMHARIC_TEAMS, BBC_SCORES_URL, SKY_SCORES_URL, TEAM_MAPPING
+from bot_config import (
+    AMHARIC_TEAMS,
+    BBC_SCORES_URL,
+    BBC_SCORES_URL_TEMPLATE,
+    SKY_SCORES_API_URL,
+    TEAM_MAPPING,
+    get_eat_today,
+)
 from commands import send_admin_alert, send_telegram_message
 from store import has_live_window_matches, mark_match_state, supabase
 
@@ -15,48 +22,81 @@ class ScoreProvider:
 
 class BBCProvider(ScoreProvider):
     def get_scores(self):
-        try:
-            response = requests.get(BBC_SCORES_URL, timeout=10)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
-            scores = []
-            for link in soup.find_all('a', href=re.compile(r'/sport/football/live/')):
-                text = link.get_text(" ", strip=True)
-                score_match = re.search(r'(.+?)\s+(\d+)\s*,\s*(.+?)\s+(\d+)', text)
-                if score_match:
-                    home_raw, h_score, away_raw, a_score = score_match.groups()
-                    scores.append({
-                        'home': home_raw.strip(),
-                        'h_score': h_score,
-                        'away': away_raw.strip(),
-                        'a_score': a_score,
-                        'text': text,
-                    })
-            return scores
-        except Exception as e:
-            print(f"BBCProvider error: {e}")
-            return None
+        candidate_urls = [
+            BBC_SCORES_URL_TEMPLATE.format(date=get_eat_today()),
+            BBC_SCORES_URL,
+        ]
+        for url in candidate_urls:
+            try:
+                response = requests.get(url, timeout=10)
+                response.raise_for_status()
+                soup = BeautifulSoup(response.text, 'html.parser')
+                scores = []
+                for link in soup.find_all('a', href=re.compile(r'/sport/football/live/')):
+                    text = link.get_text(" ", strip=True)
+                    score_match = re.search(r'(.+?)\s+(\d+)\s*,\s*(.+?)\s+(\d+)', text)
+                    if score_match:
+                        home_raw, h_score, away_raw, a_score = score_match.groups()
+                        scores.append({
+                            'home': home_raw.strip(),
+                            'h_score': h_score,
+                            'away': away_raw.strip(),
+                            'a_score': a_score,
+                            'text': text,
+                        })
+                if scores:
+                    return scores
+            except Exception as e:
+                print(f"BBCProvider error ({url}): {e}")
+        return []
 
 
 class SkySportsProvider(ScoreProvider):
     def get_scores(self):
         try:
-            response = requests.get(SKY_SCORES_URL, timeout=10)
+            response = requests.get(SKY_SCORES_API_URL, timeout=10)
             response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
+            payload = response.json()
             scores = []
-            for match_div in soup.find_all('div', class_=re.compile(r'score-box|match-score')):
-                text = match_div.get_text(" ", strip=True)
-                score_match = re.search(r'(.+?)\s+(\d+)\s*-\s*(\d+)\s+(.+)', text)
-                if score_match:
-                    home, h_score, a_score, away = score_match.groups()
-                    scores.append({
-                        'home': home.strip(),
-                        'h_score': h_score,
-                        'away': away.strip(),
-                        'a_score': a_score,
-                        'text': text,
-                    })
+            for item in payload:
+                match = item.get('match') or {}
+                competition = (((match.get('competition') or {}).get('name') or {}).get('full') or "").strip()
+                if competition != "Premier League":
+                    continue
+
+                teams = match.get('teams') or {}
+                home = teams.get('home') or {}
+                away = teams.get('away') or {}
+                home_score = home.get('score') or {}
+                away_score = away.get('score') or {}
+
+                home_name = ((home.get('name') or {}).get('full') or "").strip()
+                away_name = ((away.get('name') or {}).get('full') or "").strip()
+                h_score = home_score.get('current')
+                a_score = away_score.get('current')
+
+                if not home_name or not away_name:
+                    continue
+                if h_score is None or a_score is None:
+                    continue
+
+                match_state = (match.get('matchState') or "").strip().lower()
+                is_full_time = bool(match.get('isResult'))
+                is_half_time = match_state in {"ht", "half-time", "halftime", "half time"}
+                is_in_play = bool(match.get('isInPlay') or match.get('currentlyPlaying'))
+
+                # Ignore pre-match fixtures (0-0 before kickoff) and only emit active/final states.
+                if not (is_in_play or is_half_time or is_full_time):
+                    continue
+
+                status = "FT" if is_full_time else "HT" if is_half_time else "LIVE"
+                scores.append({
+                    'home': home_name,
+                    'h_score': str(h_score),
+                    'away': away_name,
+                    'a_score': str(a_score),
+                    'text': f"{home_name} {h_score}-{a_score} {away_name} {status}",
+                })
             return scores
         except Exception as e:
             print(f"SkySportsProvider error: {e}")

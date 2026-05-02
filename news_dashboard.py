@@ -1,4 +1,5 @@
 from flask import Flask, redirect, render_template_string, request, url_for
+from werkzeug.exceptions import HTTPException
 
 from news_pipeline import fetch_news_items, mark_review_item
 from news_store import delete_news_item, get_news_item, list_news_queue
@@ -99,7 +100,7 @@ LIST_TEMPLATE = """
           <span>{{ item.published_at or 'No timestamp' }}</span>
           <span class="pill">{{ item.review_status }}</span>
           <span class="pill">score {{ item.relevance_score }}</span>
-          {% for tag in item.topic_tags %}
+          {% for tag in (item.topic_tags or []) %}
           <span class="pill">{{ tag }}</span>
           {% endfor %}
         </div>
@@ -193,7 +194,7 @@ DETAIL_TEMPLATE = """
         <span>{{ item.published_at or 'No timestamp' }}</span>
         <span>{{ item.review_status }}</span>
         <span>score {{ item.relevance_score }}</span>
-        {% for tag in item.topic_tags %}
+        {% for tag in (item.topic_tags or []) %}
         <span>{{ tag }}</span>
         {% endfor %}
       </div>
@@ -250,7 +251,11 @@ DEFAULT_STATUSES = {
 @app.get("/")
 def news_list():
     selected_status = request.args.get("status", "review")
-    limit = int(request.args.get("limit", 20))
+    try:
+        limit = int(request.args.get("limit", 20))
+    except (TypeError, ValueError):
+        limit = 20
+    limit = max(1, min(100, limit))
     statuses = DEFAULT_STATUSES.get(selected_status, DEFAULT_STATUSES["review"])
     try:
         items = list_news_queue(statuses=statuses, limit=limit)
@@ -306,15 +311,29 @@ def update_item(item_id):
         return (str(exc), 400)
     except RuntimeError as exc:
         return (str(exc), 502)
+    except Exception as exc:
+        return (f"Unexpected update error: {exc}", 502)
     next_url = request.form.get("next") or url_for("news_detail", item_id=item_id)
     return redirect(next_url)
 
 
 @app.post("/items/<int:item_id>/delete")
 def delete_item(item_id):
-    delete_news_item(item_id)
+    try:
+        deleted = delete_news_item(item_id)
+    except Exception as exc:
+        return (f"Delete failed: {exc}", 502)
+    if not deleted:
+        return ("Delete failed: item not found or database unavailable.", 502)
     next_url = request.form.get("next") or url_for("news_list")
     return redirect(next_url)
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(exc):
+    if isinstance(exc, HTTPException):
+        return exc
+    return (f"Dashboard internal error: {exc}", 500)
 
 
 if __name__ == "__main__":

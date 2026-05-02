@@ -25,7 +25,9 @@ load_env()
 
 JSON_URL = 'https://fixturedownload.com/feed/json/epl-2025'
 BBC_SCORES_URL = 'https://www.bbc.com/sport/football/premier-league/scores-fixtures'
-SKY_SCORES_URL = 'https://www.skysports.com/premier-league/scores'
+BBC_SCORES_URL_TEMPLATE = 'https://www.bbc.com/sport/football/scores-fixtures/{date}'
+SKY_SCORES_URL_TEMPLATE = 'https://www.skysports.com/football-scores-fixtures/{date}'
+SKY_SCORES_API_URL = 'https://www.skysports.com/api/football/live-scores'
 TELEGRAM_BOT_TOKEN = _clean_env('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = _clean_env('TELEGRAM_CHAT_ID')
 TELEGRAM_ADMIN_ID = _clean_env('TELEGRAM_ADMIN_ID')

@@ -158,8 +158,13 @@ def has_live_window_matches():
     return bool(fixtures_in_window(now - timedelta(minutes=30), now + timedelta(hours=4)))
 
 
-def has_pending_results():
-    fixtures = fetch_fixtures_for_dates([get_eat_today()])
+def has_pending_results(date_strings=None):
+    if date_strings is None:
+        today = get_eat_today()
+        yesterday = (get_eat_now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        date_strings = [yesterday, today]
+
+    fixtures = fetch_fixtures_for_dates(date_strings)
     return any(
         fixture.get('hometeamscore') is not None
         and fixture.get('awayteamscore') is not None
