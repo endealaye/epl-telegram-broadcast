@@ -1,3 +1,5 @@
+import html
+import json
 import re
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -57,6 +59,71 @@ def _apply_bbc_kickoff_overrides(date_string):
     return updated
 
 
+def _sky_result_overrides_for_date(date_string):
+    url = f"https://www.skysports.com/football-scores-fixtures/{date_string}"
+    response = requests.get(url, timeout=20)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    overrides = {}
+    for node in soup.find_all(attrs={"data-state": True}):
+        raw_payload = node.get("data-state")
+        if not raw_payload:
+            continue
+        try:
+            payload = json.loads(html.unescape(raw_payload))
+        except Exception:
+            continue
+
+        competition_name = (
+            ((payload.get("competition") or {}).get("name") or {}).get("full") or ""
+        ).strip()
+        if competition_name != "Premier League":
+            continue
+        if not payload.get("isResult"):
+            continue
+
+        teams = payload.get("teams") or {}
+        home = teams.get("home") or {}
+        away = teams.get("away") or {}
+        home_name = ((home.get("name") or {}).get("full") or "").strip()
+        away_name = ((away.get("name") or {}).get("full") or "").strip()
+        home_score = (home.get("score") or {}).get("current")
+        away_score = (away.get("score") or {}).get("current")
+        if not home_name or not away_name or home_score is None or away_score is None:
+            continue
+
+        mapped_home = TEAM_MAPPING.get(home_name, home_name)
+        mapped_away = TEAM_MAPPING.get(away_name, away_name)
+        overrides[(mapped_home, mapped_away)] = (int(home_score), int(away_score))
+
+    return overrides
+
+
+def _apply_sky_result_overrides(date_string):
+    if not supabase:
+        return 0
+    overrides = _sky_result_overrides_for_date(date_string)
+    updated = 0
+    for (home_team, away_team), (home_score, away_score) in overrides.items():
+        res = (
+            supabase.table("fixtures")
+            .update(
+                {
+                    "hometeamscore": home_score,
+                    "awayteamscore": away_score,
+                }
+            )
+            .eq("hometeam", home_team)
+            .eq("awayteam", away_team)
+            .ilike("dateeat", f"{date_string}%")
+            .execute()
+        )
+        rows = res.data or []
+        updated += len(rows)
+    return updated
+
+
 def update_fixtures_from_json():
     if not supabase:
         return False
@@ -95,6 +162,14 @@ def update_fixtures_from_json():
                     print(f"Applied BBC kickoff override for {updated} fixture rows on {date_string}.")
             except Exception as bbc_exc:
                 print(f"BBC kickoff override skipped for {date_string}: {bbc_exc}")
+        yesterday = (get_eat_now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        for date_string in {yesterday, today}:
+            try:
+                updated = _apply_sky_result_overrides(date_string)
+                if updated:
+                    print(f"Applied Sky result override for {updated} fixture rows on {date_string}.")
+            except Exception as sky_exc:
+                print(f"Sky result override skipped for {date_string}: {sky_exc}")
         return True
     except Exception as e:
         print(f"Error updating fixtures: {e}")

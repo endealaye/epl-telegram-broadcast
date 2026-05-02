@@ -355,12 +355,22 @@ def mark_review_item(
         "translated_title_am": final_title,
         "translated_story_am": final_story,
     })
+    sent = False
     if payload["image_url"]:
-        temp_path = create_watermarked_image(payload["image_url"])
+        temp_path = None
         try:
+            temp_path = create_watermarked_image(payload["image_url"])
             sent = send_telegram_photo_file(temp_path, payload["caption"])
+        except Exception as exc:
+            print(f"Watermark render/upload failed for item {item_id}: {exc}")
+            try:
+                sent = send_telegram_photo(payload["image_url"], payload["caption"])
+            except Exception as photo_exc:
+                print(f"Direct photo send failed for item {item_id}: {photo_exc}")
+                sent = send_telegram_message(payload["caption"])
         finally:
-            temp_path.unlink(missing_ok=True)
+            if temp_path is not None:
+                temp_path.unlink(missing_ok=True)
     else:
         sent = send_telegram_message(payload["caption"])
     if not sent:
