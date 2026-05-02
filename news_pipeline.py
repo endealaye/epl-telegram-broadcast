@@ -38,7 +38,7 @@ NEWS_IMAGE_MAX_BYTES = int(os.getenv("NEWS_IMAGE_MAX_BYTES", str(8 * 1024 * 1024
 NEWS_IMAGE_MAX_PIXELS = int(os.getenv("NEWS_IMAGE_MAX_PIXELS", str(40_000_000)))
 NEWS_IMAGE_TIMEOUT = (8, 20)
 NEWS_IMAGE_CHUNK_SIZE = 64 * 1024
-NEWS_FETCH_MAX_WORKERS = int(os.getenv("NEWS_FETCH_MAX_WORKERS", "3"))
+NEWS_FETCH_MAX_WORKERS = int(os.getenv("NEWS_FETCH_MAX_WORKERS", "2"))
 MIN_NEWS_COPY_LENGTH = int(os.getenv("NEWS_MIN_COPY_LENGTH", "40"))
 WATERMARK_ASSET_CANDIDATES = (
     "6a8.svg",
@@ -232,7 +232,7 @@ def fetch_news_items():
             )
         )
 
-    max_workers = max(2, min(NEWS_FETCH_MAX_WORKERS, len(jobs) or 2))
+    max_workers = max(1, min(NEWS_FETCH_MAX_WORKERS, len(jobs) or 1))
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_map = {
             executor.submit(job_fn): source_name

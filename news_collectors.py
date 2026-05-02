@@ -96,8 +96,12 @@ BBC_FOOTBALL_SOURCE = {
 RSS_CONNECT_TIMEOUT = float(os.getenv("NEWS_RSS_CONNECT_TIMEOUT", "5"))
 RSS_READ_TIMEOUT = float(os.getenv("NEWS_RSS_READ_TIMEOUT", "10"))
 RSS_TIMEOUT = (RSS_CONNECT_TIMEOUT, RSS_READ_TIMEOUT)
-RSS_MAX_ITEMS_CORE = int(os.getenv("NEWS_RSS_MAX_ITEMS_CORE", "25"))
-RSS_MAX_ITEMS_CLUB = int(os.getenv("NEWS_RSS_MAX_ITEMS_CLUB", "10"))
+RSS_MAX_ITEMS_CORE = int(os.getenv("NEWS_RSS_MAX_ITEMS_CORE", "12"))
+RSS_MAX_ITEMS_CLUB = int(os.getenv("NEWS_RSS_MAX_ITEMS_CLUB", "6"))
+NEWS_ENRICH_MAX_WORKERS = int(os.getenv("NEWS_ENRICH_MAX_WORKERS", "2"))
+NEWS_ARTICLE_TIMEOUT = (float(os.getenv("NEWS_ARTICLE_CONNECT_TIMEOUT", "5")), float(os.getenv("NEWS_ARTICLE_READ_TIMEOUT", "10")))
+NEWS_ARTICLE_MAX_BYTES = int(os.getenv("NEWS_ARTICLE_MAX_BYTES", str(1_200_000)))
+NEWS_ARTICLE_CHUNK_SIZE = int(os.getenv("NEWS_ARTICLE_CHUNK_SIZE", str(64 * 1024)))
 
 GUARDIAN_PREMIER_LEAGUE_SOURCE = {
     "source_key": "guardian_premier_league_rss",
@@ -378,11 +382,23 @@ def clean_story_text(story, title=None, summary=None):
 
 def fetch_article_html(article_url, session):
     try:
-        response = session.get(article_url, timeout=10)
+        response = session.get(article_url, timeout=NEWS_ARTICLE_TIMEOUT, stream=True)
         response.raise_for_status()
+        content_type = (response.headers.get("Content-Type") or "").lower()
+        if content_type and "text/html" not in content_type:
+            response.close()
+            return None, article_url
+        body = bytearray()
+        for chunk in response.iter_content(chunk_size=NEWS_ARTICLE_CHUNK_SIZE):
+            if not chunk:
+                continue
+            body.extend(chunk)
+            if len(body) >= NEWS_ARTICLE_MAX_BYTES:
+                break
+        response.close()
     except requests.RequestException:
         return None, article_url
-    return response.text, response.url
+    return body.decode(response.encoding or "utf-8", errors="ignore"), response.url
 
 
 def extract_article_image_url(body, base_url):
@@ -514,35 +530,36 @@ def _build_rss_items(root, max_items=None):
 
 
 def _fetch_rss_source(source_config, enrich=True, max_items=None):
-    session = requests.Session()
-    session.headers.update(
-        {
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0 Safari/537.36"
-            )
-        }
-    )
+    with requests.Session() as session:
+        session.headers.update(
+            {
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0 Safari/537.36"
+                )
+            }
+        )
 
-    response = session.get(source_config["source_url"], timeout=RSS_TIMEOUT)
-    response.raise_for_status()
+        response = session.get(source_config["source_url"], timeout=RSS_TIMEOUT)
+        response.raise_for_status()
 
-    root = ET.fromstring(response.content)
-    items = _build_rss_items(root, max_items=max_items)
+        root = ET.fromstring(response.content)
+        items = _build_rss_items(root, max_items=max_items)
 
-    if not enrich:
-        return source_config, items
+        if not enrich or not items:
+            return source_config, items
 
-    enriched_items = [None] * len(items)
-    with ThreadPoolExecutor(max_workers=6) as executor:
-        futures = {
-            executor.submit(enrich_item_image, item, session): index
-            for index, item in enumerate(items)
-        }
-        for future in as_completed(futures):
-            enriched_items[futures[future]] = future.result()
+        enriched_items = [None] * len(items)
+        max_workers = max(1, min(NEWS_ENRICH_MAX_WORKERS, len(items)))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(enrich_item_image, item, session): index
+                for index, item in enumerate(items)
+            }
+            for future in as_completed(futures):
+                enriched_items[futures[future]] = future.result()
 
-    return source_config, enriched_items
+        return source_config, enriched_items
 
 
 def fetch_bbc_football_rss():
