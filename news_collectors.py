@@ -73,6 +73,15 @@ BOILERPLATE_PATTERNS = [
     re.compile(r"Comments$", re.IGNORECASE),
     re.compile(r"reporter\s*Published\s*\d+\s*hours?\s*ago\s*\d+\s*Comments", re.IGNORECASE),
 ]
+NAV_NOISE_PATTERNS = [
+    re.compile(r"addEventListener\s*\(", re.IGNORECASE),
+    re.compile(r"DOMContentLoaded", re.IGNORECASE),
+    re.compile(r"The Guardian - Back to home", re.IGNORECASE),
+    re.compile(r"USUS edition|UK edition|Australia edition|Europe edition|International edition", re.IGNORECASE),
+    re.compile(r"Show moreHide expanded menu", re.IGNORECASE),
+    re.compile(r"Search input", re.IGNORECASE),
+    re.compile(r"View all News|View all Opinion|View all Sport|View all Culture|View all Lifestyle", re.IGNORECASE),
+]
 BYLINE_PATTERN = re.compile(
     r"^[A-Z][A-Za-z\s'-]+reporter\s*Published\s*\d+\s*hours?\s*ago\s*\d+\s*Comments\s*",
     re.IGNORECASE,
@@ -214,6 +223,8 @@ def extract_summary_and_story(item_element):
     summary = None
     for candidate in summary_candidates:
         cleaned = normalize_text_candidate(candidate)
+        if is_navigation_or_script_noise(cleaned):
+            continue
         if cleaned:
             summary = cleaned
             break
@@ -221,6 +232,8 @@ def extract_summary_and_story(item_element):
     story = None
     for candidate in content_candidates:
         cleaned = normalize_text_candidate(candidate)
+        if is_navigation_or_script_noise(cleaned):
+            continue
         if cleaned:
             story = cleaned
             break
@@ -338,6 +351,14 @@ def normalize_space(value):
     return re.sub(r"\s+", " ", value or "").strip()
 
 
+def is_navigation_or_script_noise(text):
+    content = normalize_space(text)
+    if not content:
+        return True
+    matches = sum(1 for pattern in NAV_NOISE_PATTERNS if pattern.search(content))
+    return matches >= 2
+
+
 def clean_story_text(story, title=None, summary=None):
     if not story:
         return None
@@ -350,6 +371,8 @@ def clean_story_text(story, title=None, summary=None):
 
     story = BYLINE_PATTERN.sub("", story).strip()
     story = re.sub(r"\s+", " ", story).strip()
+    if is_navigation_or_script_noise(story):
+        return None
     return story or None
 
 
@@ -400,6 +423,8 @@ def extract_article_story(body, title=None, summary=None):
         for raw_paragraph in matches:
             paragraph = strip_html(raw_paragraph)
             if is_boilerplate_paragraph(paragraph):
+                continue
+            if is_navigation_or_script_noise(paragraph):
                 continue
             if paragraph not in paragraphs:
                 paragraphs.append(paragraph)
