@@ -252,7 +252,10 @@ def news_list():
     selected_status = request.args.get("status", "review")
     limit = int(request.args.get("limit", 20))
     statuses = DEFAULT_STATUSES.get(selected_status, DEFAULT_STATUSES["review"])
-    items = list_news_queue(statuses=statuses, limit=limit)
+    try:
+        items = list_news_queue(statuses=statuses, limit=limit)
+    except Exception as exc:
+        return (f"Failed to load news queue: {exc}", 502)
     return render_template_string(
         LIST_TEMPLATE,
         items=items,
@@ -264,13 +267,19 @@ def news_list():
 
 @app.post("/fetch")
 def fetch_news():
-    fetch_news_items()
+    try:
+        fetch_news_items()
+    except Exception as exc:
+        return (f"News fetch failed: {exc}", 502)
     return redirect(url_for("news_list"))
 
 
 @app.get("/items/<int:item_id>")
 def news_detail(item_id):
-    item = get_news_item(item_id)
+    try:
+        item = get_news_item(item_id)
+    except Exception as exc:
+        return (f"Failed to load news item: {exc}", 502)
     if not item:
         return ("Not found", 404)
     return render_template_string(DETAIL_TEMPLATE, item=item)

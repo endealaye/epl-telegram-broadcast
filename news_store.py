@@ -90,6 +90,14 @@ ALLOWED_STATUS_TRANSITIONS = {
 MAX_SUMMARY_LENGTH = 500
 
 
+def _safe_execute(query, default=None, context="news_store"):
+    try:
+        return query.execute()
+    except Exception as exc:
+        print(f"News store query failed ({context}): {exc}")
+        return default
+
+
 def normalize_review_status(status):
     return (status or "").strip().lower()
 
@@ -241,7 +249,13 @@ def normalize_news_item(source_key, source_name, source_url, item):
 def upsert_news_items(items):
     if not supabase or not items:
         return []
-    res = supabase.table("news_items").upsert(items, on_conflict="content_hash").execute()
+    res = _safe_execute(
+        supabase.table("news_items").upsert(items, on_conflict="content_hash"),
+        default=None,
+        context="upsert_news_items",
+    )
+    if res is None:
+        return []
     return res.data or []
 
 
@@ -254,17 +268,25 @@ def list_news_queue(statuses=None, limit=20):
     ).order("published_at", desc=True).limit(limit)
     if statuses:
         query = query.in_("review_status", statuses)
-    res = query.execute()
+    res = _safe_execute(query, default=None, context="list_news_queue")
+    if res is None:
+        return []
     return res.data or []
 
 
 def get_news_item(item_id):
     if not supabase:
         return None
-    res = supabase.table("news_items").select(
-        "id,source_name,source_url,article_url,image_url,title,summary,story,author,published_at,review_status,"
-        "relevance_score,topic_tags,translated_title_am,translated_story_am,notes"
-    ).eq("id", item_id).limit(1).execute()
+    res = _safe_execute(
+        supabase.table("news_items").select(
+            "id,source_name,source_url,article_url,image_url,title,summary,story,author,published_at,review_status,"
+            "relevance_score,topic_tags,translated_title_am,translated_story_am,notes"
+        ).eq("id", item_id).limit(1),
+        default=None,
+        context=f"get_news_item:{item_id}",
+    )
+    if res is None:
+        return None
     rows = res.data or []
     return rows[0] if rows else None
 
@@ -299,7 +321,13 @@ def mark_news_item(
     if image_url is not None:
         payload["image_url"] = image_url
 
-    res = supabase.table("news_items").update(payload).eq("id", item_id).execute()
+    res = _safe_execute(
+        supabase.table("news_items").update(payload).eq("id", item_id),
+        default=None,
+        context=f"mark_news_item:{item_id}",
+    )
+    if res is None:
+        return None
     rows = res.data or []
     return rows[0] if rows else None
 
@@ -308,5 +336,11 @@ def delete_news_item(item_id):
     if not supabase:
         return False
 
-    res = supabase.table("news_items").delete().eq("id", item_id).execute()
+    res = _safe_execute(
+        supabase.table("news_items").delete().eq("id", item_id),
+        default=None,
+        context=f"delete_news_item:{item_id}",
+    )
+    if res is None:
+        return False
     return bool(res.data)
