@@ -240,11 +240,11 @@ DETAIL_TEMPLATE = """
 
 
 DEFAULT_STATUSES = {
-    "review": ["filtered", "translated"],
+    "review": ["filtered", "approved", "translated"],
     "filtered": ["filtered"],
+    "approved": ["approved"],
     "translated": ["translated"],
-    "published": ["published"],
-    "all_active": ["filtered", "translated", "published"],
+    "all_active": ["filtered", "approved", "translated"],
 }
 
 

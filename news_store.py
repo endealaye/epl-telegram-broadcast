@@ -318,6 +318,14 @@ def mark_news_item(
         payload["translated_story_am"] = translated_story_am
     if notes is not None:
         payload["notes"] = notes
+    if status == "published":
+        posted_stamp = f"posted_to_telegram:{datetime.now(timezone.utc).isoformat()}"
+        base_notes = payload.get("notes")
+        if base_notes is None:
+            base_notes = current_item.get("notes")
+        base_notes = (base_notes or "").strip()
+        if "posted_to_telegram:" not in base_notes:
+            payload["notes"] = f"{base_notes} | {posted_stamp}".strip(" |")
     if image_url is not None:
         payload["image_url"] = image_url
 
