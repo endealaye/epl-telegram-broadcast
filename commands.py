@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+from datetime import timedelta
 
 import requests
 
@@ -80,6 +81,27 @@ def send_admin_alert(message):
     return True
 
 
+def get_next_workflow_run_eat():
+    now = get_eat_now()
+    next_run = now.replace(second=0, microsecond=0)
+    minute_slot = ((next_run.minute // 30) + 1) * 30
+    if minute_slot >= 60:
+        next_run = next_run.replace(minute=0) + timedelta(hours=1)
+    else:
+        next_run = next_run.replace(minute=minute_slot)
+    return next_run
+
+
+def build_status_message():
+    now = get_eat_now()
+    next_run = get_next_workflow_run_eat()
+    return (
+        "✅ *Bot Status*: Online\n"
+        f"🕒 *Now*: {now.strftime('%Y-%m-%d %H:%M:%S')} EAT\n"
+        f"⏭️ *Next workflow run*: {next_run.strftime('%Y-%m-%d %H:%M')} EAT"
+    )
+
+
 def broadcast_heartbeat(chat_id=None):
     try:
         now = get_eat_now()
@@ -121,7 +143,7 @@ def process_commands():
             if text == '/heartbeat':
                 broadcast_heartbeat(chat_id=chat_id)
             elif text == '/status':
-                send_telegram_message("✅ *Bot Status*: Online\n🕒 *Next run*: Every 30m", chat_id=chat_id)
+                send_telegram_message(build_status_message(), chat_id=chat_id)
 
             last_update_id = update['update_id']
 
