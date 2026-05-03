@@ -471,20 +471,20 @@ def _draw_cell_text(draw, text, x0, x1, y, align, font, fill):
     text = str(text)
     left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
     width = right - left
-    height = bottom - top
     if align == "right":
         x = x1 - width
     else:
         x = x0
-    draw.text((x, y - (height // 2)), text, font=font, fill=fill)
+    text_y = y - ((top + bottom) / 2.0)
+    draw.text((x, text_y), text, font=font, fill=fill)
 
 
 def _draw_left_text_center(draw, text, x, y, font, fill, stroke_width=0, stroke_fill=None):
     text = str(text)
     left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
-    height = bottom - top
+    text_y = y - ((top + bottom) / 2.0)
     draw.text(
-        (x, y - (height // 2)),
+        (x, text_y),
         text,
         font=font,
         fill=fill,
@@ -527,7 +527,8 @@ def render_short_standings_image(rows, matchweek=None):
     subtitle_font = _load_latin_font(36, bold=True)
     head_font = _load_latin_font(30, bold=True)
     row_font = _load_font(34, bold=True)
-    row_num_font = _load_latin_font(28, bold=True)
+    row_num_font = _load_latin_font(32, bold=True)
+    row_points_font = _load_latin_font(34, bold=True)
 
     title = "English Premier League"
     title_box = draw.textbbox((0, 0), title, font=title_font)
@@ -543,17 +544,19 @@ def render_short_standings_image(rows, matchweek=None):
     draw.text((subtitle_x, panel_y0 + 70), season_label, font=subtitle_font, fill=(0, 0, 0))
 
     table_top = panel_y0 + title_height + 18
-    col_pos = 60 + STANDINGS_ROW_X_OFFSET
+    # Keep position/team anchored to base axis; apply offset only to stats columns.
+    stats_x_offset = STANDINGS_ROW_X_OFFSET
+    col_pos = 60
     col_team = col_pos + 76
     logo_x = col_team
     team_text_x = logo_x + STANDINGS_LOGO_SIZE + 12
     stat_cols = ["GP", "W", "GD", "P"]
     stat_step = 121
     col_positions = {
-        "GP": 600 + STANDINGS_ROW_X_OFFSET,
-        "W": 600 + STANDINGS_ROW_X_OFFSET + stat_step,
-        "GD": 600 + STANDINGS_ROW_X_OFFSET + (stat_step * 2),
-        "P": 600 + STANDINGS_ROW_X_OFFSET + (stat_step * 3),
+        "GP": 600 + stats_x_offset,
+        "W": 600 + stats_x_offset + stat_step,
+        "GD": 600 + stats_x_offset + (stat_step * 2),
+        "P": 600 + stats_x_offset + (stat_step * 3),
     }
 
     for key in stat_cols:
@@ -568,19 +571,29 @@ def render_short_standings_image(rows, matchweek=None):
         gd_text = f"{int(row['gd']):+d}"
         color = (0, 0, 0)
         row_center_y = y + (row_height // 2)
+        position_value = int(row["position"])
 
-        _draw_left_text_center(draw, str(int(row["position"])), col_pos, row_center_y, row_num_font, (0, 0, 0))
+        # Alternate full-row band (odd positions only).
+        if position_value % 2 == 1:
+            team_band_x0 = panel_x0 + 16
+            team_band_x1 = panel_x1 - 16
+            draw.rectangle(
+                (team_band_x0, y + 8, team_band_x1, y + row_height - 8),
+                fill=(234, 234, 236, 255),
+            )
+
+        _draw_left_text_center(draw, str(position_value), col_pos, row_center_y, row_num_font, (0, 0, 0))
         logo_path = _resolve_logo_path(row)
         if logo_path:
             logo = _fit_logo(_load_logo(logo_path), STANDINGS_LOGO_SIZE)
-            logo_y = row_center_y - (STANDINGS_LOGO_SIZE // 2)
+            logo_y = int(round(row_center_y - (STANDINGS_LOGO_SIZE / 2.0)))
             image.alpha_composite(logo, (logo_x, logo_y))
         _draw_left_text_center(draw, team_text, team_text_x, row_center_y, row_font, (0, 0, 0))
 
         _draw_cell_text(draw, int(row["played"]), col_positions["GP"] - 52, col_positions["GP"], row_center_y, "right", row_num_font, color)
         _draw_cell_text(draw, int(row["won"]), col_positions["W"] - 52, col_positions["W"], row_center_y, "right", row_num_font, color)
         _draw_cell_text(draw, gd_text, col_positions["GD"] - 64, col_positions["GD"], row_center_y, "right", row_num_font, color)
-        _draw_cell_text(draw, int(row["points"]), col_positions["P"] - 52, col_positions["P"], row_center_y, "right", row_num_font, color)
+        _draw_cell_text(draw, int(row["points"]), col_positions["P"] - 52, col_positions["P"], row_center_y, "right", row_points_font, color)
         y += row_height
 
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")

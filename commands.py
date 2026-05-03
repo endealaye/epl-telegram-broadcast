@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 import requests
 
@@ -6,49 +7,67 @@ from bot_config import TELEGRAM_ADMIN_ID, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, 
 from store import supabase
 
 
-def send_telegram_message(message, chat_id=None):
+def _telegram_post(method, *, json_payload=None, data=None, files=None):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/{method}"
+    response = requests.post(url, json=json_payload, data=data, files=files)
+    response.raise_for_status()
+    payload = response.json()
+    if not payload.get("ok"):
+        raise RuntimeError(f"Telegram API {method} failed: {payload}")
+    return payload.get("result")
+
+
+def send_telegram_message(message, chat_id=None, return_message=False):
     target_chat = chat_id or TELEGRAM_CHAT_ID
     if not TELEGRAM_BOT_TOKEN or not target_chat:
         print(message)
-        return False
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        return None if return_message else False
     payload = {"chat_id": target_chat, "text": message, "parse_mode": "Markdown"}
-    response = requests.post(url, json=payload)
-    response.raise_for_status()
-    return True
+    result = _telegram_post("sendMessage", json_payload=payload)
+    return result if return_message else True
 
 
-def send_telegram_photo(photo_url, caption, chat_id=None):
+def send_telegram_photo(photo_url, caption, chat_id=None, return_message=False):
     target_chat = chat_id or TELEGRAM_CHAT_ID
     if not TELEGRAM_BOT_TOKEN or not target_chat:
         print(caption)
-        return False
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+        return None if return_message else False
     payload = {
         "chat_id": target_chat,
         "photo": photo_url,
         "caption": caption,
         "parse_mode": "Markdown",
     }
-    response = requests.post(url, json=payload)
-    response.raise_for_status()
-    return True
+    result = _telegram_post("sendPhoto", json_payload=payload)
+    return result if return_message else True
 
 
-def send_telegram_photo_file(photo_path, caption, chat_id=None):
+def send_telegram_photo_file(photo_path, caption, chat_id=None, return_message=False):
     target_chat = chat_id or TELEGRAM_CHAT_ID
     if not TELEGRAM_BOT_TOKEN or not target_chat:
         print(caption)
-        return False
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+        return None if return_message else False
     data = {
         "chat_id": target_chat,
         "caption": caption,
         "parse_mode": "Markdown",
     }
     with Path(photo_path).open("rb") as photo_file:
-        response = requests.post(url, data=data, files={"photo": photo_file})
-    response.raise_for_status()
+        result = _telegram_post("sendPhoto", data=data, files={"photo": photo_file})
+    return result if return_message else True
+
+
+def set_telegram_message_reaction(message_id, reaction_emoji, chat_id=None, is_big=True):
+    target_chat = chat_id or TELEGRAM_CHAT_ID
+    if not TELEGRAM_BOT_TOKEN or not target_chat or not message_id or not reaction_emoji:
+        return False
+    payload = {
+        "chat_id": target_chat,
+        "message_id": message_id,
+        "reaction": json.dumps([{"type": "emoji", "emoji": reaction_emoji}]),
+        "is_big": is_big,
+    }
+    _telegram_post("setMessageReaction", data=payload)
     return True
 
 
@@ -56,10 +75,8 @@ def send_admin_alert(message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_ADMIN_ID:
         print(f"Admin Alert: {message}")
         return False
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_ADMIN_ID, "text": f"⚠️ *System Alert*\n\n{message}", "parse_mode": "Markdown"}
-    response = requests.post(url, json=payload)
-    response.raise_for_status()
+    _telegram_post("sendMessage", json_payload=payload)
     return True
 
 
