@@ -88,6 +88,7 @@ ALLOWED_STATUS_TRANSITIONS = {
     "published": {"published"},
 }
 MAX_SUMMARY_LENGTH = 500
+USER_HIDDEN_NOTE_PREFIX = "hidden_by_user:"
 
 
 def _safe_execute(query, default=None, context="news_store"):
@@ -119,6 +120,19 @@ def validate_status_transition(current_status, target_status):
     if target not in allowed_targets:
         raise ValueError(f"Invalid status transition: '{current_status}' -> '{target_status}'.")
     return target
+
+
+def is_user_hidden(notes):
+    return USER_HIDDEN_NOTE_PREFIX in ((notes or "").strip().lower())
+
+
+def append_note_marker(notes, marker):
+    base_notes = (notes or "").strip()
+    if marker in base_notes:
+        return base_notes
+    if not base_notes:
+        return marker
+    return f"{base_notes} | {marker}"
 
 
 def parse_rss_datetime(value):
@@ -259,6 +273,32 @@ def upsert_news_items(items):
     return res.data or []
 
 
+def get_news_items_by_content_hashes(content_hashes):
+    if not supabase or not content_hashes:
+        return {}
+
+    rows = []
+    batch_size = 200
+    hashes = list(content_hashes)
+    for start in range(0, len(hashes), batch_size):
+        batch = hashes[start:start + batch_size]
+        res = _safe_execute(
+            supabase.table("news_items").select(
+                "id,content_hash,review_status,notes"
+            ).in_("content_hash", batch),
+            default=None,
+            context="get_news_items_by_content_hashes",
+        )
+        if res and res.data:
+            rows.extend(res.data)
+
+    return {
+        row["content_hash"]: row
+        for row in rows
+        if row.get("content_hash")
+    }
+
+
 def list_news_queue(statuses=None, limit=20):
     if not supabase:
         return []
@@ -341,11 +381,20 @@ def mark_news_item(
 
 
 def delete_news_item(item_id):
-    if not supabase:
+    current_item = get_news_item(item_id)
+    if not current_item:
         return False
 
+    hidden_stamp = f"{USER_HIDDEN_NOTE_PREFIX}{datetime.now(timezone.utc).isoformat()}"
+    notes = append_note_marker(current_item.get("notes"), hidden_stamp)
     res = _safe_execute(
-        supabase.table("news_items").delete().eq("id", item_id),
+        supabase.table("news_items").update(
+            {
+                "review_status": "rejected",
+                "notes": notes,
+                "reviewed_at": datetime.now(timezone.utc).isoformat(),
+            }
+        ).eq("id", item_id),
         default=None,
         context=f"delete_news_item:{item_id}",
     )

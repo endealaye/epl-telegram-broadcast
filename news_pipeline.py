@@ -19,7 +19,9 @@ from news_collectors import (
     is_excluded_news_item,
 )
 from news_store import (
+    get_news_items_by_content_hashes,
     get_news_item,
+    is_user_hidden,
     list_news_queue,
     mark_news_item,
     normalize_news_item,
@@ -295,6 +297,13 @@ def fetch_news_items():
     deduped_items = {}
     for item in normalized_items:
         deduped_items[item["content_hash"]] = item
+
+    existing_items = get_news_items_by_content_hashes(deduped_items.keys())
+    deduped_items = {
+        content_hash: item
+        for content_hash, item in deduped_items.items()
+        if not is_user_hidden((existing_items.get(content_hash) or {}).get("notes"))
+    }
 
     stored_items = upsert_news_items(list(deduped_items.values()))
     return {

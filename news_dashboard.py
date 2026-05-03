@@ -134,10 +134,10 @@ LIST_TEMPLATE = """
                 <button class="publish" type="submit" name="status" value="published">Publish</button>
               </div>
             </form>
-            <form method="post" action="{{ url_for('delete_item', item_id=item.id) }}" onsubmit="return confirm('Delete this news item?');">
+            <form method="post" action="{{ url_for('delete_item', item_id=item.id) }}" onsubmit="return confirm('Hide this news item and prevent it from returning?');">
               <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
               <div class="actions">
-                <button class="danger" type="submit">Delete</button>
+                <button class="danger" type="submit">Hide</button>
               </div>
             </form>
           </div>
@@ -227,9 +227,9 @@ DETAIL_TEMPLATE = """
           <button class="primary" type="submit" name="status" value="published">Publish</button>
         </div>
       </form>
-      <form method="post" action="{{ url_for('delete_item', item_id=item.id) }}" onsubmit="return confirm('Delete this news item?');">
+      <form method="post" action="{{ url_for('delete_item', item_id=item.id) }}" onsubmit="return confirm('Hide this news item and prevent it from returning?');">
         <div class="actions">
-          <button type="submit">Delete</button>
+          <button type="submit">Hide</button>
         </div>
       </form>
     </div>
