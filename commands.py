@@ -4,7 +4,7 @@ import json
 import requests
 
 from bot_config import TELEGRAM_ADMIN_ID, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, get_eat_now
-from store import supabase
+from store import get_bot_state_value, set_bot_state_value, supabase
 
 
 def _telegram_post(method, *, json_payload=None, data=None, files=None):
@@ -96,8 +96,8 @@ def process_commands():
     if not supabase or not TELEGRAM_BOT_TOKEN:
         return
     try:
-        res = supabase.table('bot_state').select('value').eq('key', 'last_update_id').single().execute()
-        last_update_id = int(res.data['value']) if res.data else 0
+        raw_last_update_id = get_bot_state_value('last_update_id')
+        last_update_id = int(raw_last_update_id) if raw_last_update_id else 0
 
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
         params = {"offset": last_update_id + 1, "timeout": 10}
@@ -126,6 +126,6 @@ def process_commands():
             last_update_id = update['update_id']
 
         if updates:
-            supabase.table('bot_state').upsert({"key": 'last_update_id', "value": str(last_update_id)}).execute()
+            set_bot_state_value('last_update_id', str(last_update_id))
     except Exception as e:
         print(f"Command processing error: {e}")

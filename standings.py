@@ -493,6 +493,12 @@ def _draw_left_text_center(draw, text, x, y, font, fill, stroke_width=0, stroke_
     )
 
 
+def _build_standings_watermark_overlay(width, height):
+    from news_pipeline import build_watermark_overlay
+
+    return build_watermark_overlay(width, height)
+
+
 def _short_team_name(row):
     team_key = row.get("team") or ""
     team_display = (row.get("team_display") or row.get("team") or "").strip()
@@ -523,21 +529,21 @@ def render_short_standings_image(rows, matchweek=None):
     panel_y1 = height - padding
     draw.rectangle((panel_x0, panel_y0, panel_x1, panel_y1), fill=(246, 246, 247, 255))
 
-    title_font = _load_latin_font(48, bold=True)
-    subtitle_font = _load_latin_font(36, bold=True)
+    title_font = _load_font(48, bold=True)
+    subtitle_font = _load_font(34, bold=True)
     head_font = _load_latin_font(30, bold=True)
     row_font = _load_font(34, bold=True)
     row_num_font = _load_latin_font(32, bold=True)
     row_points_font = _load_latin_font(34, bold=True)
 
-    title = "English Premier League"
+    title = "የፕሪሚየር ሊግ ደረጃ ሰንጠረዥ"
     title_box = draw.textbbox((0, 0), title, font=title_font)
     title_width = title_box[2] - title_box[0]
     title_x = panel_x0 + ((panel_x1 - panel_x0 - title_width) // 2)
     draw.text((title_x, panel_y0 + 8), title, font=title_font, fill=(0, 0, 0))
     season_label = f"{OFFICIAL_SEASON_ID}-{int(OFFICIAL_SEASON_ID) + 1}" if str(OFFICIAL_SEASON_ID).isdigit() else str(OFFICIAL_SEASON_ID)
     if matchweek:
-        season_label = f"{season_label} · Matchweek {matchweek}"
+        season_label = f"{season_label} · {matchweek}ኛ ሳምንት"
     subtitle_box = draw.textbbox((0, 0), season_label, font=subtitle_font)
     subtitle_width = subtitle_box[2] - subtitle_box[0]
     subtitle_x = panel_x0 + ((panel_x1 - panel_x0 - subtitle_width) // 2)
@@ -595,6 +601,9 @@ def render_short_standings_image(rows, matchweek=None):
         _draw_cell_text(draw, gd_text, col_positions["GD"] - 64, col_positions["GD"], row_center_y, "right", row_num_font, color)
         _draw_cell_text(draw, int(row["points"]), col_positions["P"] - 52, col_positions["P"], row_center_y, "right", row_points_font, color)
         y += row_height
+
+    overlay = _build_standings_watermark_overlay(*image.size)
+    image = Image.alpha_composite(image, overlay)
 
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     temp_path = Path(temp_file.name)
