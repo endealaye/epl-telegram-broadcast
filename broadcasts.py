@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 
 from bot_config import AMHARIC_TEAMS, get_eat_now, get_eat_today, parse_eat_datetime
@@ -18,6 +18,25 @@ from store import (
     set_bot_state_value,
     supabase,
 )
+
+
+def _format_kickoff_time_eat(match):
+    dateeat = match.get("dateeat")
+    kickoff = parse_eat_datetime(dateeat)
+    if kickoff:
+        return kickoff.strftime("%H:%M")
+
+    dateutc = match.get("dateutc")
+    if dateutc:
+        try:
+            dt_utc = datetime.strptime(dateutc, "%Y-%m-%d %H:%M:%SZ").replace(tzinfo=timezone.utc)
+            return (dt_utc + timedelta(hours=3)).strftime("%H:%M")
+        except ValueError:
+            pass
+
+    if dateeat and " " in dateeat:
+        return dateeat.split(" ")[1][:5]
+    return "??:??"
 
 
 def _has_final_score(fixture):
@@ -70,7 +89,7 @@ def broadcast_daily():
         time_groups = defaultdict(list)
         match_ids = []
         for match in matches:
-            time = match['dateeat'].split(' ')[1]
+            time = _format_kickoff_time_eat(match)
             home_am = AMHARIC_TEAMS.get(match['hometeam'], match['hometeam'])
             away_am = AMHARIC_TEAMS.get(match['awayteam'], match['awayteam'])
             time_groups[time].append(f"• {home_am} vs {away_am}")
@@ -78,7 +97,7 @@ def broadcast_daily():
 
         msg = f"📅 *የዛሬ የኢንግሊዝ ፕሪሚየር ሊግ ጨዋታዎች ({today})*\n\n"
         for time in sorted(time_groups.keys()):
-            msg += f"⏰ *{time}*\n" + "\n".join(time_groups[time]) + "\n\n"
+            msg += f"⏰ *{time} EAT*\n" + "\n".join(time_groups[time]) + "\n\n"
         send_telegram_message(msg)
         supabase.table('fixtures').update({
             "daily_sent": True,
@@ -108,10 +127,10 @@ def broadcast_reminders():
             return
 
         for match in matches:
-            time = match['dateeat'].split(' ')[1]
+            time = _format_kickoff_time_eat(match)
             home_am = AMHARIC_TEAMS.get(match['hometeam'], match['hometeam'])
             away_am = AMHARIC_TEAMS.get(match['awayteam'], match['awayteam'])
-            msg = f"🔔 *የጨዋታ ማሳሰቢያ!*\n\n⏰ {time} | {home_am} vs {away_am}\nተዘጋጁ! ⚽"
+            msg = f"🔔 *የጨዋታ ማሳሰቢያ!*\n\n⏰ {time} EAT | {home_am} vs {away_am}\nተዘጋጁ! ⚽"
             send_telegram_message(msg)
             mark_match_state(match['matchnumber'], reminder_sent=True, broadcaststatus='reminded')
     except Exception as e:
