@@ -107,6 +107,13 @@ EXCLUDED_NEWS_PATTERNS = [
     re.compile(r"\bhospitality\b", re.IGNORECASE),
     re.compile(r"\bstadium tour\b", re.IGNORECASE),
     re.compile(r"\bavailable now\b", re.IGNORECASE),
+    re.compile(r"\btv information\b", re.IGNORECASE),
+    re.compile(r"\bhow to follow\b", re.IGNORECASE),
+    re.compile(r"\bhow to watch\b", re.IGNORECASE),
+    re.compile(r"\bwatch live\b", re.IGNORECASE),
+    re.compile(r"\blisten live\b", re.IGNORECASE),
+    re.compile(r"\bfollow live\b", re.IGNORECASE),
+    re.compile(r"\bradio & tv channel\b", re.IGNORECASE),
     re.compile(r"/retail[-/]", re.IGNORECASE),
 ]
 BYLINE_PATTERN = re.compile(
