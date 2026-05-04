@@ -86,11 +86,13 @@ jobs:
               f"Trigger: {trigger}\n"
               f"Open run: {run_url}"
           )
-          requests.post(
+          response = requests.post(
               f"https://api.telegram.org/bot{token}/sendMessage",
               json={"chat_id": chat_id, "text": text},
               timeout=20,
-          ).raise_for_status()
+          )
+          if not response.ok:
+              print(f"Telegram start notification failed: {response.status_code} {response.text}")
           PY
 
       - name: Refresh Fixtures
@@ -192,11 +194,13 @@ jobs:
               f"Trigger: {trigger}\n"
               f"Open run: {run_url}"
           )
-          requests.post(
+          response = requests.post(
               f"https://api.telegram.org/bot{token}/sendMessage",
               json={"chat_id": chat_id, "text": text},
               timeout=20,
-          ).raise_for_status()
+          )
+          if not response.ok:
+              print(f"Telegram failure notification failed: {response.status_code} {response.text}")
           PY
 
       - name: Notify Admin Workflow Succeeded
@@ -228,9 +232,11 @@ jobs:
               f"Trigger: {trigger}\n"
               f"Open run: {run_url}"
           )
-          requests.post(
+          response = requests.post(
               f"https://api.telegram.org/bot{token}/sendMessage",
               json={"chat_id": chat_id, "text": text},
               timeout=20,
-          ).raise_for_status()
+          )
+          if not response.ok:
+              print(f"Telegram success notification failed: {response.status_code} {response.text}")
           PY
