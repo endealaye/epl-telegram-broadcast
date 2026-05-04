@@ -133,6 +133,16 @@ def fetch_fixtures_for_dates(date_strings):
     return fixtures
 
 
+def fixture_competition_name(fixture):
+    if not fixture:
+        return ""
+    return (fixture.get("matchgroup") or "Premier League").strip()
+
+
+def is_premier_league_fixture(fixture):
+    return fixture_competition_name(fixture) == "Premier League"
+
+
 def fixtures_in_window(start_dt, end_dt):
     date_strings = {start_dt.strftime('%Y-%m-%d'), end_dt.strftime('%Y-%m-%d')}
     fixtures = fetch_fixtures_for_dates(sorted(date_strings))
@@ -155,7 +165,7 @@ def has_upcoming_matches(minutes=60):
 
 def has_live_window_matches():
     now = get_eat_now().replace(tzinfo=None)
-    return bool(fixtures_in_window(now - timedelta(minutes=30), now + timedelta(hours=4)))
+    return bool(fixtures_in_window(now - timedelta(hours=3), now + timedelta(hours=4)))
 
 
 def has_pending_results(date_strings=None):

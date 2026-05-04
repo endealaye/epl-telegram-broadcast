@@ -8,11 +8,13 @@ from standings import broadcast_standings
 from store import (
     acquire_bot_lock,
     fetch_fixtures_for_dates,
+    fixture_competition_name,
     fixtures_in_window,
     get_bot_state_value,
     has_matches_today,
     has_pending_results,
     has_upcoming_matches,
+    is_premier_league_fixture,
     mark_match_state,
     release_bot_lock,
     set_bot_state_value,
@@ -50,17 +52,18 @@ def _results_date_scope():
 
 
 def _should_send_standings_after_results(today_fixtures):
-    if not today_fixtures:
+    premier_league_fixtures = [fixture for fixture in today_fixtures if is_premier_league_fixture(fixture)]
+    if not premier_league_fixtures:
         return False
 
     with_kickoff = []
-    for fixture in today_fixtures:
+    for fixture in premier_league_fixtures:
         kickoff = parse_eat_datetime(fixture.get('dateeat'))
         if kickoff:
             with_kickoff.append((kickoff, fixture))
 
     if not with_kickoff:
-        return all(_has_final_score(fixture) for fixture in today_fixtures)
+        return all(_has_final_score(fixture) for fixture in premier_league_fixtures)
 
     latest_kickoff = max(kickoff for kickoff, _ in with_kickoff)
     latest_matches = [fixture for kickoff, fixture in with_kickoff if kickoff == latest_kickoff]
@@ -86,18 +89,22 @@ def broadcast_daily():
             print("Skip daily: today's fixtures were already broadcast.")
             return
 
-        time_groups = defaultdict(list)
+        competition_groups = defaultdict(lambda: defaultdict(list))
         match_ids = []
         for match in matches:
             time = _format_kickoff_time_eat(match)
             home_am = AMHARIC_TEAMS.get(match['hometeam'], match['hometeam'])
             away_am = AMHARIC_TEAMS.get(match['awayteam'], match['awayteam'])
-            time_groups[time].append(f"• {home_am} vs {away_am}")
+            competition = fixture_competition_name(match)
+            competition_groups[competition][time].append(f"• {home_am} vs {away_am}")
             match_ids.append(match['matchnumber'])
 
-        msg = f"📅 *የዛሬ የኢንግሊዝ ፕሪሚየር ሊግ ጨዋታዎች ({today})*\n\n"
-        for time in sorted(time_groups.keys()):
-            msg += f"⏰ *{time} EAT*\n" + "\n".join(time_groups[time]) + "\n\n"
+        msg = f"📅 *የዛሬ ጨዋታዎች ({today})*\n\n"
+        for competition in sorted(competition_groups.keys()):
+            msg += f"🏆 *{competition}*\n"
+            for time in sorted(competition_groups[competition].keys()):
+                msg += f"⏰ *{time} EAT*\n" + "\n".join(competition_groups[competition][time]) + "\n"
+            msg += "\n"
         send_telegram_message(msg)
         supabase.table('fixtures').update({
             "daily_sent": True,
@@ -130,7 +137,8 @@ def broadcast_reminders():
             time = _format_kickoff_time_eat(match)
             home_am = AMHARIC_TEAMS.get(match['hometeam'], match['hometeam'])
             away_am = AMHARIC_TEAMS.get(match['awayteam'], match['awayteam'])
-            msg = f"🔔 *የጨዋታ ማሳሰቢያ!*\n\n⏰ {time} EAT | {home_am} vs {away_am}\nተዘጋጁ! ⚽"
+            competition = fixture_competition_name(match)
+            msg = f"🔔 *የጨዋታ ማሳሰቢያ!*\n\n🏆 {competition}\n⏰ {time} EAT | {home_am} vs {away_am}\nተዘጋጁ! ⚽"
             send_telegram_message(msg)
             mark_match_state(match['matchnumber'], reminder_sent=True, broadcaststatus='reminded')
     except Exception as e:

@@ -11,6 +11,13 @@ from bot_config import BBC_SCORES_URL_TEMPLATE, JSON_URL, TEAM_MAPPING, get_eat_
 from store import supabase
 
 
+EUROPEAN_COMPETITIONS = {
+    "UEFA Champions League",
+    "UEFA Europa League",
+    "UEFA Conference League",
+}
+
+
 def _to_eat_datetime(date_string, uk_time_string):
     dt_uk = datetime.strptime(f"{date_string} {uk_time_string}", "%Y-%m-%d %H:%M").replace(
         tzinfo=ZoneInfo("Europe/London")
@@ -124,6 +131,88 @@ def _apply_sky_result_overrides(date_string):
     return updated
 
 
+def _sky_competition_fixtures_for_date(date_string, competitions=None):
+    url = f"https://www.skysports.com/football-scores-fixtures/{date_string}"
+    response = requests.get(url, timeout=20)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    allowed = set(competitions or EUROPEAN_COMPETITIONS)
+    fixtures = []
+    tracked_teams = set(TEAM_MAPPING.values())
+    for node in soup.find_all(attrs={"data-state": True}):
+        raw_payload = node.get("data-state")
+        if not raw_payload:
+            continue
+        try:
+            payload = json.loads(html.unescape(raw_payload))
+        except Exception:
+            continue
+
+        competition = payload.get("competition") or {}
+        competition_name = (((competition.get("name") or {}).get("full")) or "").strip()
+        if competition_name not in allowed:
+            continue
+
+        teams = payload.get("teams") or {}
+        home = teams.get("home") or {}
+        away = teams.get("away") or {}
+        home_name = ((home.get("name") or {}).get("full") or "").strip()
+        away_name = ((away.get("name") or {}).get("full") or "").strip()
+        if not home_name or not away_name:
+            continue
+
+        mapped_home = TEAM_MAPPING.get(home_name, home_name)
+        mapped_away = TEAM_MAPPING.get(away_name, away_name)
+        if mapped_home not in tracked_teams and mapped_away not in tracked_teams:
+            continue
+
+        start = payload.get("start") or {}
+        uk_time = (start.get("time") or "").strip()
+        if not uk_time:
+            continue
+
+        dateeat = _to_eat_datetime(date_string, uk_time)
+        round_name = ((((competition.get("round") or {}).get("name")) or {}).get("full") or "").strip()
+        match_id = payload.get("id")
+        if match_id is None:
+            continue
+
+        fixtures.append(
+            {
+                "matchnumber": int(match_id),
+                "roundnumber": None,
+                "dateutc": None,
+                "location": None,
+                "hometeam": mapped_home,
+                "awayteam": mapped_away,
+                "matchgroup": competition_name,
+                "hometeamscore": None,
+                "awayteamscore": None,
+                "dateeat": dateeat,
+                "roundlabel": round_name,
+            }
+        )
+    return fixtures
+
+
+def _upsert_sky_competition_fixtures_for_date(date_string, competitions=None):
+    if not supabase:
+        return 0
+    fixtures = _sky_competition_fixtures_for_date(date_string, competitions=competitions)
+    if not fixtures:
+        return 0
+
+    payload = []
+    for fixture in fixtures:
+        row = dict(fixture)
+        row.pop("roundlabel", None)
+        payload.append(row)
+
+    res = supabase.table("fixtures").upsert(payload).execute()
+    return len(res.data or payload)
+
+
 def update_fixtures_from_json():
     if not supabase:
         return False
@@ -147,11 +236,18 @@ def update_fixtures_from_json():
                 "location": match.get('Location'),
                 "hometeam": match.get('HomeTeam'),
                 "awayteam": match.get('AwayTeam'),
-                "matchgroup": match.get('Group'),
+                "matchgroup": match.get('Group') or "Premier League",
                 "hometeamscore": match.get('HomeTeamScore'),
                 "awayteamscore": match.get('AwayTeamScore'),
                 "dateeat": eat_date,
             }).execute()
+        for date_string in {get_eat_today(), (get_eat_now() + timedelta(days=1)).strftime("%Y-%m-%d")}:
+            try:
+                updated = _upsert_sky_competition_fixtures_for_date(date_string)
+                if updated:
+                    print(f"Upserted {updated} tracked European fixture rows on {date_string}.")
+            except Exception as comp_exc:
+                print(f"European fixture sync skipped for {date_string}: {comp_exc}")
         # Prioritize BBC kickoff times and normalize them to EAT for near-term fixtures.
         today = get_eat_today()
         tomorrow = (get_eat_now() + timedelta(days=1)).strftime("%Y-%m-%d")

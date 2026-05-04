@@ -134,7 +134,7 @@ def fetch_completed_fixtures():
     if not supabase:
         return []
     query = supabase.table("fixtures").select(
-        "hometeam,awayteam,hometeamscore,awayteamscore,dateeat"
+        "hometeam,awayteam,hometeamscore,awayteamscore,dateeat,matchgroup"
     )
     try:
         season_start_year = int(OFFICIAL_SEASON_ID)
@@ -147,6 +147,8 @@ def fetch_completed_fixtures():
     res = query.execute()
     completed = []
     for row in res.data or []:
+        if (row.get("matchgroup") or "Premier League") != "Premier League":
+            continue
         home = normalize_team_name(row.get("hometeam"))
         away = normalize_team_name(row.get("awayteam"))
         home_score = parse_score(row.get("hometeamscore"))
@@ -588,7 +590,7 @@ def render_short_standings_image(rows, matchweek=None):
                 fill=(234, 234, 236, 255),
             )
 
-        _draw_left_text_center(draw, str(position_value), col_pos, row_center_y, row_num_font, (0, 0, 0))
+        _draw_left_text_center(draw, f"{position_value:02d}", col_pos, row_center_y, row_num_font, (0, 0, 0))
         logo_path = _resolve_logo_path(row)
         if logo_path:
             logo = _fit_logo(_load_logo(logo_path), STANDINGS_LOGO_SIZE)

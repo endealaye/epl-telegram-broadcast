@@ -15,7 +15,15 @@ from bot_config import (
     parse_eat_datetime,
 )
 from commands import send_admin_alert, send_telegram_message
-from store import has_live_window_matches, mark_match_state, supabase
+from store import fixture_competition_name, has_live_window_matches, mark_match_state, supabase
+
+
+LIVE_COMPETITIONS = {
+    "Premier League",
+    "UEFA Champions League",
+    "UEFA Europa League",
+    "UEFA Conference League",
+}
 
 
 class ScoreProvider:
@@ -46,6 +54,7 @@ class BBCProvider(ScoreProvider):
                             'away': away_raw.strip(),
                             'a_score': a_score,
                             'text': text,
+                            'competition': None,
                         })
                 if scores:
                     return scores
@@ -64,7 +73,7 @@ class SkySportsProvider(ScoreProvider):
             for item in payload:
                 match = item.get('match') or {}
                 competition = (((match.get('competition') or {}).get('name') or {}).get('full') or "").strip()
-                if competition != "Premier League":
+                if competition not in LIVE_COMPETITIONS:
                     continue
 
                 teams = match.get('teams') or {}
@@ -99,11 +108,21 @@ class SkySportsProvider(ScoreProvider):
                     'away': away_name,
                     'a_score': str(a_score),
                     'text': f"{home_name} {h_score}-{a_score} {away_name} {status}",
+                    'competition': competition,
                 })
             return scores
         except Exception as e:
             print(f"SkySportsProvider error: {e}")
             return None
+
+
+def _format_match_title(fixture):
+    competition = fixture_competition_name(fixture)
+    home_team = fixture.get("hometeam") or ""
+    away_team = fixture.get("awayteam") or ""
+    home_am = AMHARIC_TEAMS.get(home_team, home_team)
+    away_am = AMHARIC_TEAMS.get(away_team, away_team)
+    return competition, home_am, away_am
 
 
 def process_live_updates():
@@ -113,7 +132,7 @@ def process_live_updates():
         print("Skip live: no fixtures in the active live window.")
         return
 
-    providers = [BBCProvider(), SkySportsProvider()]
+    providers = [SkySportsProvider(), BBCProvider()]
     all_scores = []
     for provider in providers:
         scores = provider.get_scores()
@@ -129,6 +148,7 @@ def process_live_updates():
             text = match_data['text']
             h_score = match_data['h_score']
             a_score = match_data['a_score']
+            competition_name = (match_data.get('competition') or "").strip()
             home_team = TEAM_MAPPING.get(match_data['home'])
             away_team = TEAM_MAPPING.get(match_data['away'])
 
@@ -143,42 +163,62 @@ def process_live_updates():
             res = supabase.table('fixtures').select('*').eq('hometeam', home_team).eq('awayteam', away_team).execute()
             matches = res.data or []
             now = get_eat_now().replace(tzinfo=None)
-            window_start = now - timedelta(minutes=30)
+            window_start = now - timedelta(hours=3)
             window_end = now + timedelta(hours=4)
             db_match = None
             for candidate in matches:
                 kickoff = parse_eat_datetime(candidate.get('dateeat'))
-                if kickoff and window_start <= kickoff <= window_end:
+                candidate_competition = fixture_competition_name(candidate)
+                if (
+                    kickoff
+                    and window_start <= kickoff <= window_end
+                    and (not competition_name or candidate_competition == competition_name)
+                ):
                     db_match = candidate
                     break
             if not db_match and matches:
                 for candidate in matches:
                     kickoff = parse_eat_datetime(candidate.get('dateeat'))
-                    if kickoff and kickoff.date() == now.date():
+                    candidate_competition = fixture_competition_name(candidate)
+                    if (
+                        kickoff
+                        and kickoff.date() == now.date()
+                        and (not competition_name or candidate_competition == competition_name)
+                    ):
                         db_match = candidate
                         break
             if not db_match:
                 continue
             last_score = db_match.get('last_broadcast_score')
+            competition_title, home_am, away_am = _format_match_title(db_match)
 
             if not is_full_time and current_score_str != last_score and score_total > 0:
-                home_am = AMHARIC_TEAMS.get(home_team, home_team)
-                away_am = AMHARIC_TEAMS.get(away_team, away_team)
-                msg = f"⚽ *ጎል ተቆጠረ!*\n\n{home_am} {h_score} - {a_score} {away_am}"
+                msg = (
+                    f"⚽ *ጎል ተቆጠረ!*\n\n"
+                    f"🏆 {competition_title}\n"
+                    f"🎮 {home_am} vs {away_am}\n"
+                    f"{home_am} {h_score} - {a_score} {away_am}"
+                )
                 send_telegram_message(msg)
                 mark_match_state(db_match['matchnumber'], last_broadcast_score=current_score_str)
 
             if is_half_time and not db_match.get('half_time_sent'):
-                home_am = AMHARIC_TEAMS.get(home_team, home_team)
-                away_am = AMHARIC_TEAMS.get(away_team, away_team)
-                msg = f"⏸️ *የእረፍት ጊዜ ውጤት*\n\n{home_am} {h_score} - {a_score} {away_am}"
+                msg = (
+                    f"⏸️ *የእረፍት ጊዜ ውጤት*\n\n"
+                    f"🏆 {competition_title}\n"
+                    f"🎮 {home_am} vs {away_am}\n"
+                    f"{home_am} {h_score} - {a_score} {away_am}"
+                )
                 send_telegram_message(msg)
                 mark_match_state(db_match['matchnumber'], half_time_sent=True)
 
             if is_full_time and not db_match.get('result_sent'):
-                home_am = AMHARIC_TEAMS.get(home_team, home_team)
-                away_am = AMHARIC_TEAMS.get(away_team, away_team)
-                msg = f"🏁 *የመጨረሻ ውጤት*\n{home_am} {h_score} - {a_score} {away_am}"
+                msg = (
+                    f"🏁 *የመጨረሻ ውጤት*\n\n"
+                    f"🏆 {competition_title}\n"
+                    f"🎮 {home_am} vs {away_am}\n"
+                    f"{home_am} {h_score} - {a_score} {away_am}"
+                )
                 send_telegram_message(msg)
                 mark_match_state(
                     db_match['matchnumber'],
