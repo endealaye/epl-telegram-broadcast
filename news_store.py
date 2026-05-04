@@ -1,7 +1,7 @@
 import hashlib
 import html
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
 from store import supabase
@@ -89,6 +89,7 @@ ALLOWED_STATUS_TRANSITIONS = {
 }
 MAX_SUMMARY_LENGTH = 500
 USER_HIDDEN_NOTE_PREFIX = "hidden_by_user:"
+TITLE_DEDUPE_WINDOW_DAYS = 14
 
 
 def _safe_execute(query, default=None, context="news_store"):
@@ -133,6 +134,20 @@ def append_note_marker(notes, marker):
     if not base_notes:
         return marker
     return f"{base_notes} | {marker}"
+
+
+def normalize_title_key(title):
+    normalized = sanitize_copy_text(title or "").lower()
+    normalized = re.sub(r"[^a-z0-9\s]+", " ", normalized)
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def build_source_title_key(source_name, title):
+    source = (source_name or "").strip().lower()
+    title_key = normalize_title_key(title)
+    if not source or not title_key:
+        return ""
+    return f"{source}|{title_key}"
 
 
 def parse_rss_datetime(value):
@@ -297,6 +312,28 @@ def get_news_items_by_content_hashes(content_hashes):
         for row in rows
         if row.get("content_hash")
     }
+
+
+def get_existing_news_items_for_sources(source_names, days_back=TITLE_DEDUPE_WINDOW_DAYS):
+    if not supabase or not source_names:
+        return []
+
+    rows = []
+    batch_size = 20
+    names = sorted({name for name in source_names if name})
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=max(1, int(days_back)))).isoformat()
+    for start in range(0, len(names), batch_size):
+        batch = names[start:start + batch_size]
+        res = _safe_execute(
+            supabase.table("news_items").select(
+                "id,source_name,title,review_status,notes,fetched_at,published_at"
+            ).in_("source_name", batch).gte("fetched_at", cutoff),
+            default=None,
+            context="get_existing_news_items_for_sources",
+        )
+        if res and res.data:
+            rows.extend(res.data)
+    return rows
 
 
 def list_news_queue(statuses=None, limit=20):

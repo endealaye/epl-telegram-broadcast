@@ -19,7 +19,9 @@ from news_collectors import (
     is_excluded_news_item,
 )
 from news_store import (
+    build_source_title_key,
     get_news_items_by_content_hashes,
+    get_existing_news_items_for_sources,
     get_news_item,
     is_user_hidden,
     list_news_queue,
@@ -289,6 +291,9 @@ def fetch_news_items():
                 )
             )
 
+    # New fetches only need reviewable items; rejected feed junk should be dropped here.
+    normalized_items = [item for item in normalized_items if item.get("review_status") == "filtered"]
+
     bbc_source = next(
         (row for row in source_breakdown if row.get("source_key") == "bbc_football_rss"),
         None,
@@ -300,10 +305,25 @@ def fetch_news_items():
         deduped_items[item["content_hash"]] = item
 
     existing_items = get_news_items_by_content_hashes(deduped_items.keys())
+    recent_items = get_existing_news_items_for_sources(
+        {item.get("source_name") for item in deduped_items.values()}
+    )
+    recent_title_keys = set()
+    hidden_title_keys = set()
+    for row in recent_items:
+        title_key = build_source_title_key(row.get("source_name"), row.get("title"))
+        if not title_key:
+            continue
+        recent_title_keys.add(title_key)
+        if is_user_hidden(row.get("notes")):
+            hidden_title_keys.add(title_key)
+
     deduped_items = {
         content_hash: item
         for content_hash, item in deduped_items.items()
         if not is_user_hidden((existing_items.get(content_hash) or {}).get("notes"))
+        and build_source_title_key(item.get("source_name"), item.get("title")) not in hidden_title_keys
+        and build_source_title_key(item.get("source_name"), item.get("title")) not in recent_title_keys
     }
 
     stored_items = upsert_news_items(list(deduped_items.values()))
