@@ -1,5 +1,4 @@
 from pathlib import Path
-import json
 from datetime import timedelta
 
 import requests
@@ -56,20 +55,6 @@ def send_telegram_photo_file(photo_path, caption, chat_id=None, return_message=F
     with Path(photo_path).open("rb") as photo_file:
         result = _telegram_post("sendPhoto", data=data, files={"photo": photo_file})
     return result if return_message else True
-
-
-def set_telegram_message_reaction(message_id, reaction_emoji, chat_id=None, is_big=True):
-    target_chat = chat_id or TELEGRAM_CHAT_ID
-    if not TELEGRAM_BOT_TOKEN or not target_chat or not message_id or not reaction_emoji:
-        return False
-    payload = {
-        "chat_id": target_chat,
-        "message_id": message_id,
-        "reaction": json.dumps([{"type": "emoji", "emoji": reaction_emoji}]),
-        "is_big": is_big,
-    }
-    _telegram_post("setMessageReaction", data=payload)
-    return True
 
 
 def send_admin_alert(message):

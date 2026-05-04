@@ -8,7 +8,7 @@ from pathlib import Path
 import requests
 from PIL import Image, ImageDraw
 
-from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file, set_telegram_message_reaction
+from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file
 from news_collectors import (
     PREMIER_LEAGUE_CLUB_RSS_SOURCES,
     RSS_MAX_ITEMS_CLUB,
@@ -45,7 +45,6 @@ NEWS_IMAGE_TIMEOUT = (8, 20)
 NEWS_IMAGE_CHUNK_SIZE = 64 * 1024
 NEWS_FETCH_MAX_WORKERS = int(os.getenv("NEWS_FETCH_MAX_WORKERS", "2"))
 MIN_NEWS_COPY_LENGTH = int(os.getenv("NEWS_MIN_COPY_LENGTH", "40"))
-NEWS_POST_REACTION_EMOJI = os.getenv("NEWS_POST_REACTION_EMOJI", "👍🏾").strip()
 WATERMARK_ASSET_CANDIDATES = (
     "6a8.svg",
     "6a8fac6a-36e3-4c29-a527-b216530317a6.png",
@@ -408,14 +407,6 @@ def mark_review_item(
         sent_message = send_telegram_message(payload["caption"], return_message=True)
     if not sent_message:
         raise RuntimeError("Telegram delivery failed. Check bot configuration.")
-    if NEWS_POST_REACTION_EMOJI:
-        try:
-            set_telegram_message_reaction(
-                message_id=sent_message.get("message_id"),
-                reaction_emoji=NEWS_POST_REACTION_EMOJI,
-            )
-        except Exception as exc:
-            print(f"Failed to set news reaction for item {item_id}: {exc}")
     return mark_news_item(
         item_id=item_id,
         status=status,
