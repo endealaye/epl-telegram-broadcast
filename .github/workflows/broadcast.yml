@@ -81,14 +81,14 @@ jobs:
           run_url = f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"
           trigger = f"schedule {schedule}" if schedule else event_name
           text = (
-              "▶️ *Workflow Started*\n\n"
+              "▶️ Workflow Started\n\n"
               f"Run: #{run_number}\n"
               f"Trigger: {trigger}\n"
-              f"[Open run]({run_url})"
+              f"Open run: {run_url}"
           )
           requests.post(
               f"https://api.telegram.org/bot{token}/sendMessage",
-              json={"chat_id": chat_id, "text": text, "parse_mode": "Markdown"},
+              json={"chat_id": chat_id, "text": text},
               timeout=20,
           ).raise_for_status()
           PY
@@ -187,14 +187,14 @@ jobs:
           run_url = f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"
           trigger = f"schedule {schedule}" if schedule else event_name
           text = (
-              "⚠️ *Workflow Failed*\n\n"
+              "⚠️ Workflow Failed\n\n"
               f"Run: #{run_number}\n"
               f"Trigger: {trigger}\n"
-              f"[Open run]({run_url})"
+              f"Open run: {run_url}"
           )
           requests.post(
               f"https://api.telegram.org/bot{token}/sendMessage",
-              json={"chat_id": chat_id, "text": text, "parse_mode": "Markdown"},
+              json={"chat_id": chat_id, "text": text},
               timeout=20,
           ).raise_for_status()
           PY
@@ -223,14 +223,14 @@ jobs:
           run_url = f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"
           trigger = f"schedule {schedule}" if schedule else event_name
           text = (
-              "✅ *Workflow Finished*\n\n"
+              "✅ Workflow Finished\n\n"
               f"Run: #{run_number}\n"
               f"Trigger: {trigger}\n"
-              f"[Open run]({run_url})"
+              f"Open run: {run_url}"
           )
           requests.post(
               f"https://api.telegram.org/bot{token}/sendMessage",
-              json={"chat_id": chat_id, "text": text, "parse_mode": "Markdown"},
+              json={"chat_id": chat_id, "text": text},
               timeout=20,
           ).raise_for_status()
           PY
