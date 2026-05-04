@@ -1,4 +1,5 @@
 import re
+from datetime import timedelta
 
 import requests
 from bs4 import BeautifulSoup
@@ -9,7 +10,9 @@ from bot_config import (
     BBC_SCORES_URL_TEMPLATE,
     SKY_SCORES_API_URL,
     TEAM_MAPPING,
+    get_eat_now,
     get_eat_today,
+    parse_eat_datetime,
 )
 from commands import send_admin_alert, send_telegram_message
 from store import has_live_window_matches, mark_match_state, supabase
@@ -135,14 +138,30 @@ def process_live_updates():
             current_score_str = f"{h_score}-{a_score}"
             is_full_time = "Full time" in text or "FT" in text or "Full-time" in text
             is_half_time = "Half time" in text or "HT" in text or "Half-time" in text
+            score_total = int(h_score) + int(a_score)
 
-            res = supabase.table('fixtures').select('*').eq('hometeam', home_team).eq('awayteam', away_team).single().execute()
-            if not res.data:
+            res = supabase.table('fixtures').select('*').eq('hometeam', home_team).eq('awayteam', away_team).execute()
+            matches = res.data or []
+            now = get_eat_now().replace(tzinfo=None)
+            window_start = now - timedelta(minutes=30)
+            window_end = now + timedelta(hours=4)
+            db_match = None
+            for candidate in matches:
+                kickoff = parse_eat_datetime(candidate.get('dateeat'))
+                if kickoff and window_start <= kickoff <= window_end:
+                    db_match = candidate
+                    break
+            if not db_match and matches:
+                for candidate in matches:
+                    kickoff = parse_eat_datetime(candidate.get('dateeat'))
+                    if kickoff and kickoff.date() == now.date():
+                        db_match = candidate
+                        break
+            if not db_match:
                 continue
-            db_match = res.data
             last_score = db_match.get('last_broadcast_score')
 
-            if not is_full_time and current_score_str != last_score:
+            if not is_full_time and current_score_str != last_score and score_total > 0:
                 home_am = AMHARIC_TEAMS.get(home_team, home_team)
                 away_am = AMHARIC_TEAMS.get(away_team, away_team)
                 msg = f"⚽ *ጎል ተቆጠረ!*\n\n{home_am} {h_score} - {a_score} {away_am}"
