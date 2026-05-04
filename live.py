@@ -125,20 +125,155 @@ def _format_match_title(fixture):
     return competition, home_am, away_am
 
 
+def _parse_status(text):
+    is_full_time = "Full time" in text or "FT" in text or "Full-time" in text
+    is_half_time = "Half time" in text or "HT" in text or "Half-time" in text
+    return is_full_time, is_half_time
+
+
+def _status_rank(match_data):
+    is_full_time, is_half_time = _parse_status(match_data.get("text", ""))
+    if is_full_time:
+        return 3
+    if is_half_time:
+        return 2
+    return 1
+
+
+def _merged_scores(providers):
+    merged = {}
+    for provider in providers:
+        scores = provider.get_scores() or []
+        for match_data in scores:
+            home_team = TEAM_MAPPING.get(match_data['home'])
+            away_team = TEAM_MAPPING.get(match_data['away'])
+            if not home_team or not away_team:
+                continue
+
+            competition_name = (match_data.get('competition') or "").strip()
+            current_score_str = f"{match_data['h_score']}-{match_data['a_score']}"
+            key = (home_team, away_team, competition_name or "")
+            candidate = {
+                **match_data,
+                "mapped_home": home_team,
+                "mapped_away": away_team,
+                "score_key": current_score_str,
+            }
+
+            existing = merged.get(key)
+            if not existing:
+                merged[key] = candidate
+                continue
+
+            if _status_rank(candidate) > _status_rank(existing):
+                merged[key] = candidate
+                continue
+
+            if (
+                _status_rank(candidate) == _status_rank(existing)
+                and not existing.get("competition")
+                and candidate.get("competition")
+            ):
+                merged[key] = candidate
+    return list(merged.values())
+
+
+def _find_db_match(home_team, away_team, competition_name, now):
+    res = supabase.table('fixtures').select('*').eq('hometeam', home_team).eq('awayteam', away_team).execute()
+    matches = res.data or []
+    window_start = now - timedelta(hours=3)
+    window_end = now + timedelta(hours=4)
+    for candidate in matches:
+        kickoff = parse_eat_datetime(candidate.get('dateeat'))
+        candidate_competition = fixture_competition_name(candidate)
+        if (
+            kickoff
+            and window_start <= kickoff <= window_end
+            and (not competition_name or candidate_competition == competition_name)
+        ):
+            return candidate
+    for candidate in matches:
+        kickoff = parse_eat_datetime(candidate.get('dateeat'))
+        candidate_competition = fixture_competition_name(candidate)
+        if (
+            kickoff
+            and kickoff.date() == now.date()
+            and (not competition_name or candidate_competition == competition_name)
+        ):
+            return candidate
+    return None
+
+
+def _send_full_time_message(db_match, h_score, a_score):
+    competition_title, home_am, away_am = _format_match_title(db_match)
+    msg = (
+        f"🏁 *የመጨረሻ ውጤት*\n\n"
+        f"🏆 {competition_title}\n"
+        f"{home_am} {h_score} - {a_score} {away_am}"
+    )
+    send_telegram_message(msg)
+
+
+def _finalize_match(db_match, h_score, a_score, send_message=True):
+    if send_message and not db_match.get('result_sent'):
+        _send_full_time_message(db_match, h_score, a_score)
+    mark_match_state(
+        db_match['matchnumber'],
+        result_sent=True,
+        broadcaststatus='result_sent',
+        hometeamscore=int(h_score),
+        awayteamscore=int(a_score),
+        last_broadcast_score=f"{h_score}-{a_score}",
+    )
+
+
+def _reconcile_overdue_matches(score_map, now):
+    date_strings = sorted(
+        {
+            (now - timedelta(days=1)).strftime("%Y-%m-%d"),
+            now.strftime("%Y-%m-%d"),
+        }
+    )
+    for db_match in supabase.table('fixtures').select('*').in_('matchgroup', list(LIVE_COMPETITIONS)).execute().data or []:
+        kickoff = parse_eat_datetime(db_match.get('dateeat'))
+        if not kickoff or kickoff.strftime("%Y-%m-%d") not in date_strings:
+            continue
+        if db_match.get('result_sent'):
+            continue
+        if db_match.get('hometeamscore') is not None or db_match.get('awayteamscore') is not None:
+            continue
+        if kickoff > now - timedelta(hours=2):
+            continue
+
+        competition_name = fixture_competition_name(db_match)
+        score_entry = score_map.get((db_match.get('hometeam'), db_match.get('awayteam'), competition_name))
+        if score_entry:
+            is_full_time, _ = _parse_status(score_entry.get('text', ''))
+            if is_full_time or kickoff <= now - timedelta(hours=4):
+                _finalize_match(db_match, score_entry['h_score'], score_entry['a_score'], send_message=not db_match.get('result_sent'))
+                continue
+
+        fallback_score = db_match.get('last_broadcast_score') or ""
+        if kickoff <= now - timedelta(hours=4) and re.fullmatch(r"\d+-\d+", fallback_score):
+            h_score, a_score = fallback_score.split("-", 1)
+            _finalize_match(db_match, h_score, a_score, send_message=not db_match.get('result_sent'))
+
+
 def process_live_updates():
     if not supabase:
         return
+    providers = [SkySportsProvider(), BBCProvider()]
+    now = get_eat_now().replace(tzinfo=None)
+    all_scores = _merged_scores(providers)
+    score_map = {
+        (item["mapped_home"], item["mapped_away"], (item.get("competition") or "").strip()): item
+        for item in all_scores
+    }
+    _reconcile_overdue_matches(score_map, now)
+
     if not has_live_window_matches():
         print("Skip live: no fixtures in the active live window.")
         return
-
-    providers = [SkySportsProvider(), BBCProvider()]
-    all_scores = []
-    for provider in providers:
-        scores = provider.get_scores()
-        if scores:
-            all_scores = scores
-            break
 
     if not all_scores:
         return
@@ -149,44 +284,14 @@ def process_live_updates():
             h_score = match_data['h_score']
             a_score = match_data['a_score']
             competition_name = (match_data.get('competition') or "").strip()
-            home_team = TEAM_MAPPING.get(match_data['home'])
-            away_team = TEAM_MAPPING.get(match_data['away'])
-
-            if not home_team or not away_team:
-                continue
+            home_team = match_data['mapped_home']
+            away_team = match_data['mapped_away']
 
             current_score_str = f"{h_score}-{a_score}"
-            is_full_time = "Full time" in text or "FT" in text or "Full-time" in text
-            is_half_time = "Half time" in text or "HT" in text or "Half-time" in text
+            is_full_time, is_half_time = _parse_status(text)
             score_total = int(h_score) + int(a_score)
 
-            res = supabase.table('fixtures').select('*').eq('hometeam', home_team).eq('awayteam', away_team).execute()
-            matches = res.data or []
-            now = get_eat_now().replace(tzinfo=None)
-            window_start = now - timedelta(hours=3)
-            window_end = now + timedelta(hours=4)
-            db_match = None
-            for candidate in matches:
-                kickoff = parse_eat_datetime(candidate.get('dateeat'))
-                candidate_competition = fixture_competition_name(candidate)
-                if (
-                    kickoff
-                    and window_start <= kickoff <= window_end
-                    and (not competition_name or candidate_competition == competition_name)
-                ):
-                    db_match = candidate
-                    break
-            if not db_match and matches:
-                for candidate in matches:
-                    kickoff = parse_eat_datetime(candidate.get('dateeat'))
-                    candidate_competition = fixture_competition_name(candidate)
-                    if (
-                        kickoff
-                        and kickoff.date() == now.date()
-                        and (not competition_name or candidate_competition == competition_name)
-                    ):
-                        db_match = candidate
-                        break
+            db_match = _find_db_match(home_team, away_team, competition_name, now)
             if not db_match:
                 continue
             last_score = db_match.get('last_broadcast_score')
@@ -211,19 +316,7 @@ def process_live_updates():
                 mark_match_state(db_match['matchnumber'], half_time_sent=True)
 
             if is_full_time and not db_match.get('result_sent'):
-                msg = (
-                    f"🏁 *የመጨረሻ ውጤት*\n\n"
-                    f"🏆 {competition_title}\n"
-                    f"{home_am} {h_score} - {a_score} {away_am}"
-                )
-                send_telegram_message(msg)
-                mark_match_state(
-                    db_match['matchnumber'],
-                    result_sent=True,
-                    broadcaststatus='result_sent',
-                    hometeamscore=int(h_score),
-                    awayteamscore=int(a_score),
-                )
+                _finalize_match(db_match, h_score, a_score)
     except Exception as e:
         error_msg = f"Live update processing error: {e}"
         print(error_msg)
