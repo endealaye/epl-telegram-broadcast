@@ -196,7 +196,6 @@ def process_live_updates():
                 msg = (
                     f"⚽ *ጎል ተቆጠረ!*\n\n"
                     f"🏆 {competition_title}\n"
-                    f"🎮 {home_am} vs {away_am}\n"
                     f"{home_am} {h_score} - {a_score} {away_am}"
                 )
                 send_telegram_message(msg)
@@ -206,7 +205,6 @@ def process_live_updates():
                 msg = (
                     f"⏸️ *የእረፍት ጊዜ ውጤት*\n\n"
                     f"🏆 {competition_title}\n"
-                    f"🎮 {home_am} vs {away_am}\n"
                     f"{home_am} {h_score} - {a_score} {away_am}"
                 )
                 send_telegram_message(msg)
@@ -216,7 +214,6 @@ def process_live_updates():
                 msg = (
                     f"🏁 *የመጨረሻ ውጤት*\n\n"
                     f"🏆 {competition_title}\n"
-                    f"🎮 {home_am} vs {away_am}\n"
                     f"{home_am} {h_score} - {a_score} {away_am}"
                 )
                 send_telegram_message(msg)
