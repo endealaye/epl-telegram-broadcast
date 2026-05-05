@@ -78,6 +78,7 @@ TEAM_MAPPING = {
 
 AMHARIC_TEAMS = {
     "Arsenal": "አርሰናል",
+    "Atletico Madrid": "አትሌቲኮ ማድሪድ",
     "Aston Villa": "አስቶን ቪላ",
     "Bournemouth": "ቦርንሙዝ",
     "Brentford": "ብሬንትፎርድ",

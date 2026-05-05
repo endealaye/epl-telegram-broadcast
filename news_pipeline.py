@@ -20,6 +20,7 @@ from news_collectors import (
 )
 from news_store import (
     build_source_title_key,
+    get_news_items_by_article_urls,
     get_news_items_by_content_hashes,
     get_existing_news_items_for_sources,
     get_news_item,
@@ -304,6 +305,9 @@ def fetch_news_items():
         deduped_items[item["content_hash"]] = item
 
     existing_items = get_news_items_by_content_hashes(deduped_items.keys())
+    existing_urls = get_news_items_by_article_urls(
+        {item.get("article_url") for item in deduped_items.values()}
+    )
     recent_items = get_existing_news_items_for_sources(
         {item.get("source_name") for item in deduped_items.values()}
     )
@@ -320,7 +324,10 @@ def fetch_news_items():
     deduped_items = {
         content_hash: item
         for content_hash, item in deduped_items.items()
-        if not is_user_hidden((existing_items.get(content_hash) or {}).get("notes"))
+        if content_hash not in existing_items
+        and item.get("article_url") not in existing_urls
+        and not is_user_hidden((existing_items.get(content_hash) or {}).get("notes"))
+        and not is_user_hidden((existing_urls.get(item.get("article_url")) or {}).get("notes"))
         and build_source_title_key(item.get("source_name"), item.get("title")) not in hidden_title_keys
         and build_source_title_key(item.get("source_name"), item.get("title")) not in recent_title_keys
     }

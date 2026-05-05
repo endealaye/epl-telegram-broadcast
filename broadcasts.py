@@ -22,22 +22,47 @@ from store import (
 )
 
 
-def _format_kickoff_time_eat(match):
+def _ethiopian_clock_label(hour_24):
+    if 6 <= hour_24 < 12:
+        period = "ጠዋት"
+    elif 12 <= hour_24 < 18:
+        period = "ከሰዓት"
+    elif 18 <= hour_24 < 24:
+        period = "ማታ"
+    else:
+        period = "ሌሊት"
+
+    ethiopian_hour = (hour_24 - 6) % 12
+    if ethiopian_hour == 0:
+        ethiopian_hour = 12
+    return ethiopian_hour, period
+
+
+def _format_kickoff_time_ethiopian(match):
     dateeat = match.get("dateeat")
     kickoff = parse_eat_datetime(dateeat)
     if kickoff:
-        return kickoff.strftime("%H:%M")
+        hour, period = _ethiopian_clock_label(kickoff.hour)
+        return f"{hour}:{kickoff.strftime('%M')} {period}"
 
     dateutc = match.get("dateutc")
     if dateutc:
         try:
             dt_utc = datetime.strptime(dateutc, "%Y-%m-%d %H:%M:%SZ").replace(tzinfo=timezone.utc)
-            return (dt_utc + timedelta(hours=3)).strftime("%H:%M")
+            kickoff = dt_utc + timedelta(hours=3)
+            hour, period = _ethiopian_clock_label(kickoff.hour)
+            return f"{hour}:{kickoff.strftime('%M')} {period}"
         except ValueError:
             pass
 
     if dateeat and " " in dateeat:
-        return dateeat.split(" ")[1][:5]
+        time_part = dateeat.split(" ")[1][:5]
+        try:
+            hour_24, minute = [int(part) for part in time_part.split(":", 1)]
+            hour, period = _ethiopian_clock_label(hour_24)
+            return f"{hour}:{minute:02d} {period}"
+        except ValueError:
+            return time_part
     return "??:??"
 
 
@@ -92,7 +117,7 @@ def broadcast_daily():
         competition_groups = defaultdict(lambda: defaultdict(list))
         match_ids = []
         for match in matches:
-            time = _format_kickoff_time_eat(match)
+            time = _format_kickoff_time_ethiopian(match)
             home_am = AMHARIC_TEAMS.get(match['hometeam'], match['hometeam'])
             away_am = AMHARIC_TEAMS.get(match['awayteam'], match['awayteam'])
             competition = fixture_competition_name(match)
@@ -103,7 +128,7 @@ def broadcast_daily():
         for competition in sorted(competition_groups.keys()):
             msg += f"🏆 *{competition}*\n"
             for time in sorted(competition_groups[competition].keys()):
-                msg += f"⏰ *{time} EAT*\n" + "\n".join(competition_groups[competition][time]) + "\n"
+                msg += f"⏰ *{time}*\n" + "\n".join(competition_groups[competition][time]) + "\n"
             msg += "\n"
         send_telegram_message(msg)
         supabase.table('fixtures').update({
@@ -134,11 +159,11 @@ def broadcast_reminders():
             return
 
         for match in matches:
-            time = _format_kickoff_time_eat(match)
+            time = _format_kickoff_time_ethiopian(match)
             home_am = AMHARIC_TEAMS.get(match['hometeam'], match['hometeam'])
             away_am = AMHARIC_TEAMS.get(match['awayteam'], match['awayteam'])
             competition = fixture_competition_name(match)
-            msg = f"🔔 *የጨዋታ ማሳሰቢያ!*\n\n🏆 {competition}\n⏰ {time} EAT | {home_am} vs {away_am}\nተዘጋጁ! ⚽"
+            msg = f"🔔 *የጨዋታ ማሳሰቢያ!*\n\n🏆 {competition}\n⏰ {time} | {home_am} vs {away_am}\nተዘጋጁ! ⚽"
             send_telegram_message(msg)
             mark_match_state(match['matchnumber'], reminder_sent=True, broadcaststatus='reminded')
     except Exception as e:

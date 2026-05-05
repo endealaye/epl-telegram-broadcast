@@ -314,6 +314,32 @@ def get_news_items_by_content_hashes(content_hashes):
     }
 
 
+def get_news_items_by_article_urls(article_urls):
+    if not supabase or not article_urls:
+        return {}
+
+    rows = []
+    batch_size = 100
+    urls = [url for url in article_urls if url]
+    for start in range(0, len(urls), batch_size):
+        batch = urls[start:start + batch_size]
+        res = _safe_execute(
+            supabase.table("news_items").select(
+                "id,article_url,review_status,notes"
+            ).in_("article_url", batch),
+            default=None,
+            context="get_news_items_by_article_urls",
+        )
+        if res and res.data:
+            rows.extend(res.data)
+
+    return {
+        row["article_url"]: row
+        for row in rows
+        if row.get("article_url")
+    }
+
+
 def get_existing_news_items_for_sources(source_names, days_back=TITLE_DEDUPE_WINDOW_DAYS):
     if not supabase or not source_names:
         return []
