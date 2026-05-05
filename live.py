@@ -15,7 +15,17 @@ from bot_config import (
     parse_eat_datetime,
 )
 from commands import send_admin_alert, send_telegram_message
-from store import fixture_competition_name, has_live_window_matches, mark_match_state, supabase
+from standings import broadcast_standings
+from store import (
+    fetch_fixtures_for_dates,
+    fixture_competition_name,
+    get_bot_state_value,
+    has_live_window_matches,
+    is_premier_league_fixture,
+    mark_match_state,
+    set_bot_state_value,
+    supabase,
+)
 
 
 LIVE_COMPETITIONS = {
@@ -225,6 +235,50 @@ def _finalize_match(db_match, h_score, a_score, send_message=True):
         awayteamscore=int(a_score),
         last_broadcast_score=f"{h_score}-{a_score}",
     )
+    _maybe_send_standings_after_live_final(db_match)
+
+
+def _should_send_standings_after_results(today_fixtures):
+    premier_league_fixtures = [fixture for fixture in today_fixtures if is_premier_league_fixture(fixture)]
+    if not premier_league_fixtures:
+        return False
+
+    with_kickoff = []
+    for fixture in premier_league_fixtures:
+        kickoff = parse_eat_datetime(fixture.get('dateeat'))
+        if kickoff:
+            with_kickoff.append((kickoff, fixture))
+
+    if not with_kickoff:
+        return all(
+            fixture.get('hometeamscore') is not None and fixture.get('awayteamscore') is not None
+            for fixture in premier_league_fixtures
+        )
+
+    latest_kickoff = max(kickoff for kickoff, _ in with_kickoff)
+    latest_matches = [fixture for kickoff, fixture in with_kickoff if kickoff == latest_kickoff]
+    return bool(latest_matches) and all(
+        fixture.get('hometeamscore') is not None and fixture.get('awayteamscore') is not None
+        for fixture in latest_matches
+    )
+
+
+def _maybe_send_standings_after_live_final(db_match):
+    if not is_premier_league_fixture(db_match):
+        return
+
+    today = get_eat_today()
+    standings_sent_key = f"standings:auto:sent:{today}"
+    if get_bot_state_value(standings_sent_key):
+        return
+
+    refreshed_today = fetch_fixtures_for_dates([today])
+    if not _should_send_standings_after_results(refreshed_today):
+        return
+
+    standings_result = broadcast_standings(format_name="short")
+    if standings_result.get("success"):
+        set_bot_state_value(standings_sent_key, get_eat_now().isoformat())
 
 
 def _reconcile_overdue_matches(score_map, now):
