@@ -192,12 +192,12 @@ def _build_structured_match_lines(item):
 
     lines = []
     if match_type == "pre_match":
-        lines.append("🔎 *ቅድመ ጨዋታ*")
+        lines.append("🔎 *ቅድመ ጨዋታ ትንበያዎች*")
         prediction = match_meta.get("prediction")
         if prediction:
             lines.append(f"ትንበያ: {escape_telegram_markdown(prediction)}")
     elif match_type == "lineup_update":
-        lines.append("🧾 *አሰላለፍ ዝማኔ*")
+        lines.append("🧾 *አሰላለፍ*")
         if match_meta.get("has_lineup_image"):
             lines.append("የአሰላለፍ ምስል ተያይዟል።")
     elif match_type == "post_match":
