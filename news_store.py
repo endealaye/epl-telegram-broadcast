@@ -44,6 +44,51 @@ TOPIC_PATTERNS = {
     "topic:gossip": [r"\bgossip\b", r"\blikely\b", r"\bmonitoring\b", r"\btarget\b"],
 }
 
+MATCH_CLASSIFICATION_PATTERNS = {
+    "lineup_update": [
+        r"\bstarting xi\b",
+        r"\bstarting line-?up\b",
+        r"\bline-?ups?\b",
+        r"\bxi confirmed\b",
+    ],
+    "pre_match": [
+        r"\bpreview\b",
+        r"\bpredicted line-?up\b",
+        r"\bprediction\b",
+        r"\blook ahead\b",
+        r"\bclash\b",
+        r"\bvs\b",
+        r"\bteam news\b",
+    ],
+    "post_match": [
+        r"\bmatch report\b",
+        r"\breport\b",
+        r"\bhighlights\b",
+        r"\bfull[- ]time\b",
+        r"\bresult\b",
+        r"\bwins?\b",
+        r"\bdraw\b",
+        r"\bloses?\b",
+    ],
+}
+
+PREDICTION_PATTERNS = [
+    re.compile(r"((?:prediction|predicts?|predicted)\s*[:\-]?\s*[^.?!]+)", re.IGNORECASE),
+    re.compile(r"([A-Z][A-Za-z'&.\- ]+\s+\d+\s*[-–]\s*\d+\s+[A-Z][A-Za-z'&.\- ]+)", re.IGNORECASE),
+]
+
+SCORELINE_PATTERN = re.compile(
+    r"([A-Z][A-Za-z'&.\- ]+?)\s+(\d+)\s*[-–]\s*(\d+)\s+([A-Z][A-Za-z'&.\- ]+)"
+)
+SCORER_MINUTE_PATTERNS = [
+    re.compile(r"([A-Z][A-Za-z'’.\-]+(?:\s+[A-Z][A-Za-z'’.\-]+)?)\s*\((\d{1,3}(?:\+\d{1,2})?)\)"),
+    re.compile(r"([A-Z][A-Za-z'’.\-]+(?:\s+[A-Z][A-Za-z'’.\-]+)?)\s+(?:scored|netted|struck)\s+(?:in\s+)?the\s+(\d{1,3})(?:st|nd|rd|th)?\s+minute", re.IGNORECASE),
+]
+INJURY_SENTENCE_PATTERN = re.compile(
+    r"([^.!?]*(?:injur(?:y|ed)|forced off|stretchered off|substituted with an injury)[^.!?]*[.!?]?)",
+    re.IGNORECASE,
+)
+
 WOMENS_FOOTBALL_PATTERNS = [
     r"\bwomen('?s)?\b",
     r"\bwsl\b",
@@ -171,7 +216,7 @@ def build_news_haystack(title, summary, story=None):
     return f"{title or ''} {summary or ''} {story or ''}".lower()
 
 
-def derive_topic_tags(title, summary, story=None):
+def derive_topic_tags(title, summary, story=None, image_url=None):
     haystack = build_news_haystack(title, summary, story)
     tags = set()
 
@@ -188,7 +233,103 @@ def derive_topic_tags(title, summary, story=None):
                 tags.add(tag)
                 break
 
+    match_metadata = extract_match_metadata(title, summary, story, image_url=image_url)
+    match_type = match_metadata.get("match_type")
+    if match_type and match_type != "other":
+        tags.add(f"format:{match_type}")
+    if match_metadata.get("has_lineup_image"):
+        tags.add("fact:lineup_image")
+    if match_metadata.get("final_score"):
+        tags.add("fact:final_score")
+    if match_metadata.get("scorers"):
+        tags.add("fact:scorers")
+    if match_metadata.get("injury_update"):
+        tags.add("fact:injury_update")
+
     return sorted(tags)
+
+
+def _extract_sentence_match(text, patterns):
+    for sentence in re.split(r"(?<=[.!?])\s+", text or ""):
+        for pattern in patterns:
+            match = pattern.search(sentence)
+            if match:
+                return sanitize_copy_text(match.group(1))
+    return None
+
+
+def _extract_scoreline(text):
+    match = SCORELINE_PATTERN.search(text or "")
+    if not match:
+        return None
+    home, home_score, away_score, away = match.groups()
+    away = re.sub(r"\b(match report|report|highlights|live|preview)\b.*$", "", away, flags=re.IGNORECASE).strip(" -:")
+    return {
+        "home": sanitize_copy_text(home),
+        "home_score": int(home_score),
+        "away_score": int(away_score),
+        "away": sanitize_copy_text(away),
+    }
+
+
+def _extract_scorers(text):
+    scorers = []
+    seen = set()
+    for pattern in SCORER_MINUTE_PATTERNS:
+        for match in pattern.finditer(text or ""):
+            scorer = sanitize_copy_text(match.group(1))
+            minute = sanitize_copy_text(match.group(2))
+            key = (scorer.lower(), minute)
+            if not scorer or key in seen:
+                continue
+            seen.add(key)
+            scorers.append({"player": scorer, "minute": minute})
+    return scorers[:8]
+
+
+def _classify_match_type(title, summary, story, image_url=None):
+    title_text = title or ""
+    summary_text = summary or ""
+    story_text = story or ""
+    text = " ".join([title_text, summary_text, story_text])
+    if (
+        image_url
+        and any(re.search(pattern, title_text, re.IGNORECASE) for pattern in MATCH_CLASSIFICATION_PATTERNS["lineup_update"])
+    ):
+        return "lineup_update"
+    if any(re.search(pattern, text, re.IGNORECASE) for pattern in MATCH_CLASSIFICATION_PATTERNS["pre_match"]):
+        return "pre_match"
+    if _extract_scoreline(title_text) or _extract_scoreline(story_text):
+        return "post_match"
+    if any(re.search(pattern, text, re.IGNORECASE) for pattern in MATCH_CLASSIFICATION_PATTERNS["post_match"]):
+        return "post_match"
+    return "other"
+
+
+def extract_match_metadata(title, summary, story=None, image_url=None):
+    text = " ".join([title or "", summary or "", story or ""]).strip()
+    match_type = _classify_match_type(title, summary, story, image_url=image_url)
+    prediction = None
+    if match_type == "pre_match":
+        prediction = (
+            _extract_sentence_match(summary or "", PREDICTION_PATTERNS)
+            or _extract_sentence_match(story or "", PREDICTION_PATTERNS)
+            or _extract_sentence_match(title or "", PREDICTION_PATTERNS)
+        )
+    final_score = None
+    if match_type == "post_match":
+        final_score = _extract_scoreline(title or "") or _extract_scoreline(story or "") or _extract_scoreline(summary or "")
+    scorers = _extract_scorers(text) if match_type == "post_match" else []
+    injury_match = INJURY_SENTENCE_PATTERN.search(text)
+    injury_update = sanitize_copy_text(injury_match.group(1)) if injury_match else None
+    return {
+        "match_type": match_type,
+        "prediction": prediction,
+        "has_lineup_image": bool(image_url) and match_type == "lineup_update",
+        "final_score": final_score,
+        "scorers": scorers,
+        "injury_update": injury_update,
+    }
 
 
 def should_include_item(title, summary, article_url, story=None):
@@ -218,6 +359,10 @@ def compute_relevance_score(title, summary, topic_tags, story=None):
         score += 1
     if "breaking" in haystack:
         score += 2
+    if any(tag.startswith("format:") for tag in topic_tags):
+        score += 2
+    if "fact:scorers" in topic_tags or "fact:lineup_image" in topic_tags:
+        score += 1
     return score
 
 
@@ -249,8 +394,11 @@ def normalize_news_item(source_key, source_name, source_url, item):
     summary = normalize_summary(raw_summary, raw_story)
     story = sanitize_copy_text(raw_story) or summary
     title = sanitize_copy_text(item.get("title") or "")
-    derived_tags = derive_topic_tags(title, summary, story)
+    match_metadata = extract_match_metadata(title, summary, story, image_url=item.get("image_url"))
+    derived_tags = derive_topic_tags(title, summary, story, image_url=item.get("image_url"))
     review_status = "filtered" if should_include_item(title, summary, article_url, story) else "rejected"
+    raw_payload = dict(item or {})
+    raw_payload["match_metadata"] = match_metadata
     return {
         "source_key": source_key,
         "source_name": source_name,
@@ -271,7 +419,7 @@ def normalize_news_item(source_key, source_name, source_url, item):
         "translated_story_am": None,
         "notes": None,
         "content_hash": build_content_hash(source_key, article_url),
-        "raw_payload": item,
+        "raw_payload": raw_payload,
     }
 
 
@@ -367,7 +515,7 @@ def list_news_queue(statuses=None, limit=20):
         return []
     query = supabase.table("news_items").select(
         "id,source_name,title,summary,story,article_url,image_url,published_at,review_status,relevance_score,"
-        "topic_tags,translated_title_am,translated_story_am,notes"
+        "topic_tags,translated_title_am,translated_story_am,notes,raw_payload"
     ).order("published_at", desc=True).limit(limit)
     if statuses:
         query = query.in_("review_status", statuses)
@@ -383,7 +531,7 @@ def get_news_item(item_id):
     res = _safe_execute(
         supabase.table("news_items").select(
             "id,source_name,source_url,article_url,image_url,title,summary,story,author,published_at,review_status,"
-            "relevance_score,topic_tags,translated_title_am,translated_story_am,notes"
+            "relevance_score,topic_tags,translated_title_am,translated_story_am,notes,raw_payload"
         ).eq("id", item_id).limit(1),
         default=None,
         context=f"get_news_item:{item_id}",

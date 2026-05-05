@@ -48,6 +48,9 @@ LIST_TEMPLATE = """
     .story { white-space: pre-wrap; line-height: 1.5; max-height: 320px; overflow: auto; padding-right: 6px; }
     .source-box, .editor-box { border: 1px solid var(--border); border-radius: 14px; padding: 14px; background: rgba(255,255,255,0.65); }
     .source-box h3, .editor-box h3 { margin: 0 0 10px; font-size: 16px; }
+    .detected-box { border: 1px solid var(--border); border-radius: 14px; padding: 14px; background: rgba(20,83,45,0.06); margin: 0 0 14px; }
+    .detected-box h3 { margin: 0 0 10px; font-size: 16px; }
+    .detected-box p { margin: 6px 0; line-height: 1.45; }
     .editor-box label { display: block; margin: 12px 0 6px; font-weight: 600; }
     .editor-box textarea, .editor-box input[type=text] {
       width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font: inherit; background: white;
@@ -105,9 +108,35 @@ LIST_TEMPLATE = """
           {% endfor %}
         </div>
         <h2 class="title">{{ item.title }}</h2>
+        {% set match_meta = ((item.raw_payload or {}).get('match_metadata') or {}) %}
         <div class="card-grid">
           <div class="source-box">
             <h3>Source Copy</h3>
+            {% if match_meta and match_meta.get('match_type') and match_meta.get('match_type') != 'other' %}
+            <div class="detected-box">
+              <h3>Detected Match Structure</h3>
+              <p><strong>Type:</strong> {{ match_meta.get('match_type') }}</p>
+              {% if match_meta.get('prediction') %}
+              <p><strong>Prediction:</strong> {{ match_meta.get('prediction') }}</p>
+              {% endif %}
+              {% if match_meta.get('has_lineup_image') %}
+              <p><strong>Lineup Image:</strong> yes</p>
+              {% endif %}
+              {% if match_meta.get('final_score') %}
+              <p><strong>Final Score:</strong> {{ match_meta.get('final_score').get('home') }} {{ match_meta.get('final_score').get('home_score') }} - {{ match_meta.get('final_score').get('away_score') }} {{ match_meta.get('final_score').get('away') }}</p>
+              {% endif %}
+              {% if match_meta.get('scorers') %}
+              <p><strong>Scorers:</strong>
+                {% for scorer in match_meta.get('scorers') %}
+                  {{ scorer.get('player') }} ({{ scorer.get('minute') }}){% if not loop.last %}, {% endif %}
+                {% endfor %}
+              </p>
+              {% endif %}
+              {% if match_meta.get('injury_update') %}
+              <p><strong>Injury:</strong> {{ match_meta.get('injury_update') }}</p>
+              {% endif %}
+            </div>
+            {% endif %}
             <div><strong>Summary:</strong> {{ item.summary }}</div>
             {% if item.story %}
             <div class="story">{{ item.story }}</div>
@@ -169,6 +198,9 @@ DETAIL_TEMPLATE = """
     .hero { width: 100%; max-height: 420px; object-fit: cover; border-radius: 14px; margin-bottom: 16px; background: #e7e2d4; }
     a { color: var(--accent); }
     .meta { color: var(--muted); display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+    .detected-box { border: 1px solid var(--border); border-radius: 14px; padding: 14px; background: rgba(20,83,45,0.06); margin: 14px 0; }
+    .detected-box h3 { margin: 0 0 10px; font-size: 16px; }
+    .detected-box p { margin: 6px 0; line-height: 1.45; }
     textarea, input[type=text] {
       width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font: inherit; background: white;
     }
@@ -200,6 +232,32 @@ DETAIL_TEMPLATE = """
       </div>
       <h1>{{ item.title }}</h1>
       <p>{{ item.summary }}</p>
+      {% set match_meta = ((item.raw_payload or {}).get('match_metadata') or {}) %}
+      {% if match_meta and match_meta.get('match_type') and match_meta.get('match_type') != 'other' %}
+      <div class="detected-box">
+        <h3>Detected Match Structure</h3>
+        <p><strong>Type:</strong> {{ match_meta.get('match_type') }}</p>
+        {% if match_meta.get('prediction') %}
+        <p><strong>Prediction:</strong> {{ match_meta.get('prediction') }}</p>
+        {% endif %}
+        {% if match_meta.get('has_lineup_image') %}
+        <p><strong>Lineup Image:</strong> yes</p>
+        {% endif %}
+        {% if match_meta.get('final_score') %}
+        <p><strong>Final Score:</strong> {{ match_meta.get('final_score').get('home') }} {{ match_meta.get('final_score').get('home_score') }} - {{ match_meta.get('final_score').get('away_score') }} {{ match_meta.get('final_score').get('away') }}</p>
+        {% endif %}
+        {% if match_meta.get('scorers') %}
+        <p><strong>Scorers:</strong>
+          {% for scorer in match_meta.get('scorers') %}
+            {{ scorer.get('player') }} ({{ scorer.get('minute') }}){% if not loop.last %}, {% endif %}
+          {% endfor %}
+        </p>
+        {% endif %}
+        {% if match_meta.get('injury_update') %}
+        <p><strong>Injury:</strong> {{ match_meta.get('injury_update') }}</p>
+        {% endif %}
+      </div>
+      {% endif %}
       {% if item.story %}
       <div style="white-space: pre-wrap;">{{ item.story }}</div>
       {% endif %}
