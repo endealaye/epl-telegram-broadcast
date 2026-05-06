@@ -1,10 +1,22 @@
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+import tempfile
 import uuid
 
+from PIL import Image, ImageDraw
+
 from bot_config import AMHARIC_TEAMS, get_eat_now, get_eat_today, parse_eat_datetime
-from commands import send_admin_alert, send_telegram_message
-from standings import broadcast_standings
+from commands import send_admin_alert, send_telegram_message, send_telegram_photo_file
+from standings import (
+    _build_standings_watermark_overlay,
+    _fit_logo,
+    _load_font,
+    _load_latin_font,
+    _load_logo,
+    _resolve_logo_path,
+    broadcast_standings,
+)
 from store import (
     acquire_bot_lock,
     fetch_fixtures_for_dates,
@@ -20,6 +32,250 @@ from store import (
     set_bot_state_value,
     supabase,
 )
+
+FIXTURE_IMAGE_WIDTH = 1200
+FIXTURE_IMAGE_PADDING = 36
+FIXTURE_IMAGE_HEADER_HEIGHT = 170
+FIXTURE_IMAGE_GROUP_HEADER = 42
+FIXTURE_IMAGE_ROW_HEIGHT = 260
+FIXTURE_LOGO_SIZE = 118
+
+
+def _team_badge_label(team_name):
+    words = [part for part in (team_name or "").replace("&", " ").replace(".", " ").split() if part]
+    if not words:
+        return "?"
+    if len(words) == 1:
+        return words[0][:3].upper()
+    return "".join(word[0].upper() for word in words[:3])
+
+
+def _draw_badge_fallback(image, draw, x, y, size, team_name):
+    fill = (238, 240, 247, 255)
+    outline = (185, 190, 205, 255)
+    text_fill = (58, 64, 84, 255)
+    draw.ellipse((x, y, x + size, y + size), fill=fill, outline=outline, width=3)
+    badge_font = _load_latin_font(max(18, int(size * 0.28)), bold=True)
+    label = _team_badge_label(team_name)
+    box = draw.textbbox((0, 0), label, font=badge_font)
+    text_x = x + ((size - (box[2] - box[0])) // 2)
+    text_y = y + ((size - (box[3] - box[1])) // 2) - box[1]
+    draw.text((text_x, text_y), label, font=badge_font, fill=text_fill)
+
+
+def _render_match_board(title, subtitle, groups, mode="fixtures"):
+    if not groups:
+        raise ValueError("No groups to render.")
+
+    width = FIXTURE_IMAGE_WIDTH
+    padding = FIXTURE_IMAGE_PADDING
+    header_height = 360 if mode == "results" else 220
+    chip_height = 60
+    chip_gap = 18
+    row_height = 160
+    card_gap = 18
+    total_height = (
+        (padding * 2)
+        + header_height
+        + chip_height
+        + 22
+        + sum((len(matches) * row_height) + (card_gap * max(0, len(matches) - 1)) for _, matches in groups)
+        + 22
+    )
+
+    image = Image.new("RGBA", (width, total_height), (246, 246, 250, 255))
+    draw = ImageDraw.Draw(image)
+
+    panel = (padding, padding, width - padding, total_height - padding)
+    draw.rounded_rectangle(panel, radius=24, fill=(244, 244, 248, 255))
+
+    title_text = title.replace("📅", "").replace("🏁", "").strip()
+    title_font = _load_font(56, bold=True)
+    small_title_font = _load_latin_font(22, bold=False)
+    chip_font = _load_latin_font(26, bold=True)
+    team_font = _load_font(34, bold=True)
+    time_font = _load_latin_font(22, bold=False)
+    score_font = _load_latin_font(70, bold=True)
+    hero_label_font = _load_latin_font(20, bold=False)
+    text_dark = (40, 40, 46)
+    text_muted = (168, 168, 176)
+    chip_active = (125, 53, 221)
+    chip_idle = (230, 231, 238)
+    chip_idle_text = (96, 96, 106)
+
+    inner_x0 = panel[0] + 22
+    inner_x1 = panel[2] - 22
+
+    title_box = draw.textbbox((0, 0), title_text, font=title_font)
+    title_x = inner_x0 + ((inner_x1 - inner_x0 - (title_box[2] - title_box[0])) // 2)
+    draw.text((title_x, panel[1] + 26), title_text, font=title_font, fill=text_dark)
+
+    subtitle_box = draw.textbbox((0, 0), subtitle, font=small_title_font)
+    subtitle_x = inner_x0 + ((inner_x1 - inner_x0 - (subtitle_box[2] - subtitle_box[0])) // 2)
+    draw.text((subtitle_x, panel[1] + 96), subtitle, font=small_title_font, fill=text_muted)
+
+    hero_competition, hero_matches = groups[0]
+    hero_match = hero_matches[0]
+    hero_y0 = panel[1] + 138
+    hero_y1 = hero_y0 + (150 if mode == "fixtures" else 190)
+    draw.rounded_rectangle((inner_x0, hero_y0, inner_x1, hero_y1), radius=34, fill=(255, 255, 255, 255))
+
+    center_x = (inner_x0 + inner_x1) // 2
+    hero_logo_size = 140
+    hero_left_center = inner_x0 + 150
+    hero_right_center = inner_x1 - 150
+    hero_logo_y = hero_y0 + 18
+
+    for team_name, team_display, center in (
+        (hero_match["home"], hero_match.get("home_display") or hero_match["home"], hero_left_center),
+        (hero_match["away"], hero_match.get("away_display") or hero_match["away"], hero_right_center),
+    ):
+        logo_path = _resolve_logo_path({"team": team_name, "team_display": team_display})
+        if logo_path:
+            logo = _fit_logo(_load_logo(logo_path), hero_logo_size)
+            image.alpha_composite(logo, (int(center - (hero_logo_size / 2)), hero_logo_y))
+        else:
+            _draw_badge_fallback(
+                image,
+                draw,
+                int(center - (hero_logo_size / 2)),
+                hero_logo_y,
+                hero_logo_size,
+                team_display,
+            )
+
+    hero_home = AMHARIC_TEAMS.get(hero_match["home"], hero_match["home"])
+    hero_away = AMHARIC_TEAMS.get(hero_match["away"], hero_match["away"])
+
+    if mode == "fixtures":
+        hero_text = f"{hero_home} vs. {hero_away}"
+        hero_font = _load_font(42, bold=True)
+        hero_box = draw.textbbox((0, 0), hero_text, font=hero_font)
+        hero_x = center_x - ((hero_box[2] - hero_box[0]) // 2)
+        draw.text((hero_x, hero_y0 + 82), hero_text, font=hero_font, fill=text_dark)
+        meta_text = hero_match["time"]
+        meta_box = draw.textbbox((0, 0), meta_text, font=time_font)
+        meta_x = center_x - ((meta_box[2] - meta_box[0]) // 2)
+        draw.text((meta_x, hero_y0 + 130), meta_text, font=time_font, fill=text_muted)
+    else:
+        label = hero_competition
+        label_box = draw.textbbox((0, 0), label, font=hero_label_font)
+        label_x = center_x - ((label_box[2] - label_box[0]) // 2)
+        draw.text((label_x, hero_y0 + 24), label, font=hero_label_font, fill=text_muted)
+        score = f"{hero_match['home_score']} : {hero_match['away_score']}"
+        score_box = draw.textbbox((0, 0), score, font=score_font)
+        score_x = center_x - ((score_box[2] - score_box[0]) // 2)
+        draw.text((score_x, hero_y0 + 52), score, font=score_font, fill=text_dark)
+        matchup = f"{hero_home} vs. {hero_away}"
+        matchup_font = _load_font(28, bold=True)
+        matchup_box = draw.textbbox((0, 0), matchup, font=matchup_font)
+        matchup_x = center_x - ((matchup_box[2] - matchup_box[0]) // 2)
+        draw.text((matchup_x, hero_y0 + 135), matchup, font=matchup_font, fill=text_muted)
+
+    header_label_y = hero_y1 + 28
+    section_label = "Today Match" if mode == "fixtures" else "Match Results"
+    draw.text((inner_x0, header_label_y), section_label, font=_load_latin_font(24, bold=False), fill=text_dark)
+
+    chips = [competition for competition, _ in groups]
+    chip_y0 = header_label_y + 46
+    chip_x = inner_x0
+    for index, chip in enumerate(chips):
+        chip_text = chip.replace("UEFA Champions League", "UEFA").replace("Premier League", "EPL")
+        chip_text = chip_text.replace("UEFA Europa League", "UEL").replace("UEFA Conference League", "UECL")
+        text_box = draw.textbbox((0, 0), chip_text, font=chip_font)
+        chip_w = (text_box[2] - text_box[0]) + 42
+        fill = chip_active if index == 0 else chip_idle
+        text_fill = (255, 255, 255) if index == 0 else chip_idle_text
+        draw.rounded_rectangle((chip_x, chip_y0, chip_x + chip_w, chip_y0 + chip_height), radius=30, fill=fill)
+        text_x = chip_x + ((chip_w - (text_box[2] - text_box[0])) // 2)
+        draw.text((text_x, chip_y0 + 12), chip_text, font=chip_font, fill=text_fill)
+        chip_x += chip_w + chip_gap
+
+    y = chip_y0 + chip_height + 24
+    card_logo_size = 98 if mode == "results" else 72
+    for competition, matches in groups:
+        for match in matches:
+            row_top = y
+            row_bottom = row_top + row_height
+            draw.rounded_rectangle((inner_x0, row_top, inner_x1, row_bottom), radius=30, fill=(255, 255, 255, 255))
+
+            left_logo_x = inner_x0 + 30
+            right_logo_x = inner_x1 - 30 - card_logo_size
+            logo_y = row_top + ((row_height - card_logo_size) // 2)
+            for team_name, team_display, x in (
+                (match["home"], match.get("home_display") or match["home"], left_logo_x),
+                (match["away"], match.get("away_display") or match["away"], right_logo_x),
+            ):
+                logo_path = _resolve_logo_path({"team": team_name, "team_display": team_display})
+                if logo_path:
+                    logo = _fit_logo(_load_logo(logo_path), card_logo_size)
+                    image.alpha_composite(logo, (x, logo_y))
+                else:
+                    _draw_badge_fallback(image, draw, x, logo_y, card_logo_size, team_display)
+
+            home_name = AMHARIC_TEAMS.get(match["home"], match["home"])
+            away_name = AMHARIC_TEAMS.get(match["away"], match["away"])
+            if mode == "fixtures":
+                pair_logo_size = 60
+                pair_gap = 16
+                matchup_font = _load_font(22, bold=True)
+                time_font_compact = _load_font(20, bold=False)
+                matchup_text = f"{home_name} vs. {away_name}"
+                matchup_box = draw.textbbox((0, 0), matchup_text, font=matchup_font)
+                matchup_width = matchup_box[2] - matchup_box[0]
+                time_text = match["time"]
+                time_box = draw.textbbox((0, 0), time_text, font=time_font_compact)
+                time_width = time_box[2] - time_box[0]
+                total_center_width = pair_logo_size + pair_gap + matchup_width + 22 + time_width
+                content_x = center_x - (total_center_width // 2)
+                pair_logo_y = row_top + ((row_height - pair_logo_size) // 2)
+
+                pair_home_logo_x = content_x
+                pair_away_logo_x = pair_home_logo_x + pair_logo_size + 8
+                for team_name, team_display, x in (
+                    (match["home"], match.get("home_display") or match["home"], pair_home_logo_x),
+                    (match["away"], match.get("away_display") or match["away"], pair_away_logo_x),
+                ):
+                    logo_path = _resolve_logo_path({"team": team_name, "team_display": team_display})
+                    if logo_path:
+                        logo = _fit_logo(_load_logo(logo_path), pair_logo_size)
+                        image.alpha_composite(logo, (x, pair_logo_y))
+                    else:
+                        _draw_badge_fallback(image, draw, x, pair_logo_y, pair_logo_size, team_display)
+
+                text_x = pair_away_logo_x + pair_logo_size + pair_gap
+                draw.text((text_x, row_top + 42), matchup_text, font=matchup_font, fill=text_dark)
+                draw.text((text_x + matchup_width + 22, row_top + 44), time_text, font=time_font_compact, fill=text_muted)
+            else:
+                center_text = f"{home_name} {match['home_score']} - {match['away_score']} {away_name}"
+                center_font = _load_font(26, bold=True)
+                center_box = draw.textbbox((0, 0), center_text, font=center_font)
+                center_x_text = center_x - ((center_box[2] - center_box[0]) // 2)
+                draw.text((center_x_text, row_top + 44), center_text, font=center_font, fill=text_dark)
+
+                secondary = competition
+                secondary_box = draw.textbbox((0, 0), secondary, font=time_font)
+                secondary_x = center_x - ((secondary_box[2] - secondary_box[0]) // 2)
+                draw.text((secondary_x, row_top + 94), secondary, font=time_font, fill=text_muted)
+
+            y += row_height + card_gap
+
+    overlay = _build_standings_watermark_overlay(*image.size)
+    image = Image.alpha_composite(image, overlay)
+
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    temp_path = Path(temp_file.name)
+    temp_file.close()
+    image.convert("RGB").save(temp_path, format="PNG", optimize=True)
+    return temp_path
+
+
+def _send_match_board(title, subtitle, groups, mode="fixtures", caption=None):
+    image_path = _render_match_board(title, subtitle, groups, mode=mode)
+    try:
+        return send_telegram_photo_file(image_path, caption or title)
+    finally:
+        image_path.unlink(missing_ok=True)
 
 
 def _ethiopian_clock_label(hour_24):
@@ -114,23 +370,28 @@ def broadcast_daily():
             print("Skip daily: today's fixtures were already broadcast.")
             return
 
-        competition_groups = defaultdict(lambda: defaultdict(list))
+        competition_groups = defaultdict(list)
         match_ids = []
         for match in matches:
             time = _format_kickoff_time_ethiopian(match)
-            home_am = AMHARIC_TEAMS.get(match['hometeam'], match['hometeam'])
-            away_am = AMHARIC_TEAMS.get(match['awayteam'], match['awayteam'])
             competition = fixture_competition_name(match)
-            competition_groups[competition][time].append(f"• {home_am} vs {away_am}")
+            competition_groups[competition].append(
+                {
+                    "time": time,
+                    "home": match["hometeam"],
+                    "away": match["awayteam"],
+                }
+            )
             match_ids.append(match['matchnumber'])
 
-        msg = f"📅 *የዛሬ ጨዋታዎች ({today})*\n\n"
-        for competition in sorted(competition_groups.keys()):
-            msg += f"🏆 *{competition}*\n"
-            for time in sorted(competition_groups[competition].keys()):
-                msg += f"⏰ *{time}*\n" + "\n".join(competition_groups[competition][time]) + "\n"
-            msg += "\n"
-        send_telegram_message(msg)
+        groups = [(competition, competition_groups[competition]) for competition in sorted(competition_groups.keys())]
+        _send_match_board(
+            title="📅 የዛሬ ጨዋታዎች",
+            subtitle=today,
+            groups=groups,
+            mode="fixtures",
+            caption=f"📅 የዛሬ ጨዋታዎች ({today})",
+        )
         supabase.table('fixtures').update({
             "daily_sent": True,
             "broadcaststatus": 'scheduled',
@@ -198,15 +459,28 @@ def broadcast_results(date_strings=None):
             return
 
         results.sort(key=lambda item: item.get("dateeat") or "")
-        msg = "🏁 *የጨዋታዎች ውጤት*\n\n"
+        competition_groups = defaultdict(list)
         sent_ids = []
         for result in results:
-            home_am = AMHARIC_TEAMS.get(result['hometeam'], result['hometeam'])
-            away_am = AMHARIC_TEAMS.get(result['awayteam'], result['awayteam'])
-            msg += f"• {home_am} {result['hometeamscore']} - {result['awayteamscore']} {away_am}\n"
+            competition = fixture_competition_name(result)
+            competition_groups[competition].append(
+                {
+                    "home": result["hometeam"],
+                    "away": result["awayteam"],
+                    "home_score": result["hometeamscore"],
+                    "away_score": result["awayteamscore"],
+                }
+            )
             sent_ids.append(result['matchnumber'])
 
-        send_telegram_message(msg)
+        groups = [(competition, competition_groups[competition]) for competition in sorted(competition_groups.keys())]
+        _send_match_board(
+            title="🏁 የጨዋታዎች ውጤት",
+            subtitle=today,
+            groups=groups,
+            mode="results",
+            caption="🏁 የጨዋታዎች ውጤት",
+        )
         supabase.table('fixtures').update({
             "result_sent": True,
             "broadcaststatus": 'result_sent',
