@@ -1,6 +1,7 @@
 import os
 import re
 import tempfile
+import unicodedata
 from collections import defaultdict
 from functools import cmp_to_key
 from pathlib import Path
@@ -36,6 +37,8 @@ TEAM_LOGO_FILES = {
     "brentford": "Brentford.png",
     "brighton": "Brighton & Hove Albion.png",
     "brighton & hove albion": "Brighton & Hove Albion.png",
+    "bayern munchen": "Bayern München.png",
+    "bayern munich": "Bayern München.png",
     "burnley": "Burnley.png",
     "chelsea": "Chelsea.png",
     "crystal palace": "Crystal Palace.png",
@@ -52,6 +55,9 @@ TEAM_LOGO_FILES = {
     "newcastle united": "Newcastle United.png",
     "nott'm forest": "Nottingham Forest.png",
     "nottingham forest": "Nottingham Forest.png",
+    "paris": "Paris.png",
+    "paris saint-germain": "Paris.png",
+    "paris saint germain": "Paris.png",
     "spurs": "Tottenham_Hotspur.png",
     "tottenham": "Tottenham_Hotspur.png",
     "tottenham hotspur": "Tottenham_Hotspur.png",
@@ -424,7 +430,8 @@ def _row_accent_color(position):
 
 
 def _normalize_team_lookup(name):
-    value = (name or "").strip().lower()
+    value = unicodedata.normalize("NFKD", (name or "").strip().lower())
+    value = value.encode("ascii", "ignore").decode("ascii")
     value = value.replace("&", "and")
     value = re.sub(r"[^a-z0-9 ]+", " ", value)
     return re.sub(r"\s+", " ", value).strip()

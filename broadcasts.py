@@ -63,6 +63,75 @@ def _draw_badge_fallback(image, draw, x, y, size, team_name):
     draw.text((text_x, text_y), label, font=badge_font, fill=text_fill)
 
 
+def render_centered_fixture_poster(match, date_label=None):
+    width = 1400
+    height = 900
+    image = Image.new("RGBA", (width, height), (255, 255, 255, 255))
+    draw = ImageDraw.Draw(image)
+
+    title_font = _load_font(56, bold=True)
+    date_font = _load_latin_font(44, bold=True)
+    time_font = _load_font(52, bold=True)
+    team_font = _load_font(60, bold=True)
+    text_dark = (18, 18, 22)
+
+    title = "የዛሬ የእንግሊዝ ፕሪሚየር ሊግ መርሐግብሮች"
+    if fixture_competition_name(
+        {"matchgroup": match.get("competition") or match.get("matchgroup")}
+    ) != "Premier League":
+        title = "የዛሬ የጨዋታ መርሐግብሮች"
+    title_box = draw.textbbox((0, 0), title, font=title_font)
+    title_x = (width - (title_box[2] - title_box[0])) // 2
+    draw.text((title_x, 70), title, font=title_font, fill=text_dark)
+
+    if date_label:
+        date_text = f"({date_label})"
+        date_box = draw.textbbox((0, 0), date_text, font=date_font)
+        date_x = (width - (date_box[2] - date_box[0])) // 2
+        draw.text((date_x, 150), date_text, font=date_font, fill=text_dark)
+
+    time_text = match.get("time") or ""
+    time_box = draw.textbbox((0, 0), time_text, font=time_font)
+    time_x = (width - (time_box[2] - time_box[0])) // 2
+    draw.text((time_x, 265), time_text, font=time_font, fill=text_dark)
+
+    home = match["home"]
+    away = match["away"]
+    home_am = AMHARIC_TEAMS.get(home, home)
+    away_am = AMHARIC_TEAMS.get(away, away)
+
+    logo_size = 320
+    logo_y = 360
+    home_center_x = width // 2 - 220
+    away_center_x = width // 2 + 220
+
+    for team_name, team_display, center_x in (
+        (home, match.get("home_display") or home, home_center_x),
+        (away, match.get("away_display") or away, away_center_x),
+    ):
+        logo_x = int(center_x - (logo_size / 2))
+        logo_path = _resolve_logo_path({"team": team_name, "team_display": team_display})
+        if logo_path:
+            logo = _fit_logo(_load_logo(logo_path), logo_size)
+            image.alpha_composite(logo, (logo_x, logo_y))
+        else:
+            _draw_badge_fallback(image, draw, logo_x, logo_y, logo_size, team_display)
+
+    home_box = draw.textbbox((0, 0), home_am, font=team_font)
+    home_x = int(home_center_x - ((home_box[2] - home_box[0]) / 2))
+    draw.text((home_x, 720), home_am, font=team_font, fill=text_dark)
+
+    away_box = draw.textbbox((0, 0), away_am, font=team_font)
+    away_x = int(away_center_x - ((away_box[2] - away_box[0]) / 2))
+    draw.text((away_x, 720), away_am, font=team_font, fill=text_dark)
+
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    temp_path = Path(temp_file.name)
+    temp_file.close()
+    image.convert("RGB").save(temp_path, format="PNG", optimize=True)
+    return temp_path
+
+
 def _render_match_board(title, subtitle, groups, mode="fixtures"):
     if not groups:
         raise ValueError("No groups to render.")
@@ -278,6 +347,14 @@ def _send_match_board(title, subtitle, groups, mode="fixtures", caption=None):
         image_path.unlink(missing_ok=True)
 
 
+def _send_fixture_preview(match, date_label, caption):
+    image_path = render_centered_fixture_poster(match, date_label=date_label)
+    try:
+        return send_telegram_photo_file(image_path, caption)
+    finally:
+        image_path.unlink(missing_ok=True)
+
+
 def _ethiopian_clock_label(hour_24):
     if 6 <= hour_24 < 12:
         period = "ጠዋት"
@@ -385,13 +462,30 @@ def broadcast_daily():
             match_ids.append(match['matchnumber'])
 
         groups = [(competition, competition_groups[competition]) for competition in sorted(competition_groups.keys())]
-        _send_match_board(
-            title="📅 የዛሬ ጨዋታዎች",
-            subtitle=today,
-            groups=groups,
-            mode="fixtures",
-            caption=f"📅 የዛሬ ጨዋታዎች ({today})",
-        )
+        caption = f"📅 የዛሬ ጨዋታዎች ({today})"
+        if len(matches) == 1:
+            match = matches[0]
+            _send_fixture_preview(
+                {
+                    "time": _format_kickoff_time_ethiopian(match),
+                    "home": match["hometeam"],
+                    "away": match["awayteam"],
+                    "home_display": match["hometeam"],
+                    "away_display": match["awayteam"],
+                    "competition": fixture_competition_name(match),
+                    "matchgroup": match.get("matchgroup"),
+                },
+                date_label=today,
+                caption=caption,
+            )
+        else:
+            _send_match_board(
+                title="📅 የዛሬ ጨዋታዎች",
+                subtitle=today,
+                groups=groups,
+                mode="fixtures",
+                caption=caption,
+            )
         supabase.table('fixtures').update({
             "daily_sent": True,
             "broadcaststatus": 'scheduled',
