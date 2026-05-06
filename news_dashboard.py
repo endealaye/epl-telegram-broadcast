@@ -274,9 +274,9 @@ DEFAULT_STATUSES = {
 def news_list():
     selected_status = request.args.get("status", "review")
     try:
-        limit = int(request.args.get("limit", 20))
+        limit = int(request.args.get("limit", 10))
     except (TypeError, ValueError):
-        limit = 20
+        limit = 10
     limit = max(1, min(100, limit))
     statuses = DEFAULT_STATUSES.get(selected_status, DEFAULT_STATUSES["review"])
     try:
