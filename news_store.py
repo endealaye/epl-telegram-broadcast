@@ -104,6 +104,8 @@ WOMENS_FOOTBALL_PATTERNS = [
 
 INCLUDE_TERMS = [
     "premier league",
+    "champions league",
+    "uefa champions league",
     *PREMIER_LEAGUE_CLUBS.keys(),
 ]
 
@@ -222,6 +224,8 @@ def derive_topic_tags(title, summary, story=None, image_url=None):
 
     if "premier league" in haystack:
         tags.add("competition:premier_league")
+    if "champions league" in haystack or "uefa champions league" in haystack:
+        tags.add("competition:champions_league")
 
     for term, tag in PREMIER_LEAGUE_CLUBS.items():
         if term in haystack:
