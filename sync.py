@@ -1,6 +1,7 @@
 import html
 import json
 import re
+import subprocess
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -18,6 +19,18 @@ EUROPEAN_COMPETITIONS = {
 }
 
 RESULT_COMPETITIONS = {"Premier League", *EUROPEAN_COMPETITIONS}
+UEFA_UCL_FIXTURES_ARTICLE_URL = (
+    "https://www.uefa.com/uefachampionsleague/news/"
+    "029c-1e9a2f63fe2d-ebf9ad643892-1000--2025-26-champions-league-all-the-league-phase-fixtures/"
+)
+UEFA_REQUEST_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/136.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "en-GB,en;q=0.9",
+}
 
 
 def _to_eat_datetime(date_string, uk_time_string):
@@ -217,6 +230,132 @@ def _upsert_sky_competition_fixtures_for_date(date_string, competitions=None):
     return len(res.data or payload)
 
 
+def _season_year_for_date(month):
+    return 2025 if month >= 7 else 2026
+
+
+def _parse_uefa_article_date(date_text):
+    cleaned = re.sub(r"\s+", " ", (date_text or "").strip())
+    match = re.match(r"^[A-Za-z]+\s+(\d{1,2})\s+([A-Za-z]+)(?:\s+(\d{4}))?$", cleaned)
+    if not match:
+        return None
+
+    day = int(match.group(1))
+    month_name = match.group(2)
+    year_raw = match.group(3)
+    try:
+        month = datetime.strptime(month_name, "%B").month
+    except ValueError:
+        return None
+
+    year = int(year_raw) if year_raw else _season_year_for_date(month)
+    return datetime(year, month, day).date()
+
+
+def _uefa_default_dateeat(date_string, text):
+    explicit = re.search(r"\((\d{1,2}:\d{2})\s*CET\)", text)
+    if explicit:
+        return _to_eat_datetime(date_string, explicit.group(1))
+    return f"{date_string} 22:00:00"
+
+
+def _parse_uefa_match_text(text):
+    normalized = re.sub(r"\s+", " ", text).strip()
+    result_match = re.match(r"^(.*?)\s+(\d+)-(\d+)\s+(.*?)(?:\s+\(.*)?$", normalized)
+    if result_match:
+        home_name, home_score, away_score, away_name = result_match.groups()
+        return {
+            "home": home_name.strip(),
+            "away": away_name.strip(),
+            "home_score": int(home_score),
+            "away_score": int(away_score),
+        }
+
+    fixture_match = re.match(r"^(.*?)\s+vs\s+(.*?)(?:\s+\(.*)?$", normalized)
+    if fixture_match:
+        home_name, away_name = fixture_match.groups()
+        return {
+            "home": home_name.strip(),
+            "away": away_name.strip(),
+            "home_score": None,
+            "away_score": None,
+        }
+    return None
+
+
+def _uefa_ucl_article_fixtures_for_date(date_string):
+    html_text = None
+    try:
+        response = requests.get(UEFA_UCL_FIXTURES_ARTICLE_URL, headers=UEFA_REQUEST_HEADERS, timeout=20)
+        response.raise_for_status()
+        html_text = response.text
+    except Exception:
+        curl_result = subprocess.run(
+            ["curl", "-L", UEFA_UCL_FIXTURES_ARTICLE_URL],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        html_text = curl_result.stdout
+
+    soup = BeautifulSoup(html_text, "html.parser")
+
+    fixtures = []
+    target_date = datetime.strptime(date_string, "%Y-%m-%d").date()
+    for paragraph in soup.find_all("p"):
+        strong = paragraph.find("b")
+        if not strong:
+            continue
+
+        paragraph_date = _parse_uefa_article_date(strong.get_text(" ", strip=True))
+        if paragraph_date != target_date:
+            continue
+
+        paragraph_text = paragraph.get_text(" ", strip=True)
+        for anchor in paragraph.find_all("a", href=True):
+            match = re.search(r"/match/(\d+)", anchor["href"])
+            if not match:
+                continue
+            parsed = _parse_uefa_match_text(anchor.get_text(" ", strip=True))
+            if not parsed:
+                continue
+
+            home_team = TEAM_MAPPING.get(parsed["home"], parsed["home"])
+            away_team = TEAM_MAPPING.get(parsed["away"], parsed["away"])
+            fixtures.append(
+                {
+                    "matchnumber": int(match.group(1)),
+                    "roundnumber": None,
+                    "dateutc": None,
+                    "location": None,
+                    "hometeam": home_team,
+                    "awayteam": away_team,
+                    "matchgroup": "UEFA Champions League",
+                    "hometeamscore": parsed["home_score"],
+                    "awayteamscore": parsed["away_score"],
+                    "dateeat": _uefa_default_dateeat(date_string, paragraph_text),
+                    "roundlabel": None,
+                }
+            )
+    return fixtures
+
+
+def _upsert_uefa_ucl_article_fixtures_for_date(date_string):
+    if not supabase:
+        return 0
+    fixtures = _uefa_ucl_article_fixtures_for_date(date_string)
+    if not fixtures:
+        return 0
+    payload = []
+    for fixture in fixtures:
+        row = dict(fixture)
+        row.pop("roundlabel", None)
+        payload.append(row)
+    res = supabase.table("fixtures").upsert(payload).execute()
+    return len(res.data or fixtures)
+
+
 def update_fixtures_from_json():
     if not supabase:
         return False
@@ -245,16 +384,28 @@ def update_fixtures_from_json():
                 "awayteamscore": match.get('AwayTeamScore'),
                 "dateeat": eat_date,
             }).execute()
-        for date_string in {get_eat_today(), (get_eat_now() + timedelta(days=1)).strftime("%Y-%m-%d")}:
+        yesterday = (get_eat_now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        today = get_eat_today()
+        tomorrow = (get_eat_now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        for date_string in {yesterday, today, tomorrow}:
             try:
-                updated = _upsert_sky_competition_fixtures_for_date(date_string)
+                updated = _upsert_uefa_ucl_article_fixtures_for_date(date_string)
+                if updated:
+                    print(f"Upserted {updated} UEFA Champions League rows from UEFA.com on {date_string}.")
+            except Exception as ucl_exc:
+                print(f"UEFA Champions League sync skipped for {date_string}: {ucl_exc}")
+
+        for date_string in {today, tomorrow}:
+            try:
+                updated = _upsert_sky_competition_fixtures_for_date(
+                    date_string,
+                    competitions={"UEFA Europa League", "UEFA Conference League"},
+                )
                 if updated:
                     print(f"Upserted {updated} tracked European fixture rows on {date_string}.")
             except Exception as comp_exc:
                 print(f"European fixture sync skipped for {date_string}: {comp_exc}")
         # Prioritize BBC kickoff times and normalize them to EAT for near-term fixtures.
-        today = get_eat_today()
-        tomorrow = (get_eat_now() + timedelta(days=1)).strftime("%Y-%m-%d")
         for date_string in {today, tomorrow}:
             try:
                 updated = _apply_bbc_kickoff_overrides(date_string)
@@ -262,7 +413,6 @@ def update_fixtures_from_json():
                     print(f"Applied BBC kickoff override for {updated} fixture rows on {date_string}.")
             except Exception as bbc_exc:
                 print(f"BBC kickoff override skipped for {date_string}: {bbc_exc}")
-        yesterday = (get_eat_now() - timedelta(days=1)).strftime("%Y-%m-%d")
         for date_string in {yesterday, today}:
             try:
                 updated = _apply_sky_result_overrides(date_string)

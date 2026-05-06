@@ -53,11 +53,16 @@ def parse_eat_datetime(value):
 
 
 TEAM_MAPPING = {
+    "Atleti": "Atletico Madrid",
     "Atletico Madrid": "Atletico Madrid",
     "Atlético Madrid": "Atletico Madrid",
     "Atletico de Madrid": "Atletico Madrid",
     "Atlético de Madrid": "Atletico Madrid",
+    "Bayern Munich": "Bayern München",
+    "Bayern München": "Bayern München",
     "Manchester United": "Man Utd",
+    "Paris": "Paris",
+    "Paris Saint-Germain": "Paris",
     "Brentford": "Brentford",
     "Fulham": "Fulham",
     "Aston Villa": "Aston Villa",
@@ -84,6 +89,7 @@ AMHARIC_TEAMS = {
     "Arsenal": "አርሰናል",
     "Atletico Madrid": "አትሌቲኮ ማድሪድ",
     "Aston Villa": "አስቶን ቪላ",
+    "Bayern München": "ባየርን ሙኒክ",
     "Bournemouth": "ቦርንሙዝ",
     "Brentford": "ብሬንትፎርድ",
     "Brighton": "ብራይተን",
@@ -98,6 +104,7 @@ AMHARIC_TEAMS = {
     "Man Utd": "ማንቸስተር ዩናይትድ",
     "Newcastle": "ኒውካስል",
     "Nott'm Forest": "ኖቲንግሃም ፎረስት",
+    "Paris": "ፓሪስ ሳን ዠርመን",
     "Spurs": "ስፐርስ",
     "Sunderland": "ሰንደርላንድ",
     "West Ham": "ዌስትሃም",

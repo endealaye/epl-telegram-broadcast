@@ -156,10 +156,8 @@ def _merged_scores(providers):
     for provider in providers:
         scores = provider.get_scores() or []
         for match_data in scores:
-            home_team = TEAM_MAPPING.get(match_data['home'])
-            away_team = TEAM_MAPPING.get(match_data['away'])
-            if not home_team or not away_team:
-                continue
+            home_team = TEAM_MAPPING.get(match_data['home'], match_data['home'])
+            away_team = TEAM_MAPPING.get(match_data['away'], match_data['away'])
 
             competition_name = (match_data.get('competition') or "").strip()
             current_score_str = f"{match_data['h_score']}-{match_data['a_score']}"
