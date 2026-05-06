@@ -201,8 +201,15 @@ def _build_structured_match_lines(item):
         if match_meta.get("has_lineup_image"):
             lines.append("የአሰላለፍ ምስል ተያይዟል።")
     elif match_type == "post_match":
-        lines.append("🏁 *የጨዋታ ማጠቃለያ*")
         final_score = match_meta.get("final_score") or {}
+        scorers = match_meta.get("scorers") or []
+        injury_update = match_meta.get("injury_update")
+
+        has_post_match_facts = bool(final_score or scorers or injury_update)
+        if not has_post_match_facts:
+            return []
+
+        lines.append("🏁 *የጨዋታ ማጠቃለያ*")
         if final_score:
             home = _format_match_team_name(final_score.get("home"))
             away = _format_match_team_name(final_score.get("away"))
@@ -211,7 +218,6 @@ def _build_structured_match_lines(item):
             lines.append(
                 f"ውጤት: {escape_telegram_markdown(home)} {home_score} - {away_score} {escape_telegram_markdown(away)}"
             )
-        scorers = match_meta.get("scorers") or []
         if scorers:
             scorer_text = ", ".join(
                 f"{escape_telegram_markdown(scorer.get('player') or '')} ({escape_telegram_markdown(scorer.get('minute') or '')})"
@@ -220,7 +226,6 @@ def _build_structured_match_lines(item):
             )
             if scorer_text:
                 lines.append(f"⚽ ጎል: {scorer_text}")
-        injury_update = match_meta.get("injury_update")
         if injury_update:
             lines.append(f"🚑 ጉዳት: {escape_telegram_markdown(injury_update)}")
     return lines
