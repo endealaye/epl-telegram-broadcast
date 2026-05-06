@@ -1,13 +1,11 @@
 import html
 import os
 import re
-import subprocess
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 
 import requests
-from bs4 import BeautifulSoup
 
 
 RSS_NS = {
@@ -164,12 +162,6 @@ SKY_SPORTS_PREMIER_LEAGUE_SOURCE = {
     "source_key": "sky_sports_premier_league_rss",
     "source_name": "Sky Sports Premier League",
     "source_url": "https://www.skysports.com/rss/11661",
-}
-
-UEFA_CHAMPIONS_LEAGUE_SOURCE = {
-    "source_key": "uefa_champions_league",
-    "source_name": "UEFA Champions League",
-    "source_url": "https://www.uefa.com/uefachampionsleague/",
 }
 
 PREMIER_LEAGUE_CLUB_RSS_SOURCES = [
@@ -641,82 +633,6 @@ def fetch_guardian_premier_league_rss():
 
 def fetch_sky_sports_premier_league_rss():
     return _fetch_rss_source(SKY_SPORTS_PREMIER_LEAGUE_SOURCE, enrich=False, max_items=RSS_MAX_ITEMS_CORE)
-
-
-def fetch_uefa_champions_league_news():
-    source_config = UEFA_CHAMPIONS_LEAGUE_SOURCE
-    with requests.Session() as session:
-        session.headers.update(
-            {
-                "User-Agent": (
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0 Safari/537.36"
-                )
-            }
-        )
-
-        try:
-            response = session.get(source_config["source_url"], timeout=RSS_TIMEOUT)
-            response.raise_for_status()
-            page_html = response.text
-        except requests.RequestException:
-            result = subprocess.run(
-                ["curl", "-L", "--max-time", str(int(RSS_READ_TIMEOUT) + 5), source_config["source_url"]],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            page_html = result.stdout
-
-        soup = BeautifulSoup(page_html, "html.parser")
-
-        items = []
-        seen_urls = set()
-        for link in soup.find_all("a", href=True):
-            href = urljoin(source_config["source_url"], (link.get("href") or "").strip())
-            if "/uefachampionsleague/news/" not in href:
-                continue
-            if href in seen_urls:
-                continue
-
-            title = normalize_space(link.get_text(" ", strip=True))
-            title = re.sub(r"^\d{2}:\d{2}\s+", "", title)
-            title = re.sub(r"^Live\s+", "", title, flags=re.IGNORECASE)
-            if not title or len(title) < 8:
-                continue
-            if title.lower() in {"view all news", "see all videos", "watch all highlights"}:
-                continue
-
-            item = {
-                "title": title,
-                "summary": title,
-                "story": title,
-                "article_url": href,
-                "image_url": None,
-                "published_at": "",
-                "author": None,
-                "language": "en",
-                "topic_tags": ["uefa", "champions league"],
-            }
-            seen_urls.add(href)
-            items.append(item)
-            if len(items) >= RSS_MAX_ITEMS_CORE:
-                break
-
-        if not items:
-            return source_config, []
-
-        enriched_items = [None] * len(items)
-        max_workers = max(1, min(NEWS_ENRICH_MAX_WORKERS, len(items)))
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {
-                executor.submit(enrich_item_image, item, session): index
-                for index, item in enumerate(items)
-            }
-            for future in as_completed(futures):
-                enriched_items[futures[future]] = future.result()
-
-        return source_config, enriched_items
 
 
 def fetch_rss_source(source_config, enrich=False, max_items=None):

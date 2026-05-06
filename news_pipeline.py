@@ -17,7 +17,6 @@ from news_collectors import (
     fetch_guardian_premier_league_rss,
     fetch_rss_source,
     fetch_sky_sports_premier_league_rss,
-    fetch_uefa_champions_league_news,
     is_excluded_news_item,
 )
 from news_store import (
@@ -275,7 +274,6 @@ def fetch_news_items():
         ("bbc", fetch_bbc_football_rss),
         ("guardian", fetch_guardian_premier_league_rss),
         ("sky_sports", fetch_sky_sports_premier_league_rss),
-        ("uefa_champions_league", fetch_uefa_champions_league_news),
     ]
 
     jobs = []
