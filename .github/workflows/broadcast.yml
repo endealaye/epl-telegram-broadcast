@@ -6,7 +6,7 @@ on:
     - cron: '0 5 * * *'
     # 8 PM EAT = 5 PM UTC
     - cron: '0 17 * * *'
-    # Every 30 minutes for reminders and results
+    # Every 30 minutes for reminders, results, commands, and news
     - cron: '*/30 * * * *'
   workflow_dispatch: # Allows manual trigger
 
@@ -114,16 +114,6 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python3 telegram_broadcast.py commands
-
-      - name: Process Live Updates
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/30 * * * *'
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_ADMIN_ID: ${{ secrets.TELEGRAM_ADMIN_ID }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python3 telegram_broadcast.py live
 
       - name: Run Daily Broadcast
         if: github.event.schedule == '0 5 * * *' || github.event_name == 'workflow_dispatch'

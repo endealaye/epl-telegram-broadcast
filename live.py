@@ -22,6 +22,7 @@ from store import (
     fixture_competition_name,
     get_bot_state_value,
     has_live_window_matches,
+    is_in_live_polling_window,
     is_premier_league_fixture,
     mark_match_state,
     set_bot_state_value,
@@ -190,14 +191,10 @@ def _merged_scores(providers):
 def _find_db_match(home_team, away_team, competition_name, now):
     res = supabase.table('fixtures').select('*').eq('hometeam', home_team).eq('awayteam', away_team).execute()
     matches = res.data or []
-    window_start = now - timedelta(hours=3)
-    window_end = now + timedelta(hours=4)
     for candidate in matches:
-        kickoff = parse_eat_datetime(candidate.get('dateeat'))
         candidate_competition = fixture_competition_name(candidate)
         if (
-            kickoff
-            and window_start <= kickoff <= window_end
+            is_in_live_polling_window(candidate, now=now)
             and (not competition_name or candidate_competition == competition_name)
         ):
             return candidate

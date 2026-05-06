@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime, timedelta, timezone
 
 from supabase import Client, create_client
@@ -9,6 +10,8 @@ from bot_config import SUPABASE_KEY, SUPABASE_URL, get_eat_now, get_eat_today, p
 supabase: Client = None
 if SUPABASE_URL and SUPABASE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+LIVE_POLLING_WINDOW_MINUTES = int(os.getenv("LIVE_POLLING_WINDOW_MINUTES", "105"))
 
 def _safe_execute(query, default=None, context="supabase"):
     try:
@@ -163,9 +166,20 @@ def has_upcoming_matches(minutes=60):
     return bool(fixtures_in_window(now, now + timedelta(minutes=minutes)))
 
 
+def is_in_live_polling_window(fixture, now=None, window_minutes=LIVE_POLLING_WINDOW_MINUTES):
+    current = (now or get_eat_now()).replace(tzinfo=None)
+    kickoff = parse_eat_datetime(fixture.get('dateeat'))
+    if not kickoff:
+        return False
+    return kickoff <= current <= kickoff + timedelta(minutes=max(90, int(window_minutes)))
+
+
 def has_live_window_matches():
+    today = get_eat_today()
+    tomorrow = (get_eat_now() + timedelta(days=1)).strftime('%Y-%m-%d')
+    fixtures = fetch_fixtures_for_dates([today, tomorrow])
     now = get_eat_now().replace(tzinfo=None)
-    return bool(fixtures_in_window(now - timedelta(hours=3), now + timedelta(hours=4)))
+    return any(is_in_live_polling_window(fixture, now=now) for fixture in fixtures)
 
 
 def has_pending_results(date_strings=None):
