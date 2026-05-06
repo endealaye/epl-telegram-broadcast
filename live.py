@@ -16,6 +16,7 @@ from bot_config import (
 )
 from commands import send_admin_alert, send_telegram_message
 from standings import broadcast_standings
+from sync import sky_result_overrides_for_date
 from store import (
     fetch_fixtures_for_dates,
     fixture_competition_name,
@@ -288,6 +289,13 @@ def _reconcile_overdue_matches(score_map, now):
             now.strftime("%Y-%m-%d"),
         }
     )
+    dated_result_overrides = {}
+    for date_string in date_strings:
+        try:
+            dated_result_overrides.update(sky_result_overrides_for_date(date_string, competitions=LIVE_COMPETITIONS))
+        except Exception as exc:
+            print(f"Sky dated result fallback failed for {date_string}: {exc}")
+
     for db_match in supabase.table('fixtures').select('*').in_('matchgroup', list(LIVE_COMPETITIONS)).execute().data or []:
         kickoff = parse_eat_datetime(db_match.get('dateeat'))
         if not kickoff or kickoff.strftime("%Y-%m-%d") not in date_strings:
@@ -300,6 +308,14 @@ def _reconcile_overdue_matches(score_map, now):
             continue
 
         competition_name = fixture_competition_name(db_match)
+        dated_override = dated_result_overrides.get(
+            (db_match.get('hometeam'), db_match.get('awayteam'), competition_name)
+        )
+        if dated_override:
+            h_score, a_score = dated_override
+            _finalize_match(db_match, h_score, a_score, send_message=not db_match.get('result_sent'))
+            continue
+
         score_entry = score_map.get((db_match.get('hometeam'), db_match.get('awayteam'), competition_name))
         if score_entry:
             is_full_time, _ = _parse_status(score_entry.get('text', ''))

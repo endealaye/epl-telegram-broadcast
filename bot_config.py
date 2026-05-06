@@ -53,6 +53,10 @@ def parse_eat_datetime(value):
 
 
 TEAM_MAPPING = {
+    "Atletico Madrid": "Atletico Madrid",
+    "Atlético Madrid": "Atletico Madrid",
+    "Atletico de Madrid": "Atletico Madrid",
+    "Atlético de Madrid": "Atletico Madrid",
     "Manchester United": "Man Utd",
     "Brentford": "Brentford",
     "Fulham": "Fulham",

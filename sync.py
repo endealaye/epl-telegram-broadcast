@@ -17,6 +17,8 @@ EUROPEAN_COMPETITIONS = {
     "UEFA Conference League",
 }
 
+RESULT_COMPETITIONS = {"Premier League", *EUROPEAN_COMPETITIONS}
+
 
 def _to_eat_datetime(date_string, uk_time_string):
     dt_uk = datetime.strptime(f"{date_string} {uk_time_string}", "%Y-%m-%d %H:%M").replace(
@@ -66,12 +68,13 @@ def _apply_bbc_kickoff_overrides(date_string):
     return updated
 
 
-def _sky_result_overrides_for_date(date_string):
+def sky_result_overrides_for_date(date_string, competitions=None):
     url = f"https://www.skysports.com/football-scores-fixtures/{date_string}"
     response = requests.get(url, timeout=20)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, "html.parser")
 
+    allowed = set(competitions or RESULT_COMPETITIONS)
     overrides = {}
     for node in soup.find_all(attrs={"data-state": True}):
         raw_payload = node.get("data-state")
@@ -85,7 +88,7 @@ def _sky_result_overrides_for_date(date_string):
         competition_name = (
             ((payload.get("competition") or {}).get("name") or {}).get("full") or ""
         ).strip()
-        if competition_name != "Premier League":
+        if competition_name not in allowed:
             continue
         if not payload.get("isResult"):
             continue
@@ -102,7 +105,7 @@ def _sky_result_overrides_for_date(date_string):
 
         mapped_home = TEAM_MAPPING.get(home_name, home_name)
         mapped_away = TEAM_MAPPING.get(away_name, away_name)
-        overrides[(mapped_home, mapped_away)] = (int(home_score), int(away_score))
+        overrides[(mapped_home, mapped_away, competition_name)] = (int(home_score), int(away_score))
 
     return overrides
 
@@ -110,9 +113,9 @@ def _sky_result_overrides_for_date(date_string):
 def _apply_sky_result_overrides(date_string):
     if not supabase:
         return 0
-    overrides = _sky_result_overrides_for_date(date_string)
+    overrides = sky_result_overrides_for_date(date_string)
     updated = 0
-    for (home_team, away_team), (home_score, away_score) in overrides.items():
+    for (home_team, away_team, competition_name), (home_score, away_score) in overrides.items():
         res = (
             supabase.table("fixtures")
             .update(
@@ -123,6 +126,7 @@ def _apply_sky_result_overrides(date_string):
             )
             .eq("hometeam", home_team)
             .eq("awayteam", away_team)
+            .eq("matchgroup", competition_name)
             .ilike("dateeat", f"{date_string}%")
             .execute()
         )
