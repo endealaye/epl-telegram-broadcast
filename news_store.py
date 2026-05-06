@@ -525,6 +525,21 @@ def list_news_queue(statuses=None, limit=20):
     return res.data or []
 
 
+def list_news_queue_preview(statuses=None, limit=20):
+    if not supabase:
+        return []
+    query = supabase.table("news_items").select(
+        "id,source_name,title,summary,article_url,image_url,published_at,review_status,relevance_score,"
+        "topic_tags,translated_title_am,notes"
+    ).order("published_at", desc=True).limit(limit)
+    if statuses:
+        query = query.in_("review_status", statuses)
+    res = _safe_execute(query, default=None, context="list_news_queue_preview")
+    if res is None:
+        return []
+    return res.data or []
+
+
 def get_news_item(item_id):
     if not supabase:
         return None

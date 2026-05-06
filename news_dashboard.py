@@ -1,8 +1,7 @@
 from flask import Flask, redirect, render_template_string, request, url_for
 from werkzeug.exceptions import HTTPException
 
-from news_pipeline import fetch_news_items, mark_review_item
-from news_store import delete_news_item, get_news_item, list_news_queue
+from news_store import delete_news_item, get_news_item, list_news_queue_preview
 
 app = Flask(__name__)
 
@@ -108,39 +107,10 @@ LIST_TEMPLATE = """
           {% endfor %}
         </div>
         <h2 class="title">{{ item.title }}</h2>
-        {% set match_meta = ((item.raw_payload or {}).get('match_metadata') or {}) %}
         <div class="card-grid">
           <div class="source-box">
             <h3>Source Copy</h3>
-            {% if match_meta and match_meta.get('match_type') and match_meta.get('match_type') != 'other' %}
-            <div class="detected-box">
-              <h3>Detected Match Structure</h3>
-              <p><strong>Type:</strong> {{ match_meta.get('match_type') }}</p>
-              {% if match_meta.get('prediction') %}
-              <p><strong>Prediction:</strong> {{ match_meta.get('prediction') }}</p>
-              {% endif %}
-              {% if match_meta.get('has_lineup_image') %}
-              <p><strong>Lineup Image:</strong> yes</p>
-              {% endif %}
-              {% if match_meta.get('final_score') %}
-              <p><strong>Final Score:</strong> {{ match_meta.get('final_score').get('home') }} {{ match_meta.get('final_score').get('home_score') }} - {{ match_meta.get('final_score').get('away_score') }} {{ match_meta.get('final_score').get('away') }}</p>
-              {% endif %}
-              {% if match_meta.get('scorers') %}
-              <p><strong>Scorers:</strong>
-                {% for scorer in match_meta.get('scorers') %}
-                  {{ scorer.get('player') }} ({{ scorer.get('minute') }}){% if not loop.last %}, {% endif %}
-                {% endfor %}
-              </p>
-              {% endif %}
-              {% if match_meta.get('injury_update') %}
-              <p><strong>Injury:</strong> {{ match_meta.get('injury_update') }}</p>
-              {% endif %}
-            </div>
-            {% endif %}
             <div><strong>Summary:</strong> {{ item.summary }}</div>
-            {% if item.story %}
-            <div class="story">{{ item.story }}</div>
-            {% endif %}
             <div class="mini-links">
               <a href="{{ item.article_url }}" target="_blank" rel="noreferrer">Open source</a>
               <a href="{{ url_for('news_detail', item_id=item.id) }}">Full view</a>
@@ -148,21 +118,15 @@ LIST_TEMPLATE = """
           </div>
           <div class="editor-box">
             <h3>Amharic Draft</h3>
-            <form method="post" action="{{ url_for('update_item', item_id=item.id) }}">
-              <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
-              <label for="translated_title_am_{{ item.id }}">Amharic Title</label>
-              <input id="translated_title_am_{{ item.id }}" type="text" name="translated_title_am" value="{{ item.translated_title_am or '' }}">
-              <label for="translated_story_am_{{ item.id }}">Amharic Story</label>
-              <textarea id="translated_story_am_{{ item.id }}" name="translated_story_am">{{ item.translated_story_am or '' }}</textarea>
-              <label for="image_url_{{ item.id }}">Image URL Override</label>
-              <input id="image_url_{{ item.id }}" type="url" name="image_url" value="{{ item.image_url or '' }}" placeholder="https://...">
-              <label for="notes_{{ item.id }}">Notes</label>
-              <input id="notes_{{ item.id }}" type="text" name="notes" value="{{ item.notes or '' }}">
-              <div class="actions">
-                <button class="save" type="submit" name="status" value="translated">Save Draft</button>
-                <button class="publish" type="submit" name="status" value="published">Publish</button>
-              </div>
-            </form>
+            {% if item.translated_title_am %}
+            <div><strong>Saved title:</strong> {{ item.translated_title_am }}</div>
+            {% endif %}
+            {% if item.notes %}
+            <div style="margin-top:10px;"><strong>Notes:</strong> {{ item.notes }}</div>
+            {% endif %}
+            <div class="mini-links">
+              <a href="{{ url_for('news_detail', item_id=item.id) }}">Open editor</a>
+            </div>
             <form method="post" action="{{ url_for('delete_item', item_id=item.id) }}" onsubmit="return confirm('Hide this news item and prevent it from returning?');">
               <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
               <div class="actions">
@@ -316,7 +280,7 @@ def news_list():
     limit = max(1, min(100, limit))
     statuses = DEFAULT_STATUSES.get(selected_status, DEFAULT_STATUSES["review"])
     try:
-        items = list_news_queue(statuses=statuses, limit=limit)
+        items = list_news_queue_preview(statuses=statuses, limit=limit)
     except Exception as exc:
         return (f"Failed to load news queue: {exc}", 502)
     return render_template_string(
@@ -331,6 +295,7 @@ def news_list():
 @app.post("/fetch")
 def fetch_news():
     try:
+        from news_pipeline import fetch_news_items
         fetch_news_items()
     except Exception as exc:
         return (f"News fetch failed: {exc}", 502)
@@ -357,6 +322,7 @@ def update_item(item_id):
     image_url = image_url.strip() if image_url is not None else None
     notes = request.form.get("notes") or None
     try:
+        from news_pipeline import mark_review_item
         mark_review_item(
             item_id=item_id,
             status=status,
