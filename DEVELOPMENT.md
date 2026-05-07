@@ -214,7 +214,7 @@ Important operational consequence:
 
 ### `live updates`
 
-- Runs on every script invocation, not only on a dedicated live-update schedule
+- Runs on the dedicated live polling workflow and when `telegram_broadcast.py live` is invoked manually
 - Self-skips unless at least one fixture falls in the active window of `now - 30m` to `now + 4h`
 - Reads scores from BBC first, then Sky Sports if BBC yields no usable matches
 - Sends:
@@ -229,7 +229,7 @@ Important operational consequence:
 
 ## GitHub Actions Schedule
 
-The current workflow is `.github/workflows/broadcast.yml`.
+The current scheduled workflows are `.github/workflows/broadcast.yml` and `.github/workflows/live.yml`.
 
 Configured schedules:
 
@@ -239,12 +239,14 @@ Configured schedules:
   - Runs at `17:00 UTC`, which is `20:00 EAT`
 - `*/30 * * * *`
   - Runs every 30 minutes
+- `*/10 * * * *`
+  - Runs every 10 minutes
 
 Current workflow behavior:
 
 - `refresh` runs on the two daily refresh schedules and on manual dispatch.
 - `commands` runs on the 30-minute schedule and on manual dispatch.
-- `live` runs on the 30-minute schedule and on manual dispatch.
+- `live` runs on the 10-minute live polling workflow and on manual dispatch.
 - The daily step runs on the `05:00 UTC` schedule and on manual dispatch.
 - The reminders step runs on the 30-minute schedule and on manual dispatch.
 - The results step runs on the 30-minute schedule and on manual dispatch.
@@ -257,10 +259,13 @@ This means the 05:00 UTC run executes:
 And the 30-minute schedule executes:
 
 - `commands`
-- `live`
 - `reminders`
 - `news-fetch`
 - `results`
+
+And the 10-minute live workflow executes:
+
+- `live`
 
 ## Manual Operations
 
