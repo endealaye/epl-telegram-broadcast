@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw
 
 from bot_config import AMHARIC_TEAMS, get_eat_now, get_eat_today, parse_eat_datetime
 from commands import send_admin_alert, send_telegram_message, send_telegram_photo_file
+from news_pipeline import load_watermark_image, resolve_watermark_asset
 from standings import (
     _build_standings_watermark_overlay,
     _fit_logo,
@@ -61,75 +62,6 @@ def _draw_badge_fallback(image, draw, x, y, size, team_name):
     text_x = x + ((size - (box[2] - box[0])) // 2)
     text_y = y + ((size - (box[3] - box[1])) // 2) - box[1]
     draw.text((text_x, text_y), label, font=badge_font, fill=text_fill)
-
-
-def render_centered_fixture_poster(match, date_label=None):
-    width = 1400
-    height = 900
-    image = Image.new("RGBA", (width, height), (255, 255, 255, 255))
-    draw = ImageDraw.Draw(image)
-
-    title_font = _load_font(56, bold=True)
-    date_font = _load_latin_font(44, bold=True)
-    time_font = _load_font(52, bold=True)
-    team_font = _load_font(60, bold=True)
-    text_dark = (18, 18, 22)
-
-    title = "የዛሬ የእንግሊዝ ፕሪሚየር ሊግ መርሐግብሮች"
-    if fixture_competition_name(
-        {"matchgroup": match.get("competition") or match.get("matchgroup")}
-    ) != "Premier League":
-        title = "የዛሬ የጨዋታ መርሐግብሮች"
-    title_box = draw.textbbox((0, 0), title, font=title_font)
-    title_x = (width - (title_box[2] - title_box[0])) // 2
-    draw.text((title_x, 70), title, font=title_font, fill=text_dark)
-
-    if date_label:
-        date_text = f"({date_label})"
-        date_box = draw.textbbox((0, 0), date_text, font=date_font)
-        date_x = (width - (date_box[2] - date_box[0])) // 2
-        draw.text((date_x, 150), date_text, font=date_font, fill=text_dark)
-
-    time_text = match.get("time") or ""
-    time_box = draw.textbbox((0, 0), time_text, font=time_font)
-    time_x = (width - (time_box[2] - time_box[0])) // 2
-    draw.text((time_x, 265), time_text, font=time_font, fill=text_dark)
-
-    home = match["home"]
-    away = match["away"]
-    home_am = AMHARIC_TEAMS.get(home, home)
-    away_am = AMHARIC_TEAMS.get(away, away)
-
-    logo_size = 320
-    logo_y = 360
-    home_center_x = width // 2 - 220
-    away_center_x = width // 2 + 220
-
-    for team_name, team_display, center_x in (
-        (home, match.get("home_display") or home, home_center_x),
-        (away, match.get("away_display") or away, away_center_x),
-    ):
-        logo_x = int(center_x - (logo_size / 2))
-        logo_path = _resolve_logo_path({"team": team_name, "team_display": team_display})
-        if logo_path:
-            logo = _fit_logo(_load_logo(logo_path), logo_size)
-            image.alpha_composite(logo, (logo_x, logo_y))
-        else:
-            _draw_badge_fallback(image, draw, logo_x, logo_y, logo_size, team_display)
-
-    home_box = draw.textbbox((0, 0), home_am, font=team_font)
-    home_x = int(home_center_x - ((home_box[2] - home_box[0]) / 2))
-    draw.text((home_x, 720), home_am, font=team_font, fill=text_dark)
-
-    away_box = draw.textbbox((0, 0), away_am, font=team_font)
-    away_x = int(away_center_x - ((away_box[2] - away_box[0]) / 2))
-    draw.text((away_x, 720), away_am, font=team_font, fill=text_dark)
-
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-    temp_path = Path(temp_file.name)
-    temp_file.close()
-    image.convert("RGB").save(temp_path, format="PNG", optimize=True)
-    return temp_path
 
 
 def _render_match_board(title, subtitle, groups, mode="fixtures"):
@@ -339,18 +271,131 @@ def _render_match_board(title, subtitle, groups, mode="fixtures"):
     return temp_path
 
 
+def _render_results_news_style(title, subtitle, groups):
+    if not groups:
+        raise ValueError("No groups to render.")
+
+    width = 1000
+    outer_pad = 0
+    inner_pad = 42
+    title_font = _load_font(46, bold=True)
+    date_font = _load_latin_font(25, bold=True)
+    team_font = _load_font(40, bold=True)
+    text_dark = (14, 14, 18)
+    outer_fill = (255, 255, 255, 255)
+    inner_fill = (255, 255, 255, 255)
+    logo_size = 256
+    row_gap = 32
+
+    total_matches = sum(len(matches) for _, matches in groups)
+    poster_height = 600
+    height = (outer_pad * 2) + (poster_height * total_matches) + (row_gap * max(0, total_matches - 1))
+    image = Image.new("RGBA", (width, height), outer_fill)
+    draw = ImageDraw.Draw(image)
+
+    watermark_asset = resolve_watermark_asset()
+    watermark = load_watermark_image(watermark_asset)
+    watermark_target_w = 130
+    watermark_scale = watermark_target_w / watermark.width
+    watermark_h = max(1, int(watermark.height * watermark_scale))
+    watermark = watermark.resize((watermark_target_w, watermark_h), Image.LANCZOS)
+
+    competition_logo_path = Path(__file__).resolve().parent / "UEFA_Champions_League.svg"
+    competition_logo = None
+    if competition_logo_path.exists():
+        competition_logo = load_watermark_image(competition_logo_path)
+        competition_logo_target_w = 100
+        competition_scale = competition_logo_target_w / competition_logo.width
+        competition_logo = competition_logo.resize(
+            (competition_logo_target_w, max(1, int(competition_logo.height * competition_scale))),
+            Image.LANCZOS,
+        )
+
+    y = outer_pad
+    for competition, matches in groups:
+        for match in matches:
+            panel = (outer_pad, y, width - outer_pad, y + poster_height)
+            draw.rectangle(panel, fill=inner_fill)
+
+            title_text = title.replace("🏁", "").strip()
+            title_box = draw.textbbox((0, 0), title_text, font=title_font)
+            title_x = (width - (title_box[2] - title_box[0])) // 2
+            draw.text((title_x, y + 22), title_text, font=title_font, fill=text_dark)
+
+            date_text = f"({subtitle})"
+            date_box = draw.textbbox((0, 0), date_text, font=date_font)
+            date_x = (width - (date_box[2] - date_box[0])) // 2
+            draw.text((date_x, y + 81), date_text, font=date_font, fill=text_dark)
+
+            if competition_logo:
+                image.alpha_composite(competition_logo, (42, y + 30))
+
+            wm_x = width - outer_pad - inner_pad - watermark.width
+            wm_y = y + 20
+            image.alpha_composite(watermark, (wm_x, wm_y))
+
+            home_am = AMHARIC_TEAMS.get(match["home"], match["home"])
+            away_am = AMHARIC_TEAMS.get(match["away"], match["away"])
+            left_center_x = 74 + (logo_size // 2)
+            right_center_x = 678 + (logo_size // 2)
+            names_y = y + 175
+            logos_y = y + ((poster_height - logo_size) // 2) + 75
+
+            for team_name, team_display, center_x in (
+                (match["home"], match.get("home_display") or match["home"], left_center_x),
+                (match["away"], match.get("away_display") or match["away"], right_center_x),
+            ):
+                logo_path = _resolve_logo_path({"team": team_name, "team_display": team_display})
+                logo_x = int(center_x - (logo_size / 2))
+                if logo_path:
+                    logo = _fit_logo(_load_logo(logo_path), logo_size)
+                    image.alpha_composite(logo, (logo_x, logos_y))
+                else:
+                    _draw_badge_fallback(image, draw, logo_x, logos_y, logo_size, team_display)
+
+            home_box = draw.textbbox((0, 0), home_am, font=team_font)
+            home_x = int(left_center_x - ((home_box[2] - home_box[0]) / 2))
+            draw.text((home_x, names_y), home_am, font=team_font, fill=text_dark)
+
+            away_box = draw.textbbox((0, 0), away_am, font=team_font)
+            away_x = int(right_center_x - ((away_box[2] - away_box[0]) / 2))
+            draw.text((away_x, names_y), away_am, font=team_font, fill=text_dark)
+
+            score_text = f"{match['home_score']}-{match['away_score']}"
+            score_target_w = 222
+            score_target_h = 134
+            score_font_size = 120
+            score_font = _load_latin_font(score_font_size, bold=True)
+            score_box = draw.textbbox((0, 0), score_text, font=score_font)
+            score_w = score_box[2] - score_box[0]
+            score_h = score_box[3] - score_box[1]
+            while score_font_size > 24 and (score_w > score_target_w or score_h > score_target_h):
+                score_font_size -= 2
+                score_font = _load_latin_font(score_font_size, bold=True)
+                score_box = draw.textbbox((0, 0), score_text, font=score_font)
+                score_w = score_box[2] - score_box[0]
+                score_h = score_box[3] - score_box[1]
+            score_x = ((width - score_w) // 2) - score_box[0]
+            canvas_center_y = y + (poster_height // 2)
+            score_y = int(canvas_center_y - (score_h / 2) - score_box[1]) + 75
+            draw.text((score_x, score_y), score_text, font=score_font, fill=text_dark)
+
+            y += poster_height + row_gap
+
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    temp_path = Path(temp_file.name)
+    temp_file.close()
+    image.convert("RGB").save(temp_path, format="PNG", optimize=True)
+    return temp_path
+
+
 def _send_match_board(title, subtitle, groups, mode="fixtures", caption=None):
-    image_path = _render_match_board(title, subtitle, groups, mode=mode)
+    if mode == "results":
+        image_path = _render_results_news_style(title, subtitle, groups)
+    else:
+        image_path = _render_match_board(title, subtitle, groups, mode=mode)
     try:
         return send_telegram_photo_file(image_path, caption or title)
-    finally:
-        image_path.unlink(missing_ok=True)
-
-
-def _send_fixture_preview(match, date_label, caption):
-    image_path = render_centered_fixture_poster(match, date_label=date_label)
-    try:
-        return send_telegram_photo_file(image_path, caption)
     finally:
         image_path.unlink(missing_ok=True)
 
@@ -463,29 +508,13 @@ def broadcast_daily():
 
         groups = [(competition, competition_groups[competition]) for competition in sorted(competition_groups.keys())]
         caption = f"📅 የዛሬ ጨዋታዎች ({today})"
-        if len(matches) == 1:
-            match = matches[0]
-            _send_fixture_preview(
-                {
-                    "time": _format_kickoff_time_ethiopian(match),
-                    "home": match["hometeam"],
-                    "away": match["awayteam"],
-                    "home_display": match["hometeam"],
-                    "away_display": match["awayteam"],
-                    "competition": fixture_competition_name(match),
-                    "matchgroup": match.get("matchgroup"),
-                },
-                date_label=today,
-                caption=caption,
-            )
-        else:
-            _send_match_board(
-                title="📅 የዛሬ ጨዋታዎች",
-                subtitle=today,
-                groups=groups,
-                mode="fixtures",
-                caption=caption,
-            )
+        _send_match_board(
+            title="📅 የዛሬ ጨዋታዎች",
+            subtitle=today,
+            groups=groups,
+            mode="fixtures",
+            caption=caption,
+        )
         supabase.table('fixtures').update({
             "daily_sent": True,
             "broadcaststatus": 'scheduled',
