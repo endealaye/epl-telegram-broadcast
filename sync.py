@@ -23,6 +23,10 @@ UEFA_UCL_FIXTURES_ARTICLE_URL = (
     "https://www.uefa.com/uefachampionsleague/news/"
     "029c-1e9a2f63fe2d-ebf9ad643892-1000--2025-26-champions-league-all-the-league-phase-fixtures/"
 )
+UEFA_UEL_FIXTURES_ARTICLE_URL = (
+    "https://www.uefa.com/api/v1/linkrules/article/"
+    "029c-1e9ad67620f2-05c31d01f0f4-1000/"
+)
 UEFA_REQUEST_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -283,15 +287,15 @@ def _parse_uefa_match_text(text):
     return None
 
 
-def _uefa_ucl_article_fixtures_for_date(date_string):
+def _uefa_article_fixtures_for_date(date_string, article_url, competition_name):
     html_text = None
     try:
-        response = requests.get(UEFA_UCL_FIXTURES_ARTICLE_URL, headers=UEFA_REQUEST_HEADERS, timeout=20)
+        response = requests.get(article_url, headers=UEFA_REQUEST_HEADERS, timeout=20)
         response.raise_for_status()
         html_text = response.text
     except Exception:
         curl_result = subprocess.run(
-            ["curl", "-L", UEFA_UCL_FIXTURES_ARTICLE_URL],
+            ["curl", "-L", article_url],
             check=True,
             capture_output=True,
             text=True,
@@ -331,7 +335,7 @@ def _uefa_ucl_article_fixtures_for_date(date_string):
                     "location": None,
                     "hometeam": home_team,
                     "awayteam": away_team,
-                    "matchgroup": "UEFA Champions League",
+                    "matchgroup": competition_name,
                     "hometeamscore": parsed["home_score"],
                     "awayteamscore": parsed["away_score"],
                     "dateeat": _uefa_default_dateeat(date_string, paragraph_text),
@@ -341,10 +345,41 @@ def _uefa_ucl_article_fixtures_for_date(date_string):
     return fixtures
 
 
+def _uefa_ucl_article_fixtures_for_date(date_string):
+    return _uefa_article_fixtures_for_date(
+        date_string,
+        UEFA_UCL_FIXTURES_ARTICLE_URL,
+        "UEFA Champions League",
+    )
+
+
+def _uefa_uel_article_fixtures_for_date(date_string):
+    return _uefa_article_fixtures_for_date(
+        date_string,
+        UEFA_UEL_FIXTURES_ARTICLE_URL,
+        "UEFA Europa League",
+    )
+
+
 def _upsert_uefa_ucl_article_fixtures_for_date(date_string):
     if not supabase:
         return 0
     fixtures = _uefa_ucl_article_fixtures_for_date(date_string)
+    if not fixtures:
+        return 0
+    payload = []
+    for fixture in fixtures:
+        row = dict(fixture)
+        row.pop("roundlabel", None)
+        payload.append(row)
+    res = supabase.table("fixtures").upsert(payload).execute()
+    return len(res.data or fixtures)
+
+
+def _upsert_uefa_uel_article_fixtures_for_date(date_string):
+    if not supabase:
+        return 0
+    fixtures = _uefa_uel_article_fixtures_for_date(date_string)
     if not fixtures:
         return 0
     payload = []
@@ -394,12 +429,18 @@ def update_fixtures_from_json():
                     print(f"Upserted {updated} UEFA Champions League rows from UEFA.com on {date_string}.")
             except Exception as ucl_exc:
                 print(f"UEFA Champions League sync skipped for {date_string}: {ucl_exc}")
+            try:
+                updated = _upsert_uefa_uel_article_fixtures_for_date(date_string)
+                if updated:
+                    print(f"Upserted {updated} UEFA Europa League rows from UEFA.com on {date_string}.")
+            except Exception as uel_exc:
+                print(f"UEFA Europa League sync skipped for {date_string}: {uel_exc}")
 
         for date_string in {today, tomorrow}:
             try:
                 updated = _upsert_sky_competition_fixtures_for_date(
                     date_string,
-                    competitions={"UEFA Europa League", "UEFA Conference League"},
+                    competitions={"UEFA Conference League"},
                 )
                 if updated:
                     print(f"Upserted {updated} tracked European fixture rows on {date_string}.")
