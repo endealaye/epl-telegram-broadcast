@@ -448,6 +448,21 @@ def _has_final_score(fixture):
     return fixture.get('hometeamscore') is not None and fixture.get('awayteamscore') is not None
 
 
+def _build_daily_fixtures_text(today, groups):
+    lines = [f"📅 የዛሬ ጨዋታዎች ({today})", ""]
+    for competition, matches in groups:
+        lines.append(f"🏆 {competition}")
+        for match in matches:
+            home_am = AMHARIC_TEAMS.get(match["home"], match["home"])
+            away_am = AMHARIC_TEAMS.get(match["away"], match["away"])
+            lines.append(f"⏰ {match['time']}")
+            lines.append(f"• {home_am} vs {away_am}")
+        lines.append("")
+    while lines and not lines[-1]:
+        lines.pop()
+    return "\n".join(lines)
+
+
 def _results_date_scope():
     today = get_eat_today()
     yesterday = (get_eat_now() - timedelta(days=1)).strftime("%Y-%m-%d")
@@ -507,14 +522,7 @@ def broadcast_daily():
             match_ids.append(match['matchnumber'])
 
         groups = [(competition, competition_groups[competition]) for competition in sorted(competition_groups.keys())]
-        caption = f"📅 የዛሬ ጨዋታዎች ({today})"
-        _send_match_board(
-            title="📅 የዛሬ ጨዋታዎች",
-            subtitle=today,
-            groups=groups,
-            mode="fixtures",
-            caption=caption,
-        )
+        send_telegram_message(_build_daily_fixtures_text(today, groups))
         supabase.table('fixtures').update({
             "daily_sent": True,
             "broadcaststatus": 'scheduled',
