@@ -337,7 +337,10 @@ def update_item(item_id):
         return (str(exc), 502)
     except Exception as exc:
         return (f"Unexpected update error: {exc}", 502)
-    next_url = request.form.get("next") or url_for("news_detail", item_id=item_id)
+    if status == "published":
+        next_url = url_for("news_list")
+    else:
+        next_url = request.form.get("next") or url_for("news_detail", item_id=item_id)
     return redirect(next_url)
 
 
