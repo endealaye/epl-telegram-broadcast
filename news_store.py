@@ -117,6 +117,11 @@ EXCLUDE_PATTERNS = [
     r"\bpodcast\b",
     r"\bquiz\b",
     r"\bask me anything\b",
+    r"\baway supporters? guide\b",
+    r"\bsupporters? guide\b",
+    r"\bmatchday guide\b",
+    r"\bkey matchday information\b",
+    r"\bofficial matchday guide\b",
 ]
 
 ALLOWED_REVIEW_STATUSES = {
