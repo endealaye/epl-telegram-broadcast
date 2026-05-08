@@ -54,6 +54,87 @@ WATERMARK_ASSET_CANDIDATES = (
     "gatanga_watermark.svg.svg.png",
 )
 
+TEAM_TAG_LABELS = {
+    "club:arsenal": "Arsenal",
+    "club:aston_villa": "AstonVilla",
+    "club:bournemouth": "Bournemouth",
+    "club:brentford": "Brentford",
+    "club:brighton": "Brighton",
+    "club:burnley": "Burnley",
+    "club:chelsea": "Chelsea",
+    "club:crystal_palace": "CrystalPalace",
+    "club:everton": "Everton",
+    "club:fulham": "Fulham",
+    "club:leeds": "LeedsUnited",
+    "club:liverpool": "Liverpool",
+    "club:man_city": "ManchesterCity",
+    "club:man_utd": "ManchesterUnited",
+    "club:newcastle": "NewcastleUnited",
+    "club:nottingham_forest": "NottinghamForest",
+    "club:spurs": "Tottenham",
+    "club:sunderland": "Sunderland",
+    "club:west_ham": "WestHam",
+    "club:wolves": "Wolves",
+}
+
+TEAM_TAG_CODES = {
+    "club:arsenal": "ars",
+    "club:aston_villa": "avl",
+    "club:bournemouth": "bou",
+    "club:brentford": "bre",
+    "club:brighton": "bha",
+    "club:burnley": "bur",
+    "club:chelsea": "che",
+    "club:crystal_palace": "cry",
+    "club:everton": "eve",
+    "club:fulham": "ful",
+    "club:leeds": "lee",
+    "club:liverpool": "liv",
+    "club:man_city": "mci",
+    "club:man_utd": "manu",
+    "club:newcastle": "new",
+    "club:nottingham_forest": "nfo",
+    "club:spurs": "tot",
+    "club:sunderland": "sun",
+    "club:west_ham": "whu",
+    "club:wolves": "wol",
+}
+
+UPDATE_TAG_LABELS = {
+    "topic:injury": "InjuryUpdate",
+    "topic:transfer": "TransferUpdate",
+    "topic:manager": "ManagerUpdate",
+    "topic:official": "OfficialUpdate",
+    "topic:preview": "MatchPreview",
+    "topic:result": "MatchUpdate",
+    "topic:gossip": "TransferTalk",
+    "format:lineup_update": "LineupUpdate",
+    "format:pre_match": "MatchPreview",
+    "format:post_match": "MatchUpdate",
+    "fact:injury_update": "InjuryUpdate",
+    "fact:scorers": "MatchUpdate",
+    "fact:final_score": "MatchUpdate",
+}
+
+PLAYER_NAME_PATTERN = re.compile(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\b")
+PLAYER_NAME_EXCLUSIONS = {
+    "Premier League",
+    "UEFA Champions League",
+    "UEFA Europa League",
+    "UEFA Conference League",
+    "Aston Villa",
+    "Nottingham Forest",
+    "Crystal Palace",
+    "Manchester City",
+    "Manchester United",
+    "Newcastle United",
+    "Tottenham Hotspur",
+    "West Ham",
+    "Sky Sports",
+    "BBC Sport",
+    "The Guardian",
+}
+
 
 def resolve_watermark_asset():
     base_path = Path(__file__).resolve().parent
@@ -101,6 +182,116 @@ def truncate_caption_body(text, max_length):
     if max_length <= 1:
         return text[:max_length]
     return text[: max_length - 1].rstrip() + "…"
+
+
+def _slug_hashtag(label):
+    cleaned = re.sub(r"[^A-Za-z0-9]+", " ", label or "").strip()
+    if not cleaned:
+        return ""
+    parts = cleaned.split()
+    return "#" + "".join(part[:1].upper() + part[1:] for part in parts if part)
+
+
+def _ordered_unique(values):
+    seen = set()
+    ordered = []
+    for value in values:
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        ordered.append(value)
+    return ordered
+
+
+def _extract_league_hashtags(item):
+    topic_tags = item.get("topic_tags") or []
+    haystack = " ".join(
+        [
+            item.get("title") or "",
+            item.get("summary") or "",
+            item.get("story") or "",
+        ]
+    )
+    tags = []
+    if "competition:premier_league" in topic_tags or re.search(r"\bpremier league\b", haystack, re.IGNORECASE):
+        tags.append("#PremierLeague")
+    if re.search(r"\buefa champions league\b|\bchampions league\b", haystack, re.IGNORECASE):
+        tags.append("#ChampionsLeague")
+    if re.search(r"\buefa europa league\b|\beuropa league\b", haystack, re.IGNORECASE):
+        tags.append("#EuropaLeague")
+    if re.search(r"\buefa conference league\b|\bconference league\b", haystack, re.IGNORECASE):
+        tags.append("#ConferenceLeague")
+    return _ordered_unique(tags)
+
+
+def _extract_team_hashtags(item):
+    topic_tags = item.get("topic_tags") or []
+    club_tags = [topic_tag for topic_tag in topic_tags if topic_tag in TEAM_TAG_LABELS]
+    tags = []
+
+    if len(club_tags) >= 2:
+        home_code = TEAM_TAG_CODES.get(club_tags[0])
+        away_code = TEAM_TAG_CODES.get(club_tags[1])
+        if home_code and away_code:
+            tags.append(f"#{home_code}vs{away_code}")
+
+    for topic_tag in club_tags:
+        label = TEAM_TAG_LABELS.get(topic_tag)
+        if label:
+            tags.append(_slug_hashtag(label))
+    return _ordered_unique(tags)
+
+
+def _extract_player_hashtags(item, max_players=3):
+    raw_payload = item.get("raw_payload") or {}
+    match_meta = raw_payload.get("match_metadata") or {}
+    candidates = []
+
+    for scorer in match_meta.get("scorers") or []:
+        player = (scorer.get("player") or "").strip()
+        if player:
+            candidates.append(player)
+
+    source_text = " ".join(
+        [
+            item.get("title") or "",
+            item.get("summary") or "",
+            item.get("story") or "",
+        ]
+    )
+    for player_name in PLAYER_NAME_PATTERN.findall(source_text):
+        if player_name in PLAYER_NAME_EXCLUSIONS:
+            continue
+        candidates.append(player_name)
+
+    tags = []
+    for player_name in _ordered_unique(candidates):
+        hashtag = _slug_hashtag(player_name)
+        if hashtag and hashtag not in tags:
+            tags.append(hashtag)
+        if len(tags) >= max_players:
+            break
+    return tags
+
+
+def _extract_update_hashtags(item):
+    topic_tags = item.get("topic_tags") or []
+    tags = []
+    for topic_tag in topic_tags:
+        label = UPDATE_TAG_LABELS.get(topic_tag)
+        if label:
+            tags.append(_slug_hashtag(label))
+    return _ordered_unique(tags)
+
+
+def _build_news_hashtag_block(item):
+    hashtags = []
+    hashtags.extend(_extract_league_hashtags(item))
+    hashtags.extend(_extract_team_hashtags(item))
+    hashtags.extend(_extract_player_hashtags(item))
+    hashtags.extend(_extract_update_hashtags(item))
+    hashtags = _ordered_unique(hashtags)
+    return " ".join(hashtags)
 
 
 def build_watermark_overlay(width, height):
@@ -183,6 +374,7 @@ def format_news_broadcast(item):
     title = escape_telegram_markdown(item.get("translated_title_am") or "")
     story = escape_telegram_markdown(item.get("translated_story_am") or "")
     image_url = item.get("image_url") or ""
+    hashtag_block = _build_news_hashtag_block(item)
 
     lines = []
     if title:
@@ -191,16 +383,28 @@ def format_news_broadcast(item):
         if lines:
             lines.append("")
         lines.append(story)
+    if hashtag_block:
+        if lines:
+            lines.append("")
+        lines.append(hashtag_block)
     caption = "\n".join(lines)
     if len(caption) > TELEGRAM_CAPTION_LIMIT:
         title_block = title
-        story_budget = TELEGRAM_CAPTION_LIMIT - len(title_block) - 2
+        hashtag_line = hashtag_block
+        extra_length = 0
+        if title_block:
+            extra_length += len(title_block)
+        if hashtag_line:
+            extra_length += len(hashtag_line) + 2
+        story_budget = TELEGRAM_CAPTION_LIMIT - extra_length - 2
         trimmed_story = truncate_caption_body(story, max(story_budget, 0))
         lines = []
         if title_block:
             lines.append(title_block)
         if trimmed_story:
             lines.extend(["", trimmed_story])
+        if hashtag_line:
+            lines.extend(["", hashtag_line])
         caption = "\n".join(lines)
     return {
         "image_url": image_url,
@@ -232,7 +436,7 @@ def fetch_news_items():
                 source_key,
                 lambda cfg=source_config: fetch_rss_source(
                     cfg,
-                    enrich=False,
+                    enrich=True,
                     max_items=RSS_MAX_ITEMS_CLUB,
                 ),
             )

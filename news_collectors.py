@@ -42,6 +42,14 @@ ARTICLE_IMAGE_PATTERNS = [
         r'<img[^>]+(?:data-testid|class)=["\'][^"\']*(?:hero|lead|main)[^"\']*["\'][^>]+src=["\']([^"\']+)["\']',
         re.IGNORECASE,
     ),
+    re.compile(
+        r'<source[^>]+srcset=["\']([^"\']+)["\']',
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r'<img[^>]+src=["\']([^"\']+)["\']',
+        re.IGNORECASE,
+    ),
 ]
 ARTICLE_BODY_PATTERNS = [
     re.compile(r'"articleBody":"(.*?)"', re.IGNORECASE | re.DOTALL),
@@ -174,7 +182,6 @@ PREMIER_LEAGUE_CLUB_RSS_SOURCES = [
     {"source_key": "club_everton_rss", "source_name": "Everton", "source_url": "https://www.evertonfc.com/rss.xml"},
     {"source_key": "club_fulham_rss", "source_name": "Fulham", "source_url": "https://www.fulhamfc.com/rss.xml"},
     {"source_key": "club_manchester_united_rss", "source_name": "Manchester United", "source_url": "https://www.manutd.com/rss"},
-    {"source_key": "club_nottingham_forest_rss", "source_name": "Nottingham Forest", "source_url": "https://www.nottinghamforest.co.uk/rss.xml"},
     {"source_key": "club_sunderland_rss", "source_name": "Sunderland", "source_url": "https://www.safc.com/rss.xml"},
     {"source_key": "club_wolves_rss", "source_name": "Wolves", "source_url": "https://www.wolves.co.uk/news/rss"},
 ]
@@ -300,6 +307,7 @@ def extract_summary_and_story(item_element):
 
 def extract_image_url(item_element):
     candidates = []
+    base_url = extract_entry_link(item_element) or ""
     for node in item_element.findall("media:content", MEDIA_NS):
         url = (node.get("url") or "").strip()
         if not url:
@@ -325,6 +333,29 @@ def extract_image_url(item_element):
     enclosure = item_element.find("enclosure")
     if enclosure is not None and enclosure.get("type", "").startswith("image/") and enclosure.get("url"):
         candidates.append((0, enclosure.get("url").strip()))
+
+    html_candidates = get_text_candidates(
+        item_element,
+        [
+            "description",
+            "summary",
+            "atom:summary",
+            "content:encoded",
+            "{http://purl.org/rss/1.0/modules/content/}encoded",
+            "content",
+            "atom:content",
+        ],
+    )
+    for html_candidate in html_candidates:
+        for pattern in ARTICLE_IMAGE_PATTERNS:
+            match = pattern.search(html_candidate)
+            if not match:
+                continue
+            raw_value = (match.group(1) or "").strip().split()[0]
+            image_url = clean_image_url(raw_value, base_url)
+            if image_url:
+                candidates.append((0, image_url))
+                break
 
     if not candidates:
         return None
@@ -643,7 +674,7 @@ def fetch_premier_league_club_rss_feeds():
     results = []
     for source_config in PREMIER_LEAGUE_CLUB_RSS_SOURCES:
         try:
-            results.append(_fetch_rss_source(source_config, enrich=False, max_items=RSS_MAX_ITEMS_CLUB))
+            results.append(_fetch_rss_source(source_config, enrich=True, max_items=RSS_MAX_ITEMS_CLUB))
         except Exception:
             continue
     return results
