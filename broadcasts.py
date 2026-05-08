@@ -390,14 +390,21 @@ def _render_results_news_style(title, subtitle, groups):
 
 
 def _send_match_board(title, subtitle, groups, mode="fixtures", caption=None):
-    if mode == "results":
-        image_path = _render_results_news_style(title, subtitle, groups)
-    else:
-        image_path = _render_match_board(title, subtitle, groups, mode=mode)
+    image_path = None
     try:
+        if mode == "results":
+            image_path = _render_results_news_style(title, subtitle, groups)
+        else:
+            image_path = _render_match_board(title, subtitle, groups, mode=mode)
         return send_telegram_photo_file(image_path, caption or title)
+    except Exception as exc:
+        fallback_text = _build_results_text(title, subtitle, groups) if mode == "results" else _build_daily_fixtures_text(subtitle, groups)
+        print(f"Match board fallback to text: {exc}")
+        send_admin_alert(f"Match board fallback to text: {exc}")
+        return send_telegram_message(fallback_text)
     finally:
-        image_path.unlink(missing_ok=True)
+        if image_path is not None:
+            image_path.unlink(missing_ok=True)
 
 
 def _ethiopian_clock_label(hour_24):
@@ -457,6 +464,20 @@ def _build_daily_fixtures_text(today, groups):
             away_am = AMHARIC_TEAMS.get(match["away"], match["away"])
             lines.append(f"⏰ {match['time']}")
             lines.append(f"• {home_am} vs {away_am}")
+        lines.append("")
+    while lines and not lines[-1]:
+        lines.pop()
+    return "\n".join(lines)
+
+
+def _build_results_text(title, subtitle, groups):
+    lines = [f"{title} ({subtitle})", ""]
+    for competition, matches in groups:
+        lines.append(f"🏆 {competition}")
+        for match in matches:
+            home_am = AMHARIC_TEAMS.get(match["home"], match["home"])
+            away_am = AMHARIC_TEAMS.get(match["away"], match["away"])
+            lines.append(f"• {home_am} {match['home_score']}-{match['away_score']} {away_am}")
         lines.append("")
     while lines and not lines[-1]:
         lines.pop()
