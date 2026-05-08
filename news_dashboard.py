@@ -1,7 +1,14 @@
 from flask import Flask, redirect, render_template_string, request, url_for
 from werkzeug.exceptions import HTTPException
 
-from news_store import delete_news_item, get_news_item, list_news_queue_preview
+from news_store import (
+    create_follow_up_request,
+    delete_news_item,
+    get_news_item,
+    list_follow_up_requests,
+    list_news_queue_preview,
+    update_follow_up_request,
+)
 
 app = Flask(__name__)
 
@@ -36,6 +43,17 @@ LIST_TEMPLATE = """
     .controls button { background: var(--accent); color: white; border-color: var(--accent); cursor: pointer; }
     .grid { display: grid; gap: 14px; margin-top: 20px; }
     .card { padding: 18px; }
+    .followups { margin-top: 18px; }
+    .followup-grid { display: grid; gap: 14px; grid-template-columns: 0.9fr 1.1fr; }
+    .followup-list { display: grid; gap: 10px; }
+    .followup-item { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: rgba(255,255,255,0.72); }
+    .followup-item h3 { margin: 0 0 6px; font-size: 17px; }
+    .followup-meta { display: flex; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+    .followup-form label { display: block; margin: 10px 0 6px; font-weight: 600; }
+    .followup-form input, .followup-form select, .followup-form textarea {
+      width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font: inherit; background: white;
+    }
+    .followup-form textarea { min-height: 110px; resize: vertical; }
     .thumb { width: 100%; max-height: 280px; object-fit: cover; border-radius: 12px; margin: 0 0 14px; background: #e7e2d4; }
     .card-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px; align-items: start; }
     .meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
@@ -64,6 +82,7 @@ LIST_TEMPLATE = """
     .mini-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
     .mini-links a { text-decoration: none; color: var(--accent); font-weight: 600; }
     @media (max-width: 860px) {
+      .followup-grid { grid-template-columns: 1fr; }
       .card-grid { grid-template-columns: 1fr; }
     }
   </style>
@@ -88,6 +107,69 @@ LIST_TEMPLATE = """
           <input type="number" min="1" max="100" name="limit" value="{{ limit }}">
           <button type="submit">Apply</button>
         </form>
+      </div>
+    </div>
+
+    <div class="card followups">
+      <div class="followup-grid">
+        <div class="source-box">
+          <h2 class="title">Follow-up Requests</h2>
+          <div class="muted">Track stories that need a later update, such as injuries, transfer developments, or ongoing match angles.</div>
+          <div class="followup-list" style="margin-top:14px;">
+            {% for followup in followups %}
+            <div class="followup-item">
+              <div class="followup-meta">
+                <span class="pill">{{ followup.status }}</span>
+                <span class="pill">{{ followup.request_type }}</span>
+                {% if followup.target_name %}<span>{{ followup.target_name }}</span>{% endif %}
+                {% if followup.created_at %}<span>{{ followup.created_at }}</span>{% endif %}
+              </div>
+              <h3>{{ followup.subject }}</h3>
+              {% if followup.details %}<div>{{ followup.details }}</div>{% endif %}
+              <div class="actions">
+                {% if followup.status == 'active' %}
+                <form method="post" action="{{ url_for('update_followup', request_id=followup.id) }}">
+                  <input type="hidden" name="status" value="resolved">
+                  <button type="submit">Mark Resolved</button>
+                </form>
+                {% else %}
+                <form method="post" action="{{ url_for('update_followup', request_id=followup.id) }}">
+                  <input type="hidden" name="status" value="active">
+                  <button type="submit">Reopen</button>
+                </form>
+                {% endif %}
+                <form method="post" action="{{ url_for('delete_followup', request_id=followup.id) }}" onsubmit="return confirm('Delete this follow-up request?');">
+                  <button class="danger" type="submit">Delete</button>
+                </form>
+              </div>
+            </div>
+            {% else %}
+            <div class="followup-item">No follow-up requests yet.</div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="editor-box">
+          <h3>Create Follow-up</h3>
+          <form class="followup-form" method="post" action="{{ url_for('create_followup') }}">
+            <label for="followup_subject">Subject</label>
+            <input id="followup_subject" type="text" name="subject" placeholder="Player injury update, manager response, transfer follow-up" required>
+            <label for="followup_target_name">Target</label>
+            <input id="followup_target_name" type="text" name="target_name" placeholder="Player, team, or issue">
+            <label for="followup_request_type">Type</label>
+            <select id="followup_request_type" name="request_type">
+              <option value="injury_follow_up">Injury Follow-up</option>
+              <option value="transfer_follow_up">Transfer Follow-up</option>
+              <option value="match_follow_up">Match Follow-up</option>
+              <option value="manager_follow_up">Manager Follow-up</option>
+              <option value="general_follow_up">General Follow-up</option>
+            </select>
+            <label for="followup_details">Notes</label>
+            <textarea id="followup_details" name="details" placeholder="What update are you expecting next?"></textarea>
+            <div class="actions">
+              <button class="primary" type="submit">Save Follow-up</button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
 
@@ -176,6 +258,9 @@ DETAIL_TEMPLATE = """
     .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
     button { font: inherit; border-radius: 999px; border: 1px solid var(--border); padding: 10px 16px; background: white; cursor: pointer; }
     button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+    select {
+      width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font: inherit; background: white;
+    }
   </style>
 </head>
 <body>
@@ -254,6 +339,34 @@ DETAIL_TEMPLATE = """
           <button type="submit">Hide</button>
         </div>
       </form>
+      <div class="detected-box">
+        <h3>Create Follow-up Request</h3>
+        <form method="post" action="{{ url_for('create_followup') }}">
+          <input type="hidden" name="linked_item_id" value="{{ item.id }}">
+          <input type="hidden" name="subject" value="{{ item.title }}">
+          <div class="row">
+            <label for="followup_target_name">Target</label>
+            <input id="followup_target_name" type="text" name="target_name" placeholder="Player, team, or issue">
+          </div>
+          <div class="row">
+            <label for="followup_request_type">Type</label>
+            <select id="followup_request_type" name="request_type">
+              <option value="injury_follow_up">Injury Follow-up</option>
+              <option value="transfer_follow_up">Transfer Follow-up</option>
+              <option value="match_follow_up">Match Follow-up</option>
+              <option value="manager_follow_up">Manager Follow-up</option>
+              <option value="general_follow_up">General Follow-up</option>
+            </select>
+          </div>
+          <div class="row">
+            <label for="followup_details">Notes</label>
+            <textarea id="followup_details" name="details" placeholder="Describe the follow-up you want from this story."></textarea>
+          </div>
+          <div class="actions">
+            <button class="primary" type="submit">Create Follow-up</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 </body>
@@ -281,11 +394,13 @@ def news_list():
     statuses = DEFAULT_STATUSES.get(selected_status, DEFAULT_STATUSES["review"])
     try:
         items = list_news_queue_preview(statuses=statuses, limit=limit)
+        followups = list_follow_up_requests()
     except Exception as exc:
         return (f"Failed to load news queue: {exc}", 502)
     return render_template_string(
         LIST_TEMPLATE,
         items=items,
+        followups=followups,
         selected_status=selected_status,
         status_options=list(DEFAULT_STATUSES.keys()),
         limit=limit,
@@ -299,6 +414,51 @@ def fetch_news():
         fetch_news_items()
     except Exception as exc:
         return (f"News fetch failed: {exc}", 502)
+    return redirect(url_for("news_list"))
+
+
+@app.post("/followups")
+def create_followup():
+    subject = request.form.get("subject") or ""
+    target_name = request.form.get("target_name") or None
+    request_type = request.form.get("request_type") or "general_follow_up"
+    details = request.form.get("details") or None
+    linked_item_id = request.form.get("linked_item_id") or None
+    try:
+        create_follow_up_request(
+            subject=subject,
+            target_name=target_name,
+            request_type=request_type,
+            details=details,
+            linked_item_id=linked_item_id,
+        )
+    except ValueError as exc:
+        return (str(exc), 400)
+    except Exception as exc:
+        return (f"Follow-up creation failed: {exc}", 502)
+    return redirect(url_for("news_list"))
+
+
+@app.post("/followups/<request_id>")
+def update_followup(request_id):
+    status = request.form.get("status") or "active"
+    try:
+        updated = update_follow_up_request(request_id, status=status)
+    except Exception as exc:
+        return (f"Follow-up update failed: {exc}", 502)
+    if not updated:
+        return ("Follow-up request not found.", 404)
+    return redirect(url_for("news_list"))
+
+
+@app.post("/followups/<request_id>/delete")
+def delete_followup(request_id):
+    try:
+        deleted = update_follow_up_request(request_id, delete=True)
+    except Exception as exc:
+        return (f"Follow-up delete failed: {exc}", 502)
+    if not deleted:
+        return ("Follow-up request not found.", 404)
     return redirect(url_for("news_list"))
 
 

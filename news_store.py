@@ -1,10 +1,12 @@
 import hashlib
 import html
+import json
 import re
+import uuid
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
-from store import supabase
+from store import get_bot_state_value, set_bot_state_value, supabase
 
 
 PREMIER_LEAGUE_CLUBS = {
@@ -135,6 +137,7 @@ ALLOWED_STATUS_TRANSITIONS = {
 MAX_SUMMARY_LENGTH = 500
 USER_HIDDEN_NOTE_PREFIX = "hidden_by_user:"
 TITLE_DEDUPE_WINDOW_DAYS = 14
+FOLLOW_UPS_STATE_KEY = "news_followups"
 
 
 def _safe_execute(query, default=None, context="news_store"):
@@ -627,3 +630,94 @@ def delete_news_item(item_id):
     if res is None:
         return False
     return bool(res.data)
+
+
+def _load_follow_up_requests():
+    raw_value = get_bot_state_value(FOLLOW_UPS_STATE_KEY)
+    if not raw_value:
+        return []
+    try:
+        payload = json.loads(raw_value)
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(payload, list):
+        return []
+    normalized = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        request_id = (item.get("id") or "").strip()
+        if not request_id:
+            continue
+        normalized.append(
+            {
+                "id": request_id,
+                "subject": (item.get("subject") or "").strip(),
+                "target_name": (item.get("target_name") or "").strip(),
+                "request_type": (item.get("request_type") or "general_follow_up").strip(),
+                "details": (item.get("details") or "").strip(),
+                "linked_item_id": item.get("linked_item_id"),
+                "status": (item.get("status") or "active").strip(),
+                "created_at": item.get("created_at"),
+                "updated_at": item.get("updated_at"),
+            }
+        )
+    return normalized
+
+
+def _save_follow_up_requests(items):
+    return set_bot_state_value(FOLLOW_UPS_STATE_KEY, json.dumps(items))
+
+
+def list_follow_up_requests(status=None):
+    items = _load_follow_up_requests()
+    items.sort(key=lambda row: ((row.get("status") != "active"), row.get("updated_at") or "", row.get("created_at") or ""), reverse=True)
+    if status:
+        return [item for item in items if item.get("status") == status]
+    return items
+
+
+def create_follow_up_request(subject, request_type="general_follow_up", target_name=None, details=None, linked_item_id=None):
+    cleaned_subject = (subject or "").strip()
+    if not cleaned_subject:
+        raise ValueError("Follow-up subject is required.")
+
+    now = datetime.now(timezone.utc).isoformat()
+    items = _load_follow_up_requests()
+    items.append(
+        {
+            "id": str(uuid.uuid4()),
+            "subject": cleaned_subject,
+            "target_name": (target_name or "").strip(),
+            "request_type": (request_type or "general_follow_up").strip(),
+            "details": (details or "").strip(),
+            "linked_item_id": int(linked_item_id) if linked_item_id else None,
+            "status": "active",
+            "created_at": now,
+            "updated_at": now,
+        }
+    )
+    _save_follow_up_requests(items)
+    return items[-1]
+
+
+def update_follow_up_request(request_id, *, status=None, delete=False):
+    items = _load_follow_up_requests()
+    updated = None
+    kept = []
+    for item in items:
+        if item.get("id") != request_id:
+            kept.append(item)
+            continue
+        if delete:
+            updated = item
+            continue
+        if status:
+            item["status"] = status.strip()
+        item["updated_at"] = datetime.now(timezone.utc).isoformat()
+        kept.append(item)
+        updated = item
+    if updated is None:
+        return None
+    _save_follow_up_requests(kept)
+    return updated
