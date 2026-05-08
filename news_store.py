@@ -122,6 +122,10 @@ EXCLUDE_PATTERNS = [
     r"\bmatchday guide\b",
     r"\bkey matchday information\b",
     r"\bofficial matchday guide\b",
+    r"\blancashire fa senior cup\b",
+    r"\b(?:county|senior)\s+cup\b",
+    r"\bpostponed\b",
+    r"\bfixture update\b",
 ]
 
 ALLOWED_REVIEW_STATUSES = {
