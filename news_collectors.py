@@ -89,6 +89,14 @@ NAV_NOISE_PATTERNS = [
     re.compile(r"Show moreHide expanded menu", re.IGNORECASE),
     re.compile(r"Search input", re.IGNORECASE),
     re.compile(r"View all News|View all Opinion|View all Sport|View all Culture|View all Lifestyle", re.IGNORECASE),
+    re.compile(r"login\s*/\s*sign up", re.IGNORECASE),
+    re.compile(r'"\s*@context\s*"\s*:\s*"http://schema\.org"', re.IGNORECASE),
+    re.compile(r'"@type"\s*:\s*"imageobject"', re.IGNORECASE),
+    re.compile(r"(?:(?:shop|tickets|news|matches|tv|teams)\s*){4,}", re.IGNORECASE),
+]
+STRUCTURED_DATA_PATTERNS = [
+    re.compile(r"\{[^{}]*\"@context\"\s*:\s*\"http://schema\.org\"[^{}]*\}", re.IGNORECASE | re.DOTALL),
+    re.compile(r"\{[^{}]*\"@type\"\s*:\s*\"ImageObject\"[^{}]*\}", re.IGNORECASE | re.DOTALL),
 ]
 EXCLUDED_NEWS_PATTERNS = [
     re.compile(r"\bwomen(?:'s|s)?\b", re.IGNORECASE),
@@ -399,7 +407,11 @@ def upscale_image_url(url):
 
 
 def strip_html(value):
-    cleaned = re.sub(r"<[^>]+>", "", value or "")
+    cleaned = value or ""
+    cleaned = re.sub(r"(?is)<(script|style|noscript)[^>]*>.*?</\1>", " ", cleaned)
+    for pattern in STRUCTURED_DATA_PATTERNS:
+        cleaned = pattern.sub(" ", cleaned)
+    cleaned = re.sub(r"<[^>]+>", "", cleaned)
     cleaned = html.unescape(cleaned)
     cleaned = cleaned.replace("\\n", "\n").replace("\\\"", '"')
     return re.sub(r"\s+", " ", cleaned).strip()
@@ -466,6 +478,8 @@ def clean_story_text(story, title=None, summary=None):
 
     story = BYLINE_PATTERN.sub("", story).strip()
     story = re.sub(r"\s+", " ", story).strip()
+    for pattern in STRUCTURED_DATA_PATTERNS:
+        story = pattern.sub(" ", story).strip()
     if is_navigation_or_script_noise(story):
         return None
     return story or None
