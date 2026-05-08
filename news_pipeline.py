@@ -8,7 +8,6 @@ from pathlib import Path
 import requests
 from PIL import Image, ImageDraw
 
-from bot_config import AMHARIC_TEAMS
 from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file
 from news_collectors import (
     PREMIER_LEAGUE_CLUB_RSS_SOURCES,
@@ -180,84 +179,28 @@ def create_watermarked_image(image_url):
     return temp_path
 
 
-def _format_match_team_name(team_name):
-    return AMHARIC_TEAMS.get(team_name, team_name or "")
-
-
-def _build_structured_match_lines(item):
-    match_meta = ((item.get("raw_payload") or {}).get("match_metadata") or {})
-    match_type = (match_meta.get("match_type") or "").strip().lower()
-    if not match_type or match_type == "other":
-        return []
+def format_news_broadcast(item):
+    title = escape_telegram_markdown(item.get("translated_title_am") or "")
+    story = escape_telegram_markdown(item.get("translated_story_am") or "")
+    image_url = item.get("image_url") or ""
 
     lines = []
-    if match_type == "pre_match":
-        lines.append("🔎 *ቅድመ ጨዋታ ትንበያዎች*")
-        prediction = match_meta.get("prediction")
-        if prediction:
-            lines.append(f"ትንበያ: {escape_telegram_markdown(prediction)}")
-    elif match_type == "lineup_update":
-        lines.append("🧾 *አሰላለፍ*")
-        if match_meta.get("has_lineup_image"):
-            lines.append("የአሰላለፍ ምስል ተያይዟል።")
-    elif match_type == "post_match":
-        final_score = match_meta.get("final_score") or {}
-        scorers = match_meta.get("scorers") or []
-        injury_update = match_meta.get("injury_update")
-
-        has_post_match_facts = bool(final_score or scorers or injury_update)
-        if not has_post_match_facts:
-            return []
-
-        lines.append("🏁 *የጨዋታ ማጠቃለያ*")
-        if final_score:
-            home = _format_match_team_name(final_score.get("home"))
-            away = _format_match_team_name(final_score.get("away"))
-            home_score = final_score.get("home_score")
-            away_score = final_score.get("away_score")
-            lines.append(
-                f"ውጤት: {escape_telegram_markdown(home)} {home_score} - {away_score} {escape_telegram_markdown(away)}"
-            )
-        if scorers:
-            scorer_text = ", ".join(
-                f"{escape_telegram_markdown(scorer.get('player') or '')} ({escape_telegram_markdown(scorer.get('minute') or '')})"
-                for scorer in scorers
-                if scorer.get("player") and scorer.get("minute")
-            )
-            if scorer_text:
-                lines.append(f"⚽ ጎል: {scorer_text}")
-        if injury_update:
-            lines.append(f"🚑 ጉዳት: {escape_telegram_markdown(injury_update)}")
-    return lines
-
-
-def format_news_broadcast(item):
-    title = escape_telegram_markdown(item.get("translated_title_am") or item.get("title") or "")
-    story = escape_telegram_markdown(item.get("translated_story_am") or "")
-    source_name = escape_telegram_markdown(item.get("source_name") or "")
-    image_url = item.get("image_url") or ""
-    structured_lines = _build_structured_match_lines(item)
-
-    lines = [f"📰 *{title}*"]
-    if structured_lines:
-        lines.extend(["", *structured_lines])
+    if title:
+        lines.append(title)
     if story:
-        lines.extend(["", story])
-    if source_name:
-        lines.extend(["", f"ምንጭ: {source_name}"])
+        if lines:
+            lines.append("")
+        lines.append(story)
     caption = "\n".join(lines)
     if len(caption) > TELEGRAM_CAPTION_LIMIT:
-        source_line = f"\n\nምንጭ: {source_name}" if source_name else ""
-        title_block = f"📰 *{title}*"
-        story_budget = TELEGRAM_CAPTION_LIMIT - len(title_block) - len(source_line) - 2
+        title_block = title
+        story_budget = TELEGRAM_CAPTION_LIMIT - len(title_block) - 2
         trimmed_story = truncate_caption_body(story, max(story_budget, 0))
-        lines = [title_block]
-        if structured_lines:
-            lines.extend(["", *structured_lines])
+        lines = []
+        if title_block:
+            lines.append(title_block)
         if trimmed_story:
             lines.extend(["", trimmed_story])
-        if source_name:
-            lines.extend(["", f"ምንጭ: {source_name}"])
         caption = "\n".join(lines)
     return {
         "image_url": image_url,
