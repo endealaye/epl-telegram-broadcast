@@ -184,6 +184,9 @@ LIST_TEMPLATE = """
           <span>{{ item.published_at or 'No timestamp' }}</span>
           <span class="pill">{{ item.review_status }}</span>
           <span class="pill">score {{ item.relevance_score }}</span>
+          {% if ((item.raw_payload or {}).get('follow_up_matches')) %}
+          <span class="pill">follow-up match</span>
+          {% endif %}
           {% for tag in (item.topic_tags or []) %}
           <span class="pill">{{ tag }}</span>
           {% endfor %}
@@ -275,6 +278,9 @@ DETAIL_TEMPLATE = """
         <span>{{ item.published_at or 'No timestamp' }}</span>
         <span>{{ item.review_status }}</span>
         <span>score {{ item.relevance_score }}</span>
+        {% if ((item.raw_payload or {}).get('follow_up_matches')) %}
+        <span>follow-up match</span>
+        {% endif %}
         {% for tag in (item.topic_tags or []) %}
         <span>{{ tag }}</span>
         {% endfor %}
@@ -309,6 +315,14 @@ DETAIL_TEMPLATE = """
       {% endif %}
       {% if item.story %}
       <div style="white-space: pre-wrap;">{{ item.story }}</div>
+      {% endif %}
+      {% if ((item.raw_payload or {}).get('follow_up_matches')) %}
+      <div class="detected-box">
+        <h3>Matched Follow-up Requests</h3>
+        {% for followup in ((item.raw_payload or {}).get('follow_up_matches') or []) %}
+        <p><strong>{{ followup.get('subject') or followup.get('request_type') }}</strong>{% if followup.get('target_name') %} · {{ followup.get('target_name') }}{% endif %}</p>
+        {% endfor %}
+      </div>
       {% endif %}
       <p><a href="{{ item.article_url }}" target="_blank" rel="noreferrer">Open original article</a></p>
 

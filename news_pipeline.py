@@ -25,6 +25,7 @@ from news_store import (
     get_existing_news_items_for_sources,
     get_news_item,
     is_user_hidden,
+    list_follow_up_requests,
     list_news_queue,
     mark_news_item,
     normalize_news_item,
@@ -464,6 +465,7 @@ def fetch_news_items():
     source_breakdown = []
     normalized_items = []
     fetched_total = 0
+    active_followups = list_follow_up_requests(status="active")
 
     for source, raw_items in collected_batches:
         fetched_total += len(raw_items)
@@ -493,6 +495,7 @@ def fetch_news_items():
                     source_name=source["source_name"],
                     source_url=source["source_url"],
                     item=item,
+                    followups=active_followups,
                 )
             )
 
@@ -538,6 +541,11 @@ def fetch_news_items():
     }
 
     stored_items = upsert_news_items(list(deduped_items.values()))
+    follow_up_match_count = sum(
+        1
+        for item in deduped_items.values()
+        if ((item.get("raw_payload") or {}).get("follow_up_matches"))
+    )
     return {
         "source": {
             "source_key": primary_source.get("source_key"),
@@ -555,6 +563,8 @@ def fetch_news_items():
         "normalized_count": len(normalized_items),
         "deduped_count": len(deduped_items),
         "stored_count": len(stored_items),
+        "active_follow_up_count": len(active_followups),
+        "follow_up_match_count": follow_up_match_count,
     }
 
 

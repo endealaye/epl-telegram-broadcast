@@ -228,6 +228,47 @@ def build_news_haystack(title, summary, story=None):
     return f"{title or ''} {summary or ''} {story or ''}".lower()
 
 
+def _normalize_followup_text(value):
+    text = sanitize_copy_text(value or "").lower()
+    text = re.sub(r"[^a-z0-9\s]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def match_follow_up_requests(title, summary, story=None, followups=None):
+    haystack = _normalize_followup_text(" ".join([title or "", summary or "", story or ""]))
+    if not haystack or not followups:
+        return []
+
+    matches = []
+    for followup in followups:
+        if (followup.get("status") or "active").strip() != "active":
+            continue
+
+        terms = []
+        for field in ("subject", "target_name"):
+            cleaned = _normalize_followup_text(followup.get(field) or "")
+            if cleaned and len(cleaned) >= 3:
+                terms.append(cleaned)
+
+        if not terms:
+            continue
+
+        matched_terms = [term for term in terms if term in haystack]
+        if not matched_terms:
+            continue
+
+        matches.append(
+            {
+                "id": followup.get("id"),
+                "subject": (followup.get("subject") or "").strip(),
+                "request_type": (followup.get("request_type") or "general_follow_up").strip(),
+                "target_name": (followup.get("target_name") or "").strip(),
+                "matched_terms": matched_terms,
+            }
+        )
+    return matches
+
+
 def derive_topic_tags(title, summary, story=None, image_url=None):
     haystack = build_news_haystack(title, summary, story)
     tags = set()
@@ -378,6 +419,14 @@ def compute_relevance_score(title, summary, topic_tags, story=None):
     return score
 
 
+def boost_relevance_for_follow_ups(base_score, follow_up_matches):
+    if not follow_up_matches:
+        return base_score
+    score = base_score + 8
+    score += max(0, len(follow_up_matches) - 1) * 3
+    return score
+
+
 def sanitize_copy_text(value):
     raw = html.unescape(value or "")
     if not raw:
@@ -399,7 +448,7 @@ def normalize_summary(summary, story):
     return cleaned_summary
 
 
-def normalize_news_item(source_key, source_name, source_url, item):
+def normalize_news_item(source_key, source_name, source_url, item, followups=None):
     article_url = (item.get("article_url") or "").strip()
     raw_summary = item.get("summary") or ""
     raw_story = item.get("story") or raw_summary
@@ -408,9 +457,19 @@ def normalize_news_item(source_key, source_name, source_url, item):
     title = sanitize_copy_text(item.get("title") or "")
     match_metadata = extract_match_metadata(title, summary, story, image_url=item.get("image_url"))
     derived_tags = derive_topic_tags(title, summary, story, image_url=item.get("image_url"))
-    review_status = "filtered" if should_include_item(title, summary, article_url, story) else "rejected"
+    follow_up_matches = match_follow_up_requests(title, summary, story, followups=followups)
+    if follow_up_matches:
+        derived_tags = sorted(set(derived_tags + ["followup:matched"]))
+        for matched_followup in follow_up_matches:
+            request_type = matched_followup.get("request_type")
+            if request_type:
+                derived_tags.append(f"followup:{request_type}")
+        derived_tags = sorted(set(derived_tags))
+    review_status = "filtered" if (should_include_item(title, summary, article_url, story) or follow_up_matches) else "rejected"
     raw_payload = dict(item or {})
     raw_payload["match_metadata"] = match_metadata
+    raw_payload["follow_up_matches"] = follow_up_matches
+    base_relevance_score = compute_relevance_score(title, summary, derived_tags, story)
     return {
         "source_key": source_key,
         "source_name": source_name,
@@ -425,11 +484,11 @@ def normalize_news_item(source_key, source_name, source_url, item):
         "language": item.get("language", "en"),
         "topic_tags": derived_tags,
         "review_status": review_status,
-        "relevance_score": compute_relevance_score(title, summary, derived_tags, story),
+        "relevance_score": boost_relevance_for_follow_ups(base_relevance_score, follow_up_matches),
         "cluster_key": item.get("cluster_key"),
         "translated_title_am": None,
         "translated_story_am": None,
-        "notes": None,
+        "notes": "follow_up_match" if follow_up_matches else None,
         "content_hash": build_content_hash(source_key, article_url),
         "raw_payload": raw_payload,
     }
@@ -528,7 +587,7 @@ def list_news_queue(statuses=None, limit=20):
     query = supabase.table("news_items").select(
         "id,source_name,title,summary,story,article_url,image_url,published_at,review_status,relevance_score,"
         "topic_tags,translated_title_am,translated_story_am,notes,raw_payload"
-    ).order("published_at", desc=True).limit(limit)
+    ).order("relevance_score", desc=True).order("published_at", desc=True).limit(limit)
     if statuses:
         query = query.in_("review_status", statuses)
     res = _safe_execute(query, default=None, context="list_news_queue")
@@ -542,8 +601,8 @@ def list_news_queue_preview(statuses=None, limit=20):
         return []
     query = supabase.table("news_items").select(
         "id,source_name,title,summary,article_url,image_url,published_at,review_status,relevance_score,"
-        "topic_tags,translated_title_am,notes"
-    ).order("published_at", desc=True).limit(limit)
+        "topic_tags,translated_title_am,notes,raw_payload"
+    ).order("relevance_score", desc=True).order("published_at", desc=True).limit(limit)
     if statuses:
         query = query.in_("review_status", statuses)
     res = _safe_execute(query, default=None, context="list_news_queue_preview")
