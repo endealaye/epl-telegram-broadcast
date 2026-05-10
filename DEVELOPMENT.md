@@ -239,14 +239,14 @@ Configured schedules:
   - Runs at `17:00 UTC`, which is `20:00 EAT`
 - `*/30 * * * *`
   - Runs every 30 minutes
-- `*/10 * * * *`
-  - Runs every 10 minutes
+- `*/5 * * * *`
+  - Runs every 5 minutes
 
 Current workflow behavior:
 
 - `refresh` runs on the two daily refresh schedules and on manual dispatch.
 - `commands` runs on the 30-minute schedule and on manual dispatch.
-- `live` runs on the 10-minute live polling workflow and on manual dispatch.
+- `live` runs on the 5-minute live polling workflow and on manual dispatch.
 - The daily step runs on the `05:00 UTC` schedule and on manual dispatch.
 - The reminders step runs on the 30-minute schedule and on manual dispatch.
 - The results step runs on the 30-minute schedule and on manual dispatch.
@@ -263,7 +263,7 @@ And the 30-minute schedule executes:
 - `news-fetch`
 - `results`
 
-And the 10-minute live workflow executes:
+And the 5-minute live workflow executes:
 
 - `live`
 

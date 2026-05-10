@@ -371,7 +371,8 @@ def create_watermarked_image(image_url):
 
 
 def format_news_broadcast(item):
-    title = escape_telegram_markdown(item.get("translated_title_am") or "")
+    raw_title = item.get("translated_title_am") or ""
+    title = f"*{escape_telegram_markdown(raw_title)}*" if raw_title else ""
     story = escape_telegram_markdown(item.get("translated_story_am") or "")
     image_url = item.get("image_url") or ""
     hashtag_block = _build_news_hashtag_block(item)
