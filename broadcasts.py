@@ -40,6 +40,12 @@ FIXTURE_IMAGE_HEADER_HEIGHT = 170
 FIXTURE_IMAGE_GROUP_HEADER = 42
 FIXTURE_IMAGE_ROW_HEIGHT = 260
 FIXTURE_LOGO_SIZE = 118
+COMPETITION_DISPLAY_ORDER = {
+    "Premier League": 0,
+    "UEFA Champions League": 1,
+    "UEFA Europa League": 2,
+    "UEFA Conference League": 3,
+}
 
 
 def _team_badge_label(team_name):
@@ -455,14 +461,36 @@ def _has_final_score(fixture):
     return fixture.get('hometeamscore') is not None and fixture.get('awayteamscore') is not None
 
 
+def _competition_sort_key(competition):
+    return (COMPETITION_DISPLAY_ORDER.get(competition, 99), competition or "")
+
+
+def _match_sort_key(match):
+    kickoff = parse_eat_datetime(match.get("dateeat"))
+    if kickoff:
+        return (
+            kickoff,
+            (match.get("hometeam") or match.get("home") or ""),
+            (match.get("awayteam") or match.get("away") or ""),
+        )
+    return (
+        datetime.max,
+        (match.get("hometeam") or match.get("home") or ""),
+        (match.get("awayteam") or match.get("away") or ""),
+    )
+
+
 def _build_daily_fixtures_text(today, groups):
     lines = [f"📅 የዛሬ ጨዋታዎች ({today})", ""]
     for competition, matches in groups:
         lines.append(f"🏆 {competition}")
+        current_time = None
         for match in matches:
             home_am = AMHARIC_TEAMS.get(match["home"], match["home"])
             away_am = AMHARIC_TEAMS.get(match["away"], match["away"])
-            lines.append(f"⏰ {match['time']}")
+            if match["time"] != current_time:
+                lines.append(f"⏰ {match['time']}")
+                current_time = match["time"]
             lines.append(f"• {home_am} vs {away_am}")
         lines.append("")
     while lines and not lines[-1]:
@@ -528,6 +556,7 @@ def broadcast_daily():
             print("Skip daily: today's fixtures were already broadcast.")
             return
 
+        matches.sort(key=_match_sort_key)
         competition_groups = defaultdict(list)
         match_ids = []
         for match in matches:
@@ -542,7 +571,10 @@ def broadcast_daily():
             )
             match_ids.append(match['matchnumber'])
 
-        groups = [(competition, competition_groups[competition]) for competition in sorted(competition_groups.keys())]
+        groups = [
+            (competition, competition_groups[competition])
+            for competition in sorted(competition_groups.keys(), key=_competition_sort_key)
+        ]
         send_telegram_message(_build_daily_fixtures_text(today, groups))
         supabase.table('fixtures').update({
             "daily_sent": True,
