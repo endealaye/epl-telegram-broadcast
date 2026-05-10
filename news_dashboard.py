@@ -44,16 +44,10 @@ LIST_TEMPLATE = """
     .grid { display: grid; gap: 14px; margin-top: 20px; }
     .card { padding: 18px; }
     .followups { margin-top: 18px; }
-    .followup-grid { display: grid; gap: 14px; grid-template-columns: 0.9fr 1.1fr; }
     .followup-list { display: grid; gap: 10px; }
     .followup-item { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: rgba(255,255,255,0.72); }
     .followup-item h3 { margin: 0 0 6px; font-size: 17px; }
     .followup-meta { display: flex; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: 12px; margin-bottom: 8px; }
-    .followup-form label { display: block; margin: 10px 0 6px; font-weight: 600; }
-    .followup-form input, .followup-form select, .followup-form textarea {
-      width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font: inherit; background: white;
-    }
-    .followup-form textarea { min-height: 110px; resize: vertical; }
     .thumb { width: 100%; max-height: 280px; object-fit: cover; border-radius: 12px; margin: 0 0 14px; background: #e7e2d4; }
     .card-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px; align-items: start; }
     .meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
@@ -82,7 +76,6 @@ LIST_TEMPLATE = """
     .mini-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
     .mini-links a { text-decoration: none; color: var(--accent); font-weight: 600; }
     @media (max-width: 860px) {
-      .followup-grid { grid-template-columns: 1fr; }
       .card-grid { grid-template-columns: 1fr; }
     }
   </style>
@@ -111,64 +104,40 @@ LIST_TEMPLATE = """
     </div>
 
     <div class="card followups">
-      <div class="followup-grid">
-        <div class="source-box">
-          <h2 class="title">Follow-up Requests</h2>
-          <div class="muted">Track stories that need a later update, such as injuries, transfer developments, or ongoing match angles.</div>
-          <div class="followup-list" style="margin-top:14px;">
-            {% for followup in followups %}
-            <div class="followup-item">
-              <div class="followup-meta">
-                <span class="pill">{{ followup.status }}</span>
-                <span class="pill">{{ followup.request_type }}</span>
-                {% if followup.target_name %}<span>{{ followup.target_name }}</span>{% endif %}
-                {% if followup.created_at %}<span>{{ followup.created_at }}</span>{% endif %}
-              </div>
-              <h3>{{ followup.subject }}</h3>
-              {% if followup.details %}<div>{{ followup.details }}</div>{% endif %}
-              <div class="actions">
-                {% if followup.status == 'active' %}
-                <form method="post" action="{{ url_for('update_followup', request_id=followup.id) }}">
-                  <input type="hidden" name="status" value="resolved">
-                  <button type="submit">Mark Resolved</button>
-                </form>
-                {% else %}
-                <form method="post" action="{{ url_for('update_followup', request_id=followup.id) }}">
-                  <input type="hidden" name="status" value="active">
-                  <button type="submit">Reopen</button>
-                </form>
-                {% endif %}
-                <form method="post" action="{{ url_for('delete_followup', request_id=followup.id) }}" onsubmit="return confirm('Delete this follow-up request?');">
-                  <button class="danger" type="submit">Delete</button>
-                </form>
-              </div>
+      <div class="source-box">
+        <h2 class="title">Follow-up Requests</h2>
+        <div class="muted">Track stories that need a later update, such as injuries, transfer developments, or ongoing match angles.</div>
+        <div class="followup-list" style="margin-top:14px;">
+          {% for followup in followups %}
+          <div class="followup-item">
+            <div class="followup-meta">
+              <span class="pill">{{ followup.status }}</span>
+              <span class="pill">{{ followup.request_type }}</span>
+              {% if followup.target_name %}<span>{{ followup.target_name }}</span>{% endif %}
+              {% if followup.created_at %}<span>{{ followup.created_at }}</span>{% endif %}
             </div>
-            {% else %}
-            <div class="followup-item">No follow-up requests yet.</div>
-            {% endfor %}
-          </div>
-        </div>
-        <div class="editor-box">
-          <h3>Create Follow-up</h3>
-          <form class="followup-form" method="post" action="{{ url_for('create_followup') }}">
-            <label for="followup_subject">Subject</label>
-            <input id="followup_subject" type="text" name="subject" placeholder="Player injury update, manager response, transfer follow-up" required>
-            <label for="followup_target_name">Target</label>
-            <input id="followup_target_name" type="text" name="target_name" placeholder="Player, team, or issue">
-            <label for="followup_request_type">Type</label>
-            <select id="followup_request_type" name="request_type">
-              <option value="injury_follow_up">Injury Follow-up</option>
-              <option value="transfer_follow_up">Transfer Follow-up</option>
-              <option value="match_follow_up">Match Follow-up</option>
-              <option value="manager_follow_up">Manager Follow-up</option>
-              <option value="general_follow_up">General Follow-up</option>
-            </select>
-            <label for="followup_details">Notes</label>
-            <textarea id="followup_details" name="details" placeholder="What update are you expecting next?"></textarea>
+            <h3>{{ followup.subject }}</h3>
+            {% if followup.details %}<div>{{ followup.details }}</div>{% endif %}
             <div class="actions">
-              <button class="primary" type="submit">Save Follow-up</button>
+              {% if followup.status == 'active' %}
+              <form method="post" action="{{ url_for('update_followup', request_id=followup.id) }}">
+                <input type="hidden" name="status" value="resolved">
+                <button type="submit">Mark Resolved</button>
+              </form>
+              {% else %}
+              <form method="post" action="{{ url_for('update_followup', request_id=followup.id) }}">
+                <input type="hidden" name="status" value="active">
+                <button type="submit">Reopen</button>
+              </form>
+              {% endif %}
+              <form method="post" action="{{ url_for('delete_followup', request_id=followup.id) }}" onsubmit="return confirm('Delete this follow-up request?');">
+                <button class="danger" type="submit">Delete</button>
+              </form>
             </div>
-          </form>
+          </div>
+          {% else %}
+          <div class="followup-item">No follow-up requests yet.</div>
+          {% endfor %}
         </div>
       </div>
     </div>
