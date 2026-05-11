@@ -87,6 +87,25 @@ def build_status_message():
     )
 
 
+def build_workflow_message():
+    next_run = get_next_workflow_run_eat()
+    return (
+        "🗓️ *Workflow Schedule*\n\n"
+        "• `commands`, `reminders`, `results`, `news-fetch`: every 30 minutes\n"
+        "• `live`: every 5 minutes\n"
+        "• `refresh`: twice daily\n"
+        "• `daily`: once daily\n\n"
+        f"⏭️ *Next 30-minute cycle*: {next_run.strftime('%Y-%m-%d %H:%M')} EAT"
+    )
+
+
+def _normalize_command(text):
+    command = (text or "").strip().split(None, 1)[0]
+    if not command.startswith("/"):
+        return ""
+    return command.split("@", 1)[0].lower()
+
+
 def broadcast_heartbeat(chat_id=None):
     try:
         now = get_eat_now()
@@ -121,14 +140,17 @@ def process_commands():
 
             chat_id = msg['chat']['id']
             text = msg.get('text', '')
-
-            if str(chat_id) != str(TELEGRAM_ADMIN_ID):
+            sender_id = (msg.get('from') or {}).get('id')
+            if str(sender_id) != str(TELEGRAM_ADMIN_ID):
                 continue
 
-            if text == '/heartbeat':
+            command = _normalize_command(text)
+            if command == '/heartbeat':
                 broadcast_heartbeat(chat_id=chat_id)
-            elif text == '/status':
+            elif command == '/status':
                 send_telegram_message(build_status_message(), chat_id=chat_id)
+            elif command == '/workflow':
+                send_telegram_message(build_workflow_message(), chat_id=chat_id)
 
             last_update_id = update['update_id']
 

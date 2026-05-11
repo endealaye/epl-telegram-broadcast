@@ -43,6 +43,17 @@ def get_eat_today():
     return get_eat_now().strftime('%Y-%m-%d')
 
 
+def format_display_date(value):
+    if not value:
+        return ""
+    for date_format in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(value, date_format).strftime("%d:%m:%y")
+        except ValueError:
+            continue
+    return value
+
+
 def parse_eat_datetime(value):
     if not value:
         return None

@@ -6,7 +6,7 @@ import uuid
 
 from PIL import Image, ImageDraw
 
-from bot_config import AMHARIC_TEAMS, get_eat_now, get_eat_today, parse_eat_datetime
+from bot_config import AMHARIC_TEAMS, format_display_date, get_eat_now, get_eat_today, parse_eat_datetime
 from commands import send_admin_alert, send_telegram_message, send_telegram_photo_file
 from news_pipeline import load_watermark_image, resolve_watermark_asset
 from standings import (
@@ -74,6 +74,7 @@ def _render_match_board(title, subtitle, groups, mode="fixtures"):
     if not groups:
         raise ValueError("No groups to render.")
 
+    subtitle_text = format_display_date(subtitle)
     width = FIXTURE_IMAGE_WIDTH
     padding = FIXTURE_IMAGE_PADDING
     header_height = 360 if mode == "results" else 220
@@ -117,9 +118,9 @@ def _render_match_board(title, subtitle, groups, mode="fixtures"):
     title_x = inner_x0 + ((inner_x1 - inner_x0 - (title_box[2] - title_box[0])) // 2)
     draw.text((title_x, panel[1] + 26), title_text, font=title_font, fill=text_dark)
 
-    subtitle_box = draw.textbbox((0, 0), subtitle, font=small_title_font)
+    subtitle_box = draw.textbbox((0, 0), subtitle_text, font=small_title_font)
     subtitle_x = inner_x0 + ((inner_x1 - inner_x0 - (subtitle_box[2] - subtitle_box[0])) // 2)
-    draw.text((subtitle_x, panel[1] + 96), subtitle, font=small_title_font, fill=text_muted)
+    draw.text((subtitle_x, panel[1] + 96), subtitle_text, font=small_title_font, fill=text_muted)
 
     hero_competition, hero_matches = groups[0]
     hero_match = hero_matches[0]
@@ -281,21 +282,30 @@ def _render_results_news_style(title, subtitle, groups):
     if not groups:
         raise ValueError("No groups to render.")
 
+    subtitle_text = format_display_date(subtitle)
     width = 1000
     outer_pad = 0
     inner_pad = 42
     title_font = _load_font(46, bold=True)
     date_font = _load_latin_font(25, bold=True)
     team_font = _load_font(40, bold=True)
+    competition_font = _load_latin_font(24, bold=False)
     text_dark = (14, 14, 18)
+    text_muted = (110, 110, 118)
     outer_fill = (255, 255, 255, 255)
     inner_fill = (255, 255, 255, 255)
-    logo_size = 256
+    logo_size = 180
     row_gap = 32
+    header_height = 150
+    row_height = 360
 
     total_matches = sum(len(matches) for _, matches in groups)
-    poster_height = 600
-    height = (outer_pad * 2) + (poster_height * total_matches) + (row_gap * max(0, total_matches - 1))
+    height = (
+        (outer_pad * 2)
+        + header_height
+        + (row_height * total_matches)
+        + (row_gap * max(0, total_matches - 1))
+    )
     image = Image.new("RGBA", (width, height), outer_fill)
     draw = ImageDraw.Draw(image)
 
@@ -317,35 +327,39 @@ def _render_results_news_style(title, subtitle, groups):
             Image.LANCZOS,
         )
 
-    y = outer_pad
+    title_text = title.replace("🏁", "").strip()
+    title_box = draw.textbbox((0, 0), title_text, font=title_font)
+    title_x = (width - (title_box[2] - title_box[0])) // 2
+    draw.text((title_x, 22), title_text, font=title_font, fill=text_dark)
+
+    date_text = f"({subtitle_text})"
+    date_box = draw.textbbox((0, 0), date_text, font=date_font)
+    date_x = (width - (date_box[2] - date_box[0])) // 2
+    draw.text((date_x, 81), date_text, font=date_font, fill=text_dark)
+
+    if competition_logo:
+        image.alpha_composite(competition_logo, (42, 30))
+
+    wm_x = width - outer_pad - inner_pad - watermark.width
+    wm_y = 20
+    image.alpha_composite(watermark, (wm_x, wm_y))
+
+    y = header_height
     for competition, matches in groups:
         for match in matches:
-            panel = (outer_pad, y, width - outer_pad, y + poster_height)
+            panel = (outer_pad, y, width - outer_pad, y + row_height)
             draw.rectangle(panel, fill=inner_fill)
-
-            title_text = title.replace("🏁", "").strip()
-            title_box = draw.textbbox((0, 0), title_text, font=title_font)
-            title_x = (width - (title_box[2] - title_box[0])) // 2
-            draw.text((title_x, y + 22), title_text, font=title_font, fill=text_dark)
-
-            date_text = f"({subtitle})"
-            date_box = draw.textbbox((0, 0), date_text, font=date_font)
-            date_x = (width - (date_box[2] - date_box[0])) // 2
-            draw.text((date_x, y + 81), date_text, font=date_font, fill=text_dark)
-
-            if competition_logo:
-                image.alpha_composite(competition_logo, (42, y + 30))
-
-            wm_x = width - outer_pad - inner_pad - watermark.width
-            wm_y = y + 20
-            image.alpha_composite(watermark, (wm_x, wm_y))
 
             home_am = AMHARIC_TEAMS.get(match["home"], match["home"])
             away_am = AMHARIC_TEAMS.get(match["away"], match["away"])
-            left_center_x = 74 + (logo_size // 2)
-            right_center_x = 678 + (logo_size // 2)
-            names_y = y + 175
-            logos_y = y + ((poster_height - logo_size) // 2) + 75
+            left_center_x = 150
+            right_center_x = 850
+            names_y = y + 18
+            logos_y = y + 70
+
+            competition_text_box = draw.textbbox((0, 0), competition, font=competition_font)
+            competition_x = (width - (competition_text_box[2] - competition_text_box[0])) // 2
+            draw.text((competition_x, y + 16), competition, font=competition_font, fill=text_muted)
 
             for team_name, team_display, center_x in (
                 (match["home"], match.get("home_display") or match["home"], left_center_x),
@@ -369,8 +383,8 @@ def _render_results_news_style(title, subtitle, groups):
 
             score_text = f"{match['home_score']}-{match['away_score']}"
             score_target_w = 222
-            score_target_h = 134
-            score_font_size = 120
+            score_target_h = 120
+            score_font_size = 104
             score_font = _load_latin_font(score_font_size, bold=True)
             score_box = draw.textbbox((0, 0), score_text, font=score_font)
             score_w = score_box[2] - score_box[0]
@@ -382,11 +396,10 @@ def _render_results_news_style(title, subtitle, groups):
                 score_w = score_box[2] - score_box[0]
                 score_h = score_box[3] - score_box[1]
             score_x = ((width - score_w) // 2) - score_box[0]
-            canvas_center_y = y + (poster_height // 2)
-            score_y = int(canvas_center_y - (score_h / 2) - score_box[1]) + 75
+            score_y = y + 150
             draw.text((score_x, score_y), score_text, font=score_font, fill=text_dark)
 
-            y += poster_height + row_gap
+            y += row_height + row_gap
 
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     temp_path = Path(temp_file.name)
@@ -481,7 +494,7 @@ def _match_sort_key(match):
 
 
 def _build_daily_fixtures_text(today, groups):
-    lines = [f"📅 የዛሬ ጨዋታዎች ({today})", ""]
+    lines = [f"📅 የዛሬ ጨዋታዎች ({format_display_date(today)})", ""]
     for competition, matches in groups:
         lines.append(f"🏆 {competition}")
         current_time = None
@@ -499,7 +512,7 @@ def _build_daily_fixtures_text(today, groups):
 
 
 def _build_results_text(title, subtitle, groups):
-    lines = [f"{title} ({subtitle})", ""]
+    lines = [f"{title} ({format_display_date(subtitle)})", ""]
     for competition, matches in groups:
         lines.append(f"🏆 {competition}")
         for match in matches:
