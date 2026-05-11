@@ -2,6 +2,7 @@ from broadcasts import broadcast_daily, broadcast_reminders, broadcast_results
 from commands import broadcast_heartbeat, process_commands
 from live import process_live_updates
 from news_pipeline import fetch_news_items, get_review_queue, mark_review_item
+from posting_policy import build_policy_summary, classify_match_day, should_run_live, should_send_daily, should_send_reminders
 from service_models import ServiceResult
 from standings import broadcast_standings
 from store import has_live_window_matches, has_matches_today, has_pending_results, has_upcoming_matches
@@ -25,18 +26,21 @@ def process_admin_commands_service():
 
 def process_live_window_service():
     try:
-        if not has_live_window_matches():
+        policy = classify_match_day()
+        if not should_run_live(policy):
             return ServiceResult(
                 action="live",
                 success=True,
                 skipped=True,
-                message="Skip live: no fixtures in the active live window.",
+                message=f"Skip live: {build_policy_summary(policy)}",
+                data={"policy": policy},
             )
         process_live_updates()
         return ServiceResult(
             action="live",
             success=True,
             message="Live update processing completed.",
+            data={"policy": policy},
         )
     except Exception as e:
         return ServiceResult(
@@ -48,18 +52,21 @@ def process_live_window_service():
 
 def send_daily_broadcast_service():
     try:
-        if not has_matches_today():
+        policy = classify_match_day()
+        if not should_send_daily(policy):
             return ServiceResult(
                 action="daily",
                 success=True,
                 skipped=True,
-                message="Skip daily: no fixtures scheduled today.",
+                message=f"Skip daily: {build_policy_summary(policy)}",
+                data={"policy": policy},
             )
         broadcast_daily()
         return ServiceResult(
             action="daily",
             success=True,
             message="Daily broadcast processing completed.",
+            data={"policy": policy},
         )
     except Exception as e:
         return ServiceResult(
@@ -71,18 +78,21 @@ def send_daily_broadcast_service():
 
 def send_reminders_service():
     try:
-        if not has_upcoming_matches():
+        policy = classify_match_day()
+        if not should_send_reminders(policy):
             return ServiceResult(
                 action="reminders",
                 success=True,
                 skipped=True,
-                message="Skip reminders: no fixtures in the next 60 minutes.",
+                message=f"Skip reminders: {build_policy_summary(policy)}",
+                data={"policy": policy},
             )
         broadcast_reminders()
         return ServiceResult(
             action="reminders",
             success=True,
             message="Reminder broadcast processing completed.",
+            data={"policy": policy},
         )
     except Exception as e:
         return ServiceResult(

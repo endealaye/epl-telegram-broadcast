@@ -4,6 +4,7 @@ from datetime import timedelta
 import requests
 
 from bot_config import TELEGRAM_ADMIN_ID, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, get_eat_now
+from posting_policy import build_policy_summary, classify_match_day
 from store import get_bot_state_value, set_bot_state_value, supabase
 
 
@@ -80,22 +81,27 @@ def get_next_workflow_run_eat():
 def build_status_message():
     now = get_eat_now()
     next_run = get_next_workflow_run_eat()
+    policy = classify_match_day()
     return (
         "✅ *Bot Status*: Online\n"
         f"🕒 *Now*: {now.strftime('%Y-%m-%d %H:%M:%S')} EAT\n"
-        f"⏭️ *Next workflow run*: {next_run.strftime('%Y-%m-%d %H:%M')} EAT"
+        f"⏭️ *Next workflow run*: {next_run.strftime('%Y-%m-%d %H:%M')} EAT\n"
+        f"🧠 *Match-day state*: `{policy.get('state')}`\n"
+        f"📊 *Policy*: {build_policy_summary(policy)}"
     )
 
 
 def build_workflow_message():
     next_run = get_next_workflow_run_eat()
+    policy = classify_match_day()
     return (
         "🗓️ *Workflow Schedule*\n\n"
         "• `commands`, `reminders`, `results`, `news-fetch`: every 30 minutes\n"
         "• `live`: every 5 minutes\n"
         "• `refresh`: twice daily\n"
         "• `daily`: once daily\n\n"
-        f"⏭️ *Next 30-minute cycle*: {next_run.strftime('%Y-%m-%d %H:%M')} EAT"
+        f"⏭️ *Next 30-minute cycle*: {next_run.strftime('%Y-%m-%d %H:%M')} EAT\n"
+        f"🧠 *Current policy*: {build_policy_summary(policy)}"
     )
 
 
