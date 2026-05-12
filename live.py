@@ -15,6 +15,7 @@ from bot_config import (
     parse_eat_datetime,
 )
 from commands import send_admin_alert, send_telegram_message
+from broadcasts import maybe_send_auto_standings
 from standings import broadcast_standings
 from sync import sky_result_overrides_for_date
 from store import (
@@ -264,17 +265,8 @@ def _maybe_send_standings_after_live_final(db_match):
         return
 
     today = get_eat_today()
-    standings_sent_key = f"standings:auto:sent:{today}"
-    if get_bot_state_value(standings_sent_key):
-        return
-
     refreshed_today = fetch_fixtures_for_dates([today])
-    if not _should_send_standings_after_results(refreshed_today):
-        return
-
-    standings_result = broadcast_standings(format_name="short")
-    if standings_result.get("success"):
-        set_bot_state_value(standings_sent_key, get_eat_now().isoformat())
+    maybe_send_auto_standings(refreshed_today, today=today)
 
 
 def _reconcile_overdue_matches(score_map, now):

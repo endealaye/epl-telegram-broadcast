@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+import os
 from pathlib import Path
 import tempfile
 import uuid
@@ -40,6 +41,8 @@ FIXTURE_IMAGE_HEADER_HEIGHT = 170
 FIXTURE_IMAGE_GROUP_HEADER = 42
 FIXTURE_IMAGE_ROW_HEIGHT = 260
 FIXTURE_LOGO_SIZE = 118
+AUTO_STANDINGS_REPEAT_WINDOW_HOURS = int(os.getenv("AUTO_STANDINGS_REPEAT_WINDOW_HOURS", "6"))
+AUTO_STANDINGS_RETRY_COOLDOWN_MINUTES = int(os.getenv("AUTO_STANDINGS_RETRY_COOLDOWN_MINUTES", "45"))
 COMPETITION_DISPLAY_ORDER = {
     "Premier League": 0,
     "UEFA Champions League": 1,
@@ -531,6 +534,15 @@ def _results_date_scope():
     return [yesterday, today]
 
 
+def _parse_state_datetime(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
 def _should_send_standings_after_results(today_fixtures):
     premier_league_fixtures = [fixture for fixture in today_fixtures if is_premier_league_fixture(fixture)]
     if not premier_league_fixtures:
@@ -548,6 +560,74 @@ def _should_send_standings_after_results(today_fixtures):
     latest_kickoff = max(kickoff for kickoff, _ in with_kickoff)
     latest_matches = [fixture for kickoff, fixture in with_kickoff if kickoff == latest_kickoff]
     return bool(latest_matches) and all(_has_final_score(fixture) for fixture in latest_matches)
+
+
+def _latest_premier_league_kickoff(today_fixtures):
+    kickoffs = []
+    for fixture in today_fixtures:
+        if not is_premier_league_fixture(fixture):
+            continue
+        kickoff = parse_eat_datetime(fixture.get("dateeat"))
+        if kickoff:
+            kickoffs.append(kickoff)
+    return max(kickoffs) if kickoffs else None
+
+
+def maybe_send_auto_standings(today_fixtures, today=None):
+    if not today_fixtures:
+        return {
+            "success": False,
+            "sent": False,
+            "reason": "no_fixtures",
+        }
+
+    date_key = today or get_eat_today()
+    if not _should_send_standings_after_results(today_fixtures):
+        return {
+            "success": False,
+            "sent": False,
+            "reason": "latest_kickoff_not_final",
+        }
+
+    latest_kickoff = _latest_premier_league_kickoff(today_fixtures)
+    now_eat = get_eat_now().replace(tzinfo=None)
+    if latest_kickoff and now_eat > latest_kickoff + timedelta(hours=AUTO_STANDINGS_REPEAT_WINDOW_HOURS):
+        return {
+            "success": False,
+            "sent": False,
+            "reason": "outside_retry_window",
+        }
+
+    last_sent_key = f"standings:auto:last_sent:{date_key}"
+    last_sent_raw = get_bot_state_value(last_sent_key)
+    last_sent_at = _parse_state_datetime(last_sent_raw)
+    now_utc = datetime.now(timezone.utc)
+    if last_sent_at and last_sent_at.tzinfo is None:
+        last_sent_at = last_sent_at.replace(tzinfo=timezone.utc)
+    if last_sent_at and now_utc - last_sent_at < timedelta(minutes=AUTO_STANDINGS_RETRY_COOLDOWN_MINUTES):
+        return {
+            "success": False,
+            "sent": False,
+            "reason": "cooldown_active",
+        }
+
+    standings_result = broadcast_standings(format_name="short")
+    if standings_result.get("success"):
+        timestamp = now_utc.isoformat()
+        set_bot_state_value(last_sent_key, timestamp)
+        set_bot_state_value(f"standings:auto:sent:{date_key}", timestamp)
+        return {
+            "success": True,
+            "sent": True,
+            "reason": "sent",
+            "data": standings_result.get("data", {}),
+        }
+    return {
+        "success": False,
+        "sent": False,
+        "reason": "delivery_failed",
+        "data": standings_result.get("data", {}),
+    }
 
 
 def broadcast_daily():
@@ -684,12 +764,7 @@ def broadcast_results(date_strings=None):
         }).in_('matchnumber', sent_ids).execute()
 
         refreshed_today = fetch_fixtures_for_dates([today])
-        standings_sent_key = f"standings:auto:sent:{today}"
-        standings_already_sent = bool(get_bot_state_value(standings_sent_key))
-        if _should_send_standings_after_results(refreshed_today) and not standings_already_sent:
-            standings_result = broadcast_standings(format_name="short")
-            if standings_result.get("success"):
-                set_bot_state_value(standings_sent_key, get_eat_now().isoformat())
+        maybe_send_auto_standings(refreshed_today, today=today)
     except Exception as e:
         error_msg = f"Results broadcast error: {e}"
         print(error_msg)

@@ -1,11 +1,12 @@
-from broadcasts import broadcast_daily, broadcast_reminders, broadcast_results
+from broadcasts import broadcast_daily, broadcast_reminders, broadcast_results, maybe_send_auto_standings
 from commands import broadcast_heartbeat, process_commands
 from live import process_live_updates
 from news_pipeline import fetch_news_items, get_review_queue, mark_review_item
 from posting_policy import build_policy_summary, classify_match_day, should_run_live, should_send_daily, should_send_reminders
 from service_models import ServiceResult
 from standings import broadcast_standings
-from store import has_live_window_matches, has_matches_today, has_pending_results, has_upcoming_matches
+from store import fetch_fixtures_for_dates, has_live_window_matches, has_matches_today, has_pending_results, has_upcoming_matches
+from bot_config import get_eat_today
 from sync import update_fixtures_from_json
 
 
@@ -105,6 +106,15 @@ def send_reminders_service():
 def send_results_service():
     try:
         if not has_pending_results():
+            today = get_eat_today()
+            retry_result = maybe_send_auto_standings(fetch_fixtures_for_dates([today]), today=today)
+            if retry_result.get("sent"):
+                return ServiceResult(
+                    action="results",
+                    success=True,
+                    message="No new results, but standings retry was sent.",
+                    data={"standings_retry": retry_result},
+                )
             return ServiceResult(
                 action="results",
                 success=True,
