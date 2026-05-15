@@ -216,6 +216,8 @@ def _extract_league_hashtags(item):
     tags = []
     if "competition:premier_league" in topic_tags or re.search(r"\bpremier league\b", haystack, re.IGNORECASE):
         tags.append("#PremierLeague")
+    if "competition:world_cup" in topic_tags or re.search(r"\bfifa world cup\b|\bworld cup\b|\bworld cup qualifiers?\b", haystack, re.IGNORECASE):
+        tags.append("#WorldCup")
     if re.search(r"\buefa champions league\b|\bchampions league\b", haystack, re.IGNORECASE):
         tags.append("#ChampionsLeague")
     if re.search(r"\buefa europa league\b|\beuropa league\b", haystack, re.IGNORECASE):

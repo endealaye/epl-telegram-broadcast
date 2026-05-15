@@ -106,6 +106,10 @@ WOMENS_FOOTBALL_PATTERNS = [
 
 INCLUDE_TERMS = [
     "premier league",
+    "world cup",
+    "fifa world cup",
+    "world cup qualifier",
+    "world cup qualifiers",
     *PREMIER_LEAGUE_CLUBS.keys(),
 ]
 
@@ -275,6 +279,8 @@ def derive_topic_tags(title, summary, story=None, image_url=None):
 
     if "premier league" in haystack:
         tags.add("competition:premier_league")
+    if re.search(r"\bfifa world cup\b|\bworld cup\b|\bworld cup qualifiers?\b", haystack):
+        tags.add("competition:world_cup")
 
     for term, tag in PREMIER_LEAGUE_CLUBS.items():
         if term in haystack:
@@ -405,6 +411,8 @@ def compute_relevance_score(title, summary, topic_tags, story=None):
     haystack = build_news_haystack(title, summary, story)
     score = 0
     if "competition:premier_league" in topic_tags:
+        score += 5
+    if "competition:world_cup" in topic_tags:
         score += 5
     score += sum(3 for tag in topic_tags if tag.startswith("club:"))
     score += sum(2 for tag in topic_tags if tag.startswith("topic:") and tag != "topic:gossip")
