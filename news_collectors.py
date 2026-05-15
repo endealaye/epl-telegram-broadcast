@@ -686,7 +686,7 @@ def fetch_guardian_premier_league_rss():
 
 
 def fetch_sky_sports_premier_league_rss():
-    return _fetch_rss_source(SKY_SPORTS_PREMIER_LEAGUE_SOURCE, enrich=False, max_items=RSS_MAX_ITEMS_CORE)
+    return _fetch_rss_source(SKY_SPORTS_PREMIER_LEAGUE_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
 
 
 def fetch_rss_source(source_config, enrich=False, max_items=None):
