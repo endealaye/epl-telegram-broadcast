@@ -378,6 +378,8 @@ def format_news_broadcast(item):
     title = f"*{escape_telegram_markdown(raw_title)}*" if raw_title else ""
     story = escape_telegram_markdown(item.get("translated_story_am") or "")
     image_url = item.get("image_url") or ""
+    source_name = escape_telegram_markdown(item.get("source_name") or "")
+    source_line = f"Source: {source_name}" if source_name else ""
     hashtag_block = _build_news_hashtag_block(item)
 
     lines = []
@@ -387,6 +389,10 @@ def format_news_broadcast(item):
         if lines:
             lines.append("")
         lines.append(story)
+    if source_line:
+        if lines:
+            lines.append("")
+        lines.append(source_line)
     if hashtag_block:
         if lines:
             lines.append("")
@@ -394,10 +400,13 @@ def format_news_broadcast(item):
     caption = "\n".join(lines)
     if len(caption) > TELEGRAM_CAPTION_LIMIT:
         title_block = title
+        source_block = source_line
         hashtag_line = hashtag_block
         extra_length = 0
         if title_block:
             extra_length += len(title_block)
+        if source_block:
+            extra_length += len(source_block) + 2
         if hashtag_line:
             extra_length += len(hashtag_line) + 2
         story_budget = TELEGRAM_CAPTION_LIMIT - extra_length - 2
@@ -407,6 +416,8 @@ def format_news_broadcast(item):
             lines.append(title_block)
         if trimmed_story:
             lines.extend(["", trimmed_story])
+        if source_block:
+            lines.extend(["", source_block])
         if hashtag_line:
             lines.extend(["", hashtag_line])
         caption = "\n".join(lines)
