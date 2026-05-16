@@ -1,4 +1,4 @@
-from broadcasts import broadcast_daily, broadcast_reminders, broadcast_results, maybe_send_auto_standings
+from broadcasts import broadcast_daily, broadcast_reminders, broadcast_results, maybe_send_auto_standings, reconcile_post_match_delivery
 from commands import broadcast_heartbeat, process_commands
 from live import process_live_updates
 from news_pipeline import fetch_news_items, get_review_queue, mark_review_item
@@ -105,6 +105,15 @@ def send_reminders_service():
 
 def send_results_service():
     try:
+        reconciliation = reconcile_post_match_delivery()
+        if reconciliation.get("results_sent_dates") or reconciliation.get("standings_sent_dates"):
+            return ServiceResult(
+                action="results",
+                success=True,
+                message="Post-match reconciliation completed.",
+                data=reconciliation,
+            )
+
         if not has_pending_results():
             today = get_eat_today()
             retry_result = maybe_send_auto_standings(fetch_fixtures_for_dates([today]), today=today)
