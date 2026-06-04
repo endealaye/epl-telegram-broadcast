@@ -7,7 +7,7 @@ from orchestrator import parse_event_json, route_event_dict
 def print_usage():
     print(
         "Usage: python3 telegram_broadcast.py "
-        "[refresh|commands|live|daily|reminders|results|standings [short|full]|heartbeat|news-fetch|news-queue|news-mark|event]"
+        "[refresh|commands|live|daily|reminders|results|standings [short|full]|world-cup-squad-audit|world-cup-form|world-cup-players|world-cup-standings|heartbeat|news-fetch|news-queue|news-mark|event]"
     )
 
 
@@ -53,6 +53,14 @@ if __name__ == '__main__':
             if len(sys.argv) > 2:
                 payload["format"] = sys.argv[2]
             result = route_event_dict({"intent": "standings", "payload": payload})
+        elif mode == 'world-cup-players':
+            result = route_event_dict({"intent": "world_cup_players"})
+        elif mode == 'world-cup-form':
+            result = route_event_dict({"intent": "world_cup_form"})
+        elif mode == 'world-cup-squad-audit':
+            result = route_event_dict({"intent": "world_cup_squad_audit"})
+        elif mode == 'world-cup-standings':
+            result = route_event_dict({"intent": "world_cup_standings"})
         else:
             result = route_event_dict({"intent": mode})
         print(json.dumps(result.to_dict(), ensure_ascii=False))

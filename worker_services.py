@@ -8,6 +8,10 @@ from standings import broadcast_standings
 from store import fetch_fixtures_for_dates, has_live_window_matches, has_matches_today, has_pending_results, has_upcoming_matches
 from bot_config import get_eat_today
 from sync import update_fixtures_from_json
+from world_cup_form import refresh_world_cup_qualifier_form
+from world_cup_players import refresh_world_cup_players
+from world_cup_squad_audit import audit_world_cup_squads
+from world_cup_standings import refresh_world_cup_group_standings
 
 
 def sync_fixtures_service():
@@ -153,6 +157,89 @@ def send_standings_service(format_name=None):
         message=result.get("message", ""),
         data=result.get("data", {}),
     )
+
+
+def refresh_world_cup_standings_service():
+    try:
+        result = refresh_world_cup_group_standings()
+        return ServiceResult(
+            action="world_cup_standings",
+            success=True,
+            message=(
+                f"World Cup standings refreshed for {result.get('groups', 0)} groups "
+                f"and {result.get('teams', 0)} teams."
+            ),
+            data=result,
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_standings",
+            success=False,
+            message=f"World Cup standings refresh failed: {e}",
+        )
+
+
+def refresh_world_cup_players_service():
+    try:
+        result = refresh_world_cup_players()
+        verification = result.get("verification") or {}
+        return ServiceResult(
+            action="world_cup_players",
+            success=True,
+            message=(
+                f"World Cup players refreshed: {result.get('persisted', 0)} persisted "
+                f"from {result.get('teams_found', 0)} teams; "
+                f"{verification.get('confirmed', 0)} confirmed by Sky."
+            ),
+            data=result,
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_players",
+            success=False,
+            message=f"World Cup players refresh failed: {e}",
+        )
+
+
+def refresh_world_cup_form_service():
+    try:
+        result = refresh_world_cup_qualifier_form()
+        return ServiceResult(
+            action="world_cup_form",
+            success=True,
+            message=(
+                f"World Cup qualifier form refreshed: {result.get('persisted', 0)} rows "
+                f"for {result.get('teams_with_rows', 0)} teams."
+            ),
+            data=result,
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_form",
+            success=False,
+            message=f"World Cup qualifier form refresh failed: {e}",
+        )
+
+
+def audit_world_cup_squads_service():
+    try:
+        result = audit_world_cup_squads(update_metadata=True)
+        return ServiceResult(
+            action="world_cup_squad_audit",
+            success=True,
+            message=(
+                f"World Cup squad audit: {result.get('local_total_players', 0)}/"
+                f"{result.get('expected_total_players', 0)} players; "
+                f"{len(result.get('incomplete_teams', {}))} incomplete teams."
+            ),
+            data=result,
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_squad_audit",
+            success=False,
+            message=f"World Cup squad audit failed: {e}",
+        )
 
 
 def send_heartbeat_service(chat_id=None):

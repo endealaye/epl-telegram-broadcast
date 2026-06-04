@@ -51,6 +51,19 @@ ARTICLE_IMAGE_PATTERNS = [
         re.IGNORECASE,
     ),
 ]
+SKY_IMAGE_HOST_PATTERNS = (
+    "e0.365dm.com",
+    "e1.365dm.com",
+    "e2.365dm.com",
+    "e3.365dm.com",
+    "e4.365dm.com",
+    "e5.365dm.com",
+    "e6.365dm.com",
+    "e7.365dm.com",
+    "e8.365dm.com",
+    "e9.365dm.com",
+    "skysports.com",
+)
 ARTICLE_BODY_PATTERNS = [
     re.compile(r'"articleBody":"(.*?)"', re.IGNORECASE | re.DOTALL),
 ]
@@ -145,6 +158,11 @@ EXCLUDED_NEWS_PATTERNS = [
     re.compile(r"\b(?:county|senior)\s+cup\b", re.IGNORECASE),
     re.compile(r"\bpostponed\b", re.IGNORECASE),
     re.compile(r"\bfixture update\b", re.IGNORECASE),
+    re.compile(r"\bbasketball\b", re.IGNORECASE),
+    re.compile(r"\bboxing\b", re.IGNORECASE),
+    re.compile(r"\bboxing greats?\b", re.IGNORECASE),
+    re.compile(r"\bticket office update\b", re.IGNORECASE),
+    re.compile(r"\bkeeping the faith\b", re.IGNORECASE),
     re.compile(r"\bthings to know if going to\b", re.IGNORECASE),
     re.compile(r"\bwaiting list open\b", re.IGNORECASE),
     re.compile(r"\bfoundation\b", re.IGNORECASE),
@@ -167,6 +185,12 @@ BBC_FOOTBALL_SOURCE = {
     "source_url": "https://feeds.bbci.co.uk/sport/football/rss.xml",
 }
 
+BBC_WORLD_CUP_SOURCE = {
+    "source_key": "bbc_world_cup_rss",
+    "source_name": "BBC Sport FIFA World Cup",
+    "source_url": "https://feeds.bbci.co.uk/sport/football/world-cup/rss.xml",
+}
+
 RSS_CONNECT_TIMEOUT = float(os.getenv("NEWS_RSS_CONNECT_TIMEOUT", "5"))
 RSS_READ_TIMEOUT = float(os.getenv("NEWS_RSS_READ_TIMEOUT", "10"))
 RSS_TIMEOUT = (RSS_CONNECT_TIMEOUT, RSS_READ_TIMEOUT)
@@ -174,6 +198,10 @@ RSS_MAX_ITEMS_CORE = int(os.getenv("NEWS_RSS_MAX_ITEMS_CORE", "12"))
 RSS_MAX_ITEMS_CLUB = int(os.getenv("NEWS_RSS_MAX_ITEMS_CLUB", "6"))
 NEWS_ENRICH_MAX_WORKERS = int(os.getenv("NEWS_ENRICH_MAX_WORKERS", "2"))
 NEWS_ARTICLE_TIMEOUT = (float(os.getenv("NEWS_ARTICLE_CONNECT_TIMEOUT", "5")), float(os.getenv("NEWS_ARTICLE_READ_TIMEOUT", "10")))
+NEWS_IMAGE_VALIDATE_TIMEOUT = (
+    float(os.getenv("NEWS_IMAGE_VALIDATE_CONNECT_TIMEOUT", "3")),
+    float(os.getenv("NEWS_IMAGE_VALIDATE_READ_TIMEOUT", "5")),
+)
 NEWS_ARTICLE_MAX_BYTES = int(os.getenv("NEWS_ARTICLE_MAX_BYTES", str(1_200_000)))
 NEWS_ARTICLE_CHUNK_SIZE = int(os.getenv("NEWS_ARTICLE_CHUNK_SIZE", str(64 * 1024)))
 
@@ -187,6 +215,12 @@ SKY_SPORTS_PREMIER_LEAGUE_SOURCE = {
     "source_key": "sky_sports_premier_league_rss",
     "source_name": "Sky Sports Premier League",
     "source_url": "https://www.skysports.com/rss/11661",
+}
+
+SKY_SPORTS_FOOTBALL_SOURCE = {
+    "source_key": "sky_sports_football_rss",
+    "source_name": "Sky Sports Football",
+    "source_url": "https://www.skysports.com/rss/11095",
 }
 
 PREMIER_LEAGUE_CLUB_RSS_SOURCES = [
@@ -368,12 +402,58 @@ def extract_image_url(item_element):
             match = pattern.search(html_candidate)
             if not match:
                 continue
-            raw_value = (match.group(1) or "").strip().split()[0]
-            image_url = clean_image_url(raw_value, base_url)
+            if "srcset" in pattern.pattern:
+                image_url = choose_best_srcset_url(match.group(1), base_url)
+            else:
+                raw_value = (match.group(1) or "").strip().split()[0]
+                image_url = clean_image_url(raw_value, base_url)
             if image_url:
                 candidates.append((0, image_url))
                 break
 
+    if not candidates:
+        return None
+    candidates.sort(key=lambda row: row[0], reverse=True)
+    return candidates[0][1]
+
+
+def srcset_candidates(value, base_url):
+    candidates = []
+    if not value:
+        return candidates
+
+    for raw_candidate in html.unescape(value).split(","):
+        parts = raw_candidate.strip().split()
+        if not parts:
+            continue
+        image_url = clean_image_url(parts[0], base_url)
+        if not image_url:
+            continue
+
+        width = 0
+        if len(parts) > 1:
+            descriptor = parts[1].strip().lower()
+            if descriptor.endswith("w"):
+                try:
+                    width = int(descriptor[:-1])
+                except ValueError:
+                    width = 0
+            elif descriptor.endswith("x"):
+                try:
+                    width = int(float(descriptor[:-1]) * 1000)
+                except ValueError:
+                    width = 0
+
+        if not width:
+            size_match = re.search(r"/(\d{2,4})x(\d{2,4})/", urlparse(image_url).path or "")
+            if size_match:
+                width = int(size_match.group(1))
+        candidates.append((width, image_url))
+    return candidates
+
+
+def choose_best_srcset_url(value, base_url):
+    candidates = srcset_candidates(value, base_url)
     if not candidates:
         return None
     candidates.sort(key=lambda row: row[0], reverse=True)
@@ -387,6 +467,40 @@ def clean_image_url(value, base_url):
     if not value:
         return None
     return urljoin(base_url, value)
+
+
+def is_sky_image_url(url):
+    host = (urlparse(url).netloc or "").lower()
+    return any(pattern in host for pattern in SKY_IMAGE_HOST_PATTERNS)
+
+
+def image_url_is_reachable(url, session):
+    if not url:
+        return False
+    try:
+        response = session.head(url, timeout=NEWS_IMAGE_VALIDATE_TIMEOUT, allow_redirects=True)
+        content_type = (response.headers.get("Content-Type") or "").lower()
+        if response.ok and content_type.startswith("image/"):
+            return True
+        if response.status_code not in {403, 405} and content_type and not content_type.startswith("image/"):
+            return False
+    except requests.RequestException:
+        pass
+
+    try:
+        response = session.get(url, timeout=NEWS_IMAGE_VALIDATE_TIMEOUT, stream=True)
+        content_type = (response.headers.get("Content-Type") or "").lower()
+        ok = response.ok and content_type.startswith("image/")
+        response.close()
+        return ok
+    except requests.RequestException:
+        return False
+
+
+def validated_image_url(url, session):
+    if not url:
+        return None
+    return url if image_url_is_reachable(url, session) else None
 
 
 def upscale_image_url(url):
@@ -406,6 +520,11 @@ def upscale_image_url(url):
         query["width"] = "1200"
         query["quality"] = query.get("quality", "85")
         return urlunparse(parsed._replace(query=urlencode(query)))
+
+    # Sky image URLs expose fixed generated folder sizes. Rewriting them to
+    # arbitrary 1200x800 paths often creates URLs that do not exist.
+    if is_sky_image_url(url):
+        return url
 
     # Generic thumbnail path upsizing (e.g. .../300x200/... -> .../1200x800/...)
     bigger = re.sub(r"/(\d{2,4})x(\d{2,4})/", "/1200x800/", path)
@@ -527,6 +646,8 @@ def extract_article_image_url(body, base_url):
     for pattern in ARTICLE_IMAGE_PATTERNS:
         match = pattern.search(body)
         if match:
+            if "srcset" in pattern.pattern:
+                return choose_best_srcset_url(match.group(1), base_url)
             return clean_image_url(match.group(1), base_url)
 
     return None
@@ -583,6 +704,7 @@ def enrich_item_image(item, session):
         item["image_url"] = upscale_image_url(article_image_url)
     elif item.get("image_url"):
         item["image_url"] = upscale_image_url(item["image_url"])
+    item["image_url"] = validated_image_url(item.get("image_url"), session)
     story = extract_article_story(
         body,
         title=item.get("title"),
@@ -662,6 +784,8 @@ def _fetch_rss_source(source_config, enrich=True, max_items=None):
         items = _build_rss_items(root, max_items=max_items)
 
         if not enrich or not items:
+            for item in items:
+                item["image_url"] = validated_image_url(item.get("image_url"), session)
             return source_config, items
 
         enriched_items = [None] * len(items)
@@ -681,12 +805,20 @@ def fetch_bbc_football_rss():
     return _fetch_rss_source(BBC_FOOTBALL_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
 
 
+def fetch_bbc_world_cup_rss():
+    return _fetch_rss_source(BBC_WORLD_CUP_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
+
+
 def fetch_guardian_premier_league_rss():
     return _fetch_rss_source(GUARDIAN_PREMIER_LEAGUE_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
 
 
 def fetch_sky_sports_premier_league_rss():
     return _fetch_rss_source(SKY_SPORTS_PREMIER_LEAGUE_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
+
+
+def fetch_sky_sports_football_rss():
+    return _fetch_rss_source(SKY_SPORTS_FOOTBALL_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
 
 
 def fetch_rss_source(source_config, enrich=False, max_items=None):

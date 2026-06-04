@@ -7,7 +7,14 @@ import uuid
 
 from PIL import Image, ImageDraw
 
-from bot_config import AMHARIC_TEAMS, format_display_date, get_eat_now, get_eat_today, parse_eat_datetime
+from bot_config import (
+    AMHARIC_TEAMS,
+    SHORT_AMHARIC_TEAMS,
+    format_display_date,
+    get_eat_now,
+    get_eat_today,
+    parse_eat_datetime,
+)
 from commands import send_admin_alert, send_telegram_message, send_telegram_photo_file
 from news_pipeline import load_watermark_image, resolve_watermark_asset
 from standings import (
@@ -49,6 +56,11 @@ COMPETITION_DISPLAY_ORDER = {
     "UEFA Europa League": 2,
     "UEFA Conference League": 3,
 }
+COMPETITION_HEADER_LOGOS = {
+    "Premier League": None,
+    "UEFA Champions League": "UEFA_Champions_League.svg",
+    "UEFA Europa League": "UEFA_Europa_League_logo_(2024_version).svg",
+}
 
 
 def _team_badge_label(team_name):
@@ -71,6 +83,12 @@ def _draw_badge_fallback(image, draw, x, y, size, team_name):
     text_x = x + ((size - (box[2] - box[0])) // 2)
     text_y = y + ((size - (box[3] - box[1])) // 2) - box[1]
     draw.text((text_x, text_y), label, font=badge_font, fill=text_fill)
+
+
+def _team_amharic_name(team_name, short=False):
+    if short:
+        return SHORT_AMHARIC_TEAMS.get(team_name) or AMHARIC_TEAMS.get(team_name, team_name)
+    return AMHARIC_TEAMS.get(team_name, team_name)
 
 
 def _render_match_board(title, subtitle, groups, mode="fixtures"):
@@ -155,8 +173,8 @@ def _render_match_board(title, subtitle, groups, mode="fixtures"):
                 team_display,
             )
 
-    hero_home = AMHARIC_TEAMS.get(hero_match["home"], hero_match["home"])
-    hero_away = AMHARIC_TEAMS.get(hero_match["away"], hero_match["away"])
+    hero_home = _team_amharic_name(hero_match["home"])
+    hero_away = _team_amharic_name(hero_match["away"])
 
     if mode == "fixtures":
         hero_text = f"{hero_home} vs. {hero_away}"
@@ -224,8 +242,8 @@ def _render_match_board(title, subtitle, groups, mode="fixtures"):
                 else:
                     _draw_badge_fallback(image, draw, x, logo_y, card_logo_size, team_display)
 
-            home_name = AMHARIC_TEAMS.get(match["home"], match["home"])
-            away_name = AMHARIC_TEAMS.get(match["away"], match["away"])
+            home_name = _team_amharic_name(match["home"], short=True)
+            away_name = _team_amharic_name(match["away"], short=True)
             if mode == "fixtures":
                 pair_logo_size = 60
                 pair_gap = 16
@@ -264,7 +282,7 @@ def _render_match_board(title, subtitle, groups, mode="fixtures"):
                 center_x_text = center_x - ((center_box[2] - center_box[0]) // 2)
                 draw.text((center_x_text, row_top + 44), center_text, font=center_font, fill=text_dark)
 
-                secondary = competition
+                secondary = (match.get("result_note") or competition).strip()
                 secondary_box = draw.textbbox((0, 0), secondary, font=time_font)
                 secondary_x = center_x - ((secondary_box[2] - secondary_box[0]) // 2)
                 draw.text((secondary_x, row_top + 94), secondary, font=time_font, fill=text_muted)
@@ -319,9 +337,11 @@ def _render_results_news_style(title, subtitle, groups):
     watermark_h = max(1, int(watermark.height * watermark_scale))
     watermark = watermark.resize((watermark_target_w, watermark_h), Image.LANCZOS)
 
-    competition_logo_path = Path(__file__).resolve().parent / "UEFA_Champions_League.svg"
+    header_competition = groups[0][0] if groups else None
+    competition_logo_name = COMPETITION_HEADER_LOGOS.get(header_competition)
+    competition_logo_path = Path(__file__).resolve().parent / competition_logo_name if competition_logo_name else None
     competition_logo = None
-    if competition_logo_path.exists():
+    if competition_logo_path and competition_logo_path.exists():
         competition_logo = load_watermark_image(competition_logo_path)
         competition_logo_target_w = 100
         competition_scale = competition_logo_target_w / competition_logo.width
@@ -353,8 +373,8 @@ def _render_results_news_style(title, subtitle, groups):
             panel = (outer_pad, y, width - outer_pad, y + row_height)
             draw.rectangle(panel, fill=inner_fill)
 
-            home_am = AMHARIC_TEAMS.get(match["home"], match["home"])
-            away_am = AMHARIC_TEAMS.get(match["away"], match["away"])
+            home_am = _team_amharic_name(match["home"])
+            away_am = _team_amharic_name(match["away"])
             left_center_x = 150
             right_center_x = 850
             names_y = y + 18
@@ -477,6 +497,14 @@ def _has_final_score(fixture):
     return fixture.get('hometeamscore') is not None and fixture.get('awayteamscore') is not None
 
 
+def _result_note(fixture):
+    note = (fixture.get("result_note") or fixture.get("last_broadcast_score") or "").strip()
+    normal_score = f"{fixture.get('hometeamscore')}-{fixture.get('awayteamscore')}"
+    if note and note != normal_score:
+        return note
+    return ""
+
+
 def _competition_sort_key(competition):
     return (COMPETITION_DISPLAY_ORDER.get(competition, 99), competition or "")
 
@@ -502,8 +530,8 @@ def _build_daily_fixtures_text(today, groups):
         lines.append(f"🏆 {competition}")
         current_time = None
         for match in matches:
-            home_am = AMHARIC_TEAMS.get(match["home"], match["home"])
-            away_am = AMHARIC_TEAMS.get(match["away"], match["away"])
+            home_am = _team_amharic_name(match["home"], short=True)
+            away_am = _team_amharic_name(match["away"], short=True)
             if match["time"] != current_time:
                 lines.append(f"⏰ {match['time']}")
                 current_time = match["time"]
@@ -519,9 +547,13 @@ def _build_results_text(title, subtitle, groups):
     for competition, matches in groups:
         lines.append(f"🏆 {competition}")
         for match in matches:
-            home_am = AMHARIC_TEAMS.get(match["home"], match["home"])
-            away_am = AMHARIC_TEAMS.get(match["away"], match["away"])
-            lines.append(f"• {home_am} {match['home_score']}-{match['away_score']} {away_am}")
+            home_am = _team_amharic_name(match["home"], short=True)
+            away_am = _team_amharic_name(match["away"], short=True)
+            line = f"• {home_am} {match['home_score']}-{match['away_score']} {away_am}"
+            result_note = (match.get("result_note") or "").strip()
+            if result_note:
+                line = f"{line} ({result_note})"
+            lines.append(line)
         lines.append("")
     while lines and not lines[-1]:
         lines.pop()
@@ -730,8 +762,8 @@ def broadcast_reminders():
 
         for match in matches:
             time = _format_kickoff_time_ethiopian(match)
-            home_am = AMHARIC_TEAMS.get(match['hometeam'], match['hometeam'])
-            away_am = AMHARIC_TEAMS.get(match['awayteam'], match['awayteam'])
+            home_am = _team_amharic_name(match['hometeam'])
+            away_am = _team_amharic_name(match['awayteam'])
             competition = fixture_competition_name(match)
             msg = f"🔔 *የጨዋታ ማሳሰቢያ!*\n\n🏆 {competition}\n⏰ {time} | {home_am} vs {away_am}\nተዘጋጁ! ⚽"
             send_telegram_message(msg)
@@ -743,10 +775,13 @@ def broadcast_reminders():
 
 
 def broadcast_results(date_strings=None):
-    today = get_eat_today()
     if date_strings is None:
         date_strings = _results_date_scope()
-    lock_key = f"lock:results:{today}"
+    normalized_dates = sorted({date_string for date_string in date_strings if date_string})
+    if not normalized_dates:
+        normalized_dates = [get_eat_today()]
+    target_date = normalized_dates[-1]
+    lock_key = f"lock:results:{target_date}"
     lock_owner = f"results:{uuid.uuid4()}"
     try:
         if not supabase:
@@ -778,6 +813,7 @@ def broadcast_results(date_strings=None):
                     "away": result["awayteam"],
                     "home_score": result["hometeamscore"],
                     "away_score": result["awayteamscore"],
+                    "result_note": _result_note(result),
                 }
             )
             sent_ids.append(result['matchnumber'])
@@ -785,7 +821,7 @@ def broadcast_results(date_strings=None):
         groups = [(competition, competition_groups[competition]) for competition in sorted(competition_groups.keys())]
         _send_match_board(
             title="🏁 የጨዋታዎች ውጤት",
-            subtitle=today,
+            subtitle=target_date,
             groups=groups,
             mode="results",
             caption="🏁 የጨዋታዎች ውጤት",
@@ -795,8 +831,8 @@ def broadcast_results(date_strings=None):
             "broadcaststatus": 'result_sent',
         }).in_('matchnumber', sent_ids).execute()
 
-        refreshed_today = fetch_fixtures_for_dates([today])
-        maybe_send_auto_standings(refreshed_today, today=today)
+        refreshed_target_day = fetch_fixtures_for_dates([target_date])
+        maybe_send_auto_standings(refreshed_target_day, today=target_date)
     except Exception as e:
         error_msg = f"Results broadcast error: {e}"
         print(error_msg)

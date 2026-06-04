@@ -13,8 +13,10 @@ from news_collectors import (
     PREMIER_LEAGUE_CLUB_RSS_SOURCES,
     RSS_MAX_ITEMS_CLUB,
     fetch_bbc_football_rss,
+    fetch_bbc_world_cup_rss,
     fetch_guardian_premier_league_rss,
     fetch_rss_source,
+    fetch_sky_sports_football_rss,
     fetch_sky_sports_premier_league_rss,
     is_excluded_news_item,
 )
@@ -32,8 +34,14 @@ from news_store import (
     upsert_news_items,
     validate_status_transition,
 )
+from telegram_limits import (
+    TELEGRAM_CAPTION_LIMIT,
+    TELEGRAM_NEWS_CAPTION_TARGET,
+    TELEGRAM_NEWS_MAX_LINES,
+    compact_news_caption,
+    telegram_limit_status,
+)
 
-TELEGRAM_CAPTION_LIMIT = 1024
 WATERMARK_MARGIN_RATIO = 0.04
 WATERMARK_WIDTH_RATIO = 0.108
 WATERMARK_MAX_WIDTH = 320
@@ -421,9 +429,17 @@ def format_news_broadcast(item):
         if hashtag_line:
             lines.extend(["", hashtag_line])
         caption = "\n".join(lines)
+    caption = compact_news_caption(caption, has_image=bool(image_url))
+    limit_status = telegram_limit_status(
+        caption,
+        has_image=bool(image_url),
+        target=TELEGRAM_NEWS_CAPTION_TARGET if image_url else None,
+        max_lines=TELEGRAM_NEWS_MAX_LINES,
+    )
     return {
         "image_url": image_url,
         "caption": caption,
+        "limit_status": limit_status,
     }
 
 
@@ -434,8 +450,10 @@ def fetch_news_items():
 
     base_collectors = [
         ("bbc", fetch_bbc_football_rss),
+        ("bbc_world_cup", fetch_bbc_world_cup_rss),
         ("guardian", fetch_guardian_premier_league_rss),
         ("sky_sports", fetch_sky_sports_premier_league_rss),
+        ("sky_sports_football", fetch_sky_sports_football_rss),
     ]
 
     jobs = []
@@ -623,6 +641,7 @@ def mark_review_item(
         "translated_story_am": final_story,
     })
     sent_message = None
+    payload["caption"] = compact_news_caption(payload["caption"], has_image=bool(payload["image_url"]))
     if payload["image_url"]:
         temp_path = None
         try:

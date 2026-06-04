@@ -9,8 +9,35 @@ from news_store import (
     list_news_queue_preview,
     update_follow_up_request,
 )
+from telegram_limits import TELEGRAM_NEWS_CAPTION_TARGET, TELEGRAM_NEWS_MAX_LINES, telegram_limit_status
 
 app = Flask(__name__)
+
+
+def build_amharic_preview_text(title, story):
+    parts = []
+    if title:
+        parts.append(title)
+    if story:
+        if parts:
+            parts.append("")
+        parts.append(story)
+    return "\n".join(parts)
+
+
+def attach_limit_status(item):
+    preview = build_amharic_preview_text(
+        item.get("translated_title_am") or "",
+        item.get("translated_story_am") or "",
+    )
+    has_image = bool(item.get("image_url"))
+    item["telegram_limit"] = telegram_limit_status(
+        preview,
+        has_image=has_image,
+        target=TELEGRAM_NEWS_CAPTION_TARGET if has_image else None,
+        max_lines=TELEGRAM_NEWS_MAX_LINES,
+    )
+    return item
 
 LIST_TEMPLATE = """
 <!doctype html>
@@ -52,6 +79,12 @@ LIST_TEMPLATE = """
     .card-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px; align-items: start; }
     .meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
     .pill { background: var(--accent-soft); color: var(--accent); padding: 4px 10px; border-radius: 999px; font-size: 12px; }
+    .limit-pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .limit-safe { background: #dcfce7; color: #166534; }
+    .limit-warning { background: #fef3c7; color: #92400e; }
+    .limit-bad { background: #fee2e2; color: #991b1b; }
+    .limit-box { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin: 10px 0; background: rgba(255,255,255,0.7); font-size: 13px; }
+    .limit-box strong { display: block; margin-bottom: 4px; }
     .title { font-size: 22px; margin: 0 0 8px; }
     .card a.title-link { color: inherit; text-decoration: none; }
     .actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
@@ -153,6 +186,10 @@ LIST_TEMPLATE = """
           <span>{{ item.published_at or 'No timestamp' }}</span>
           <span class="pill">{{ item.review_status }}</span>
           <span class="pill">score {{ item.relevance_score }}</span>
+          {% set limit = item.telegram_limit or {} %}
+          <span class="limit-pill {% if limit.status == 'safe' %}limit-safe{% elif limit.status == 'warning' %}limit-warning{% else %}limit-bad{% endif %}">
+            Telegram {{ limit.chars or 0 }}/{{ limit.hard_limit_chars or 1024 }} · {{ limit.lines or 0 }}/{{ limit.max_lines or '∞' }} lines · {{ limit.status or 'unknown' }}
+          </span>
           {% if ((item.raw_payload or {}).get('follow_up_matches')) %}
           <span class="pill">follow-up match</span>
           {% endif %}
@@ -233,6 +270,12 @@ DETAIL_TEMPLATE = """
     select {
       width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font: inherit; background: white;
     }
+    .limit-pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .limit-safe { background: #dcfce7; color: #166534; }
+    .limit-warning { background: #fef3c7; color: #92400e; }
+    .limit-bad { background: #fee2e2; color: #991b1b; }
+    .limit-box { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin: 10px 0; background: rgba(255,255,255,0.7); font-size: 13px; }
+    .limit-box strong { display: block; margin-bottom: 4px; }
   </style>
 </head>
 <body>
@@ -247,6 +290,10 @@ DETAIL_TEMPLATE = """
         <span>{{ item.published_at or 'No timestamp' }}</span>
         <span>{{ item.review_status }}</span>
         <span>score {{ item.relevance_score }}</span>
+        {% set limit = item.telegram_limit or {} %}
+        <span id="telegram_limit_pill" class="limit-pill {% if limit.status == 'safe' %}limit-safe{% elif limit.status == 'warning' %}limit-warning{% else %}limit-bad{% endif %}">
+          Telegram {{ limit.chars or 0 }}/{{ limit.hard_limit_chars or 1024 }} · {{ limit.lines or 0 }}/{{ limit.max_lines or '∞' }} lines · {{ limit.status or 'unknown' }}
+        </span>
         {% if ((item.raw_payload or {}).get('follow_up_matches')) %}
         <span>follow-up match</span>
         {% endif %}
@@ -296,6 +343,15 @@ DETAIL_TEMPLATE = """
       <p><a href="{{ item.article_url }}" target="_blank" rel="noreferrer">Open original article</a></p>
 
       <form method="post" action="{{ url_for('update_item', item_id=item.id) }}">
+        <div class="limit-box">
+          <strong>Telegram Limit Tracker</strong>
+          <div id="telegram_limit_text">
+            {{ limit.chars or 0 }}/{{ limit.hard_limit_chars or 1024 }} chars ·
+            {{ limit.lines or 0 }}/{{ limit.max_lines or '∞' }} lines ·
+            target {{ limit.target_chars or 900 }} chars ·
+            {{ 'image caption' if item.image_url else 'text message' }}
+          </div>
+        </div>
         <div class="row">
           <label for="translated_title_am">Amharic Title</label>
           <input id="translated_title_am" type="text" name="translated_title_am" value="{{ item.translated_title_am or '' }}">
@@ -352,6 +408,52 @@ DETAIL_TEMPLATE = """
       </div>
     </div>
   </div>
+  <script>
+    const titleInput = document.getElementById("translated_title_am");
+    const storyInput = document.getElementById("translated_story_am");
+    const imageInput = document.getElementById("image_url");
+    const limitText = document.getElementById("telegram_limit_text");
+    const limitPill = document.getElementById("telegram_limit_pill");
+    const newsCaptionTarget = {{ news_caption_target }};
+    const newsMaxLines = {{ news_max_lines }};
+
+    function lineCount(value) {
+      if (!value) return 0;
+      return value.split(/\r\n|\r|\n/).length;
+    }
+
+    function previewText() {
+      const title = titleInput.value.trim();
+      const story = storyInput.value.trim();
+      if (title && story) return title + "\\n\\n" + story;
+      return title || story;
+    }
+
+    function statusClass(status) {
+      if (status === "safe") return "limit-pill limit-safe";
+      if (status === "warning") return "limit-pill limit-warning";
+      return "limit-pill limit-bad";
+    }
+
+    function updateLimitTracker() {
+      const text = previewText();
+      const hasImage = Boolean(imageInput.value.trim());
+      const hardLimit = hasImage ? 1024 : 4096;
+      const target = hasImage ? newsCaptionTarget : hardLimit;
+      const lines = lineCount(text);
+      const chars = text.length;
+      let status = "safe";
+      if (chars > hardLimit) status = "too_long";
+      else if (lines > newsMaxLines) status = "too_many_lines";
+      else if (chars > target) status = "warning";
+      limitText.textContent = `${chars}/${hardLimit} chars · ${lines}/${newsMaxLines} lines · target ${target} chars · ${hasImage ? "image caption" : "text message"} · ${status}`;
+      limitPill.textContent = `Telegram ${chars}/${hardLimit} · ${lines}/${newsMaxLines} lines · ${status}`;
+      limitPill.className = statusClass(status);
+    }
+
+    [titleInput, storyInput, imageInput].forEach((field) => field.addEventListener("input", updateLimitTracker));
+    updateLimitTracker();
+  </script>
 </body>
 </html>
 """
@@ -377,6 +479,7 @@ def news_list():
     statuses = DEFAULT_STATUSES.get(selected_status, DEFAULT_STATUSES["review"])
     try:
         items = list_news_queue_preview(statuses=statuses, limit=limit)
+        items = [attach_limit_status(item) for item in items]
         followups = list_follow_up_requests()
     except Exception as exc:
         return (f"Failed to load news queue: {exc}", 502)
@@ -388,6 +491,11 @@ def news_list():
         status_options=list(DEFAULT_STATUSES.keys()),
         limit=limit,
     )
+
+
+@app.get("/healthz")
+def healthcheck():
+    return {"ok": True}, 200
 
 
 @app.post("/fetch")
@@ -453,7 +561,13 @@ def news_detail(item_id):
         return (f"Failed to load news item: {exc}", 502)
     if not item:
         return ("Not found", 404)
-    return render_template_string(DETAIL_TEMPLATE, item=item)
+    item = attach_limit_status(item)
+    return render_template_string(
+        DETAIL_TEMPLATE,
+        item=item,
+        news_caption_target=TELEGRAM_NEWS_CAPTION_TARGET,
+        news_max_lines=TELEGRAM_NEWS_MAX_LINES,
+    )
 
 
 @app.post("/items/<int:item_id>")
@@ -464,6 +578,29 @@ def update_item(item_id):
     image_url = request.form.get("image_url")
     image_url = image_url.strip() if image_url is not None else None
     notes = request.form.get("notes") or None
+    existing_item = None
+    if status == "published":
+        try:
+            existing_item = get_news_item(item_id)
+        except Exception as exc:
+            return (f"Failed to load news item for limit check: {exc}", 502)
+        effective_image_url = image_url if image_url else ((existing_item or {}).get("image_url") or "")
+        effective_title = translated_title_am if translated_title_am is not None else ((existing_item or {}).get("translated_title_am") or "")
+        effective_story = translated_story_am if translated_story_am is not None else ((existing_item or {}).get("translated_story_am") or "")
+        preview = build_amharic_preview_text(effective_title, effective_story)
+        limit = telegram_limit_status(
+            preview,
+            has_image=bool(effective_image_url),
+            target=TELEGRAM_NEWS_CAPTION_TARGET if effective_image_url else None,
+            max_lines=TELEGRAM_NEWS_MAX_LINES,
+        )
+        if limit["status"] in {"too_long", "too_many_lines"}:
+            return (
+                "Telegram limit failed: "
+                f"{limit['chars']}/{limit['hard_limit_chars']} chars, "
+                f"{limit['lines']}/{limit['max_lines']} lines, status={limit['status']}.",
+                400,
+            )
     try:
         from news_pipeline import mark_review_item
         mark_review_item(

@@ -15,8 +15,6 @@ from bot_config import (
     parse_eat_datetime,
 )
 from commands import send_admin_alert, send_telegram_message
-from broadcasts import maybe_send_auto_standings
-from standings import broadcast_standings
 from sync import sky_result_overrides_for_date
 from store import (
     fetch_fixtures_for_dates,
@@ -36,6 +34,8 @@ LIVE_COMPETITIONS = {
     "UEFA Champions League",
     "UEFA Europa League",
     "UEFA Conference League",
+    "FIFA World Cup",
+    "World Cup",
 }
 
 
@@ -194,18 +194,34 @@ def _find_db_match(home_team, away_team, competition_name, now):
     matches = res.data or []
     for candidate in matches:
         candidate_competition = fixture_competition_name(candidate)
+        competition_matches = (
+            not competition_name
+            or candidate_competition == competition_name
+            or (
+                competition_name in {"FIFA World Cup", "World Cup"}
+                and candidate_competition.startswith("FIFA World Cup")
+            )
+        )
         if (
             is_in_live_polling_window(candidate, now=now)
-            and (not competition_name or candidate_competition == competition_name)
+            and competition_matches
         ):
             return candidate
     for candidate in matches:
         kickoff = parse_eat_datetime(candidate.get('dateeat'))
         candidate_competition = fixture_competition_name(candidate)
+        competition_matches = (
+            not competition_name
+            or candidate_competition == competition_name
+            or (
+                competition_name in {"FIFA World Cup", "World Cup"}
+                and candidate_competition.startswith("FIFA World Cup")
+            )
+        )
         if (
             kickoff
             and kickoff.date() == now.date()
-            and (not competition_name or candidate_competition == competition_name)
+            and competition_matches
         ):
             return candidate
     return None
@@ -222,17 +238,15 @@ def _send_full_time_message(db_match, h_score, a_score):
 
 
 def _finalize_match(db_match, h_score, a_score, send_message=True):
-    if send_message and not db_match.get('result_sent'):
+    if send_message:
         _send_full_time_message(db_match, h_score, a_score)
     mark_match_state(
         db_match['matchnumber'],
-        result_sent=True,
-        broadcaststatus='result_sent',
+        broadcaststatus='live_final_sent',
         hometeamscore=int(h_score),
         awayteamscore=int(a_score),
         last_broadcast_score=f"{h_score}-{a_score}",
     )
-    _maybe_send_standings_after_live_final(db_match)
 
 
 def _should_send_standings_after_results(today_fixtures):
@@ -258,16 +272,6 @@ def _should_send_standings_after_results(today_fixtures):
         fixture.get('hometeamscore') is not None and fixture.get('awayteamscore') is not None
         for fixture in latest_matches
     )
-
-
-def _maybe_send_standings_after_live_final(db_match):
-    if not is_premier_league_fixture(db_match):
-        return
-
-    today = get_eat_today()
-    refreshed_today = fetch_fixtures_for_dates([today])
-    maybe_send_auto_standings(refreshed_today, today=today)
-
 
 def _reconcile_overdue_matches(score_map, now):
     date_strings = sorted(

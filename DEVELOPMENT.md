@@ -80,6 +80,48 @@ The runtime also expects a `bot_state` table with:
 
 This is used to persist the Telegram `last_update_id` for command polling.
 
+### World Cup analysis tables
+
+The repository includes [add_world_cup_analysis_schema.sql](/Users/nebiyou.yirga/Downloads/ft_dd/add_world_cup_analysis_schema.sql)
+for World Cup-specific analysis data. These tables live in the same Supabase project; do not create a separate database.
+
+The schema adds proper tournament/result fields to `fixtures`:
+
+- `result_note`
+- `went_extra_time`
+- `went_penalties`
+- `home_penalties`
+- `away_penalties`
+- `winner_team`
+- `source_status`
+- `source_notes`
+
+It also creates dedicated analysis tables:
+
+- `world_cup_fixture_source_checks`
+- `world_cup_teams`
+- `world_cup_players`
+- `world_cup_recent_matches`
+- `world_cup_player_availability`
+- `world_cup_group_standings`
+- `match_analysis`
+
+Run the SQL in Supabase SQL Editor, then populate source checks with:
+
+```bash
+python3 verify_world_cup_sources.py --persist
+```
+
+The verifier compares FixtureDownload against OpenFootball. Current expected state:
+
+- FixtureDownload matches: `104`
+- OpenFootball matches: `104`
+- Confirmed group-stage matches: `72`
+- Knockout/placeholders: `32`
+- Known mismatches: `2` kickoff-time disagreements
+  - Match 29: Brazil vs Haiti
+  - Match 31: Türkiye vs Paraguay
+
 ### Table: `news_items`
 
 The review queue for football news uses a dedicated `news_items` table.

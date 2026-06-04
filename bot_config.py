@@ -24,6 +24,7 @@ def load_env():
 load_env()
 
 JSON_URL = 'https://fixturedownload.com/feed/json/epl-2025'
+WORLD_CUP_JSON_URL = 'https://fixturedownload.com/feed/json/fifa-world-cup-2026'
 BBC_SCORES_URL = 'https://www.bbc.com/sport/football/premier-league/scores-fixtures'
 BBC_SCORES_URL_TEMPLATE = 'https://www.bbc.com/sport/football/scores-fixtures/{date}'
 SKY_SCORES_URL_TEMPLATE = 'https://www.skysports.com/football-scores-fixtures/{date}'
@@ -93,6 +94,19 @@ TEAM_MAPPING = {
     "Manchester City": "Man City",
     "Brighton & Hove Albion": "Brighton",
     "Chelsea": "Chelsea",
+    "Bosnia-Herzegovina": "Bosnia and Herzegovina",
+    "Cape Verde": "Cabo Verde",
+    "Curacao": "Curaçao",
+    "Czech Republic": "Czechia",
+    "DR Congo": "Congo DR",
+    "Democratic Republic of Congo": "Congo DR",
+    "Iran": "IR Iran",
+    "Ivory Coast": "Côte d'Ivoire",
+    "South Korea": "Korea Republic",
+    "Turkey": "Türkiye",
+    "Türkiye": "Türkiye",
+    "United States": "USA",
+    "United States of America": "USA",
 }
 
 
@@ -120,4 +134,62 @@ AMHARIC_TEAMS = {
     "Sunderland": "ሰንደርላንድ",
     "West Ham": "ዌስትሃም",
     "Wolves": "ዉልቭስ",
+    "Algeria": "አልጄሪያ",
+    "Argentina": "አርጀንቲና",
+    "Australia": "አውስትራሊያ",
+    "Austria": "ኦስትሪያ",
+    "Belgium": "ቤልጂየም",
+    "Bosnia and Herzegovina": "ቦስኒያ እና ሄርዞጎቪና",
+    "Brazil": "ብራዚል",
+    "Cabo Verde": "ካቦ ቨርዴ",
+    "Canada": "ካናዳ",
+    "Colombia": "ኮሎምቢያ",
+    "Congo DR": "ዲ.አር. ኮንጎ",
+    "Croatia": "ክሮኤሽያ",
+    "Curaçao": "ኩራሳዎ",
+    "Czechia": "ቼክያ",
+    "Côte d'Ivoire": "ኮት ዲቯር",
+    "Ecuador": "ኢኳዶር",
+    "Egypt": "ግብፅ",
+    "England": "እንግሊዝ",
+    "France": "ፈረንሳይ",
+    "Germany": "ጀርመን",
+    "Ghana": "ጋና",
+    "Haiti": "ሀይቲ",
+    "IR Iran": "ኢራን",
+    "Iraq": "ኢራቅ",
+    "Japan": "ጃፓን",
+    "Jordan": "ዮርዳኖስ",
+    "Korea Republic": "ደቡብ ኮሪያ",
+    "Mexico": "ሜክሲኮ",
+    "Morocco": "ሞሮኮ",
+    "Netherlands": "ኔዘርላንድስ",
+    "New Zealand": "ኒውዚላንድ",
+    "Norway": "ኖርዌይ",
+    "Panama": "ፓናማ",
+    "Paraguay": "ፓራጓይ",
+    "Portugal": "ፖርቱጋል",
+    "Qatar": "ኳታር",
+    "Saudi Arabia": "ሳዑዲ አረቢያ",
+    "Scotland": "ስኮትላንድ",
+    "Senegal": "ሴኔጋል",
+    "South Africa": "ደቡብ አፍሪካ",
+    "Spain": "ስፔን",
+    "Sweden": "ስዊድን",
+    "Switzerland": "ስዊዘርላንድ",
+    "Tunisia": "ቱኒዚያ",
+    "Türkiye": "ቱርክ",
+    "USA": "አሜሪካ",
+    "Uruguay": "ኡራጓይ",
+    "Uzbekistan": "ኡዝቤኪስታን",
+}
+
+
+SHORT_AMHARIC_TEAMS = {
+    "Bosnia and Herzegovina": "ቦስኒያ",
+    "Côte d'Ivoire": "ኮት ዲቯር",
+    "Korea Republic": "ደ. ኮሪያ",
+    "New Zealand": "ኒውዚላንድ",
+    "Saudi Arabia": "ሳዑዲ",
+    "South Africa": "ደ. አፍሪካ",
 }

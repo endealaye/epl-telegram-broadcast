@@ -112,6 +112,15 @@ def _normalize_command(text):
     return command.split("@", 1)[0].lower()
 
 
+def build_command_help_message():
+    return (
+        "ℹ️ *Available commands*\n\n"
+        "• `/status`\n"
+        "• `/workflow`\n"
+        "• `/heartbeat`"
+    )
+
+
 def broadcast_heartbeat(chat_id=None):
     try:
         now = get_eat_now()
@@ -157,6 +166,11 @@ def process_commands():
                 send_telegram_message(build_status_message(), chat_id=chat_id)
             elif command == '/workflow':
                 send_telegram_message(build_workflow_message(), chat_id=chat_id)
+            elif command.startswith('/'):
+                send_telegram_message(
+                    f"❓ *Unknown command*: `{command}`\n\n{build_command_help_message()}",
+                    chat_id=chat_id,
+                )
 
             last_update_id = update['update_id']
 

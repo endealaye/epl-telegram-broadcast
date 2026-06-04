@@ -2,14 +2,19 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 
-from supabase import Client, create_client
+from supabase import Client, ClientOptions, create_client
 
 from bot_config import SUPABASE_KEY, SUPABASE_URL, get_eat_now, get_eat_today, parse_eat_datetime
 
 
 supabase: Client = None
+SUPABASE_DB_TIMEOUT_SECONDS = float(os.getenv("SUPABASE_DB_TIMEOUT_SECONDS", "8"))
 if SUPABASE_URL and SUPABASE_KEY:
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    supabase = create_client(
+        SUPABASE_URL,
+        SUPABASE_KEY,
+        options=ClientOptions(postgrest_client_timeout=SUPABASE_DB_TIMEOUT_SECONDS),
+    )
 
 LIVE_POLLING_WINDOW_MINUTES = int(os.getenv("LIVE_POLLING_WINDOW_MINUTES", "105"))
 
