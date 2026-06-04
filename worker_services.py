@@ -8,6 +8,7 @@ from standings import broadcast_standings
 from store import fetch_fixtures_for_dates, has_live_window_matches, has_matches_today, has_pending_results, has_upcoming_matches
 from bot_config import get_eat_today
 from sync import update_fixtures_from_json
+from world_cup_analysis import generate_group_stage_previews, list_analysis_queue, mark_analysis_preview
 from world_cup_form import refresh_world_cup_qualifier_form
 from world_cup_players import refresh_world_cup_players
 from world_cup_squad_audit import audit_world_cup_squads
@@ -239,6 +240,64 @@ def audit_world_cup_squads_service():
             action="world_cup_squad_audit",
             success=False,
             message=f"World Cup squad audit failed: {e}",
+        )
+
+
+def generate_world_cup_analysis_service():
+    try:
+        result = generate_group_stage_previews()
+        return ServiceResult(
+            action="world_cup_analysis",
+            success=True,
+            message=(
+                f"World Cup analysis generated {result.get('generated', 0)} draft previews "
+                f"from {result.get('fixtures', 0)} group fixtures."
+            ),
+            data=result,
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_analysis",
+            success=False,
+            message=f"World Cup analysis generation failed: {e}",
+        )
+
+
+def list_world_cup_analysis_queue_service(limit=20, status="draft"):
+    try:
+        items = list_analysis_queue(limit=limit, status=status)
+        return ServiceResult(
+            action="world_cup_analysis_queue",
+            success=True,
+            message=f"Loaded {len(items)} {status} World Cup previews.",
+            data={"items": items, "count": len(items), "status": status},
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_analysis_queue",
+            success=False,
+            message=f"World Cup analysis queue failed: {e}",
+        )
+
+
+def mark_world_cup_analysis_service(matchnumber, status):
+    try:
+        updated = mark_analysis_preview(matchnumber, status)
+        return ServiceResult(
+            action="world_cup_analysis_mark",
+            success=updated is not None,
+            message=(
+                f"Preview {matchnumber} marked {status}."
+                if updated
+                else f"Preview {matchnumber} not found."
+            ),
+            data={"item": updated} if updated else {},
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_analysis_mark",
+            success=False,
+            message=f"World Cup analysis mark failed: {e}",
         )
 
 

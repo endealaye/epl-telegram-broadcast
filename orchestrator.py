@@ -3,8 +3,11 @@ import json
 from service_models import AgentEvent, ServiceResult
 from worker_services import (
     fetch_news_service,
+    generate_world_cup_analysis_service,
     list_news_queue_service,
+    list_world_cup_analysis_queue_service,
     mark_news_item_service,
+    mark_world_cup_analysis_service,
     process_admin_commands_service,
     process_live_window_service,
     send_daily_broadcast_service,
@@ -28,6 +31,15 @@ INTENT_HANDLERS = {
     "reminders": lambda payload: send_reminders_service(),
     "results": lambda payload: send_results_service(),
     "standings": lambda payload: send_standings_service(format_name=payload.get("format")),
+    "world_cup_analysis": lambda payload: generate_world_cup_analysis_service(),
+    "world_cup_analysis_queue": lambda payload: list_world_cup_analysis_queue_service(
+        limit=payload.get("limit", 20),
+        status=payload.get("status", "draft"),
+    ),
+    "world_cup_analysis_mark": lambda payload: mark_world_cup_analysis_service(
+        matchnumber=payload.get("matchnumber"),
+        status=payload.get("status", ""),
+    ),
     "world_cup_squad_audit": lambda payload: audit_world_cup_squads_service(),
     "world_cup_form": lambda payload: refresh_world_cup_form_service(),
     "world_cup_players": lambda payload: refresh_world_cup_players_service(),

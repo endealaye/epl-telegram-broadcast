@@ -7,7 +7,7 @@ from orchestrator import parse_event_json, route_event_dict
 def print_usage():
     print(
         "Usage: python3 telegram_broadcast.py "
-        "[refresh|commands|live|daily|reminders|results|standings [short|full]|world-cup-squad-audit|world-cup-form|world-cup-players|world-cup-standings|heartbeat|news-fetch|news-queue|news-mark|event]"
+        "[refresh|commands|live|daily|reminders|results|standings [short|full]|world-cup-analysis|world-cup-analysis-queue|world-cup-analysis-mark|world-cup-squad-audit|world-cup-form|world-cup-players|world-cup-standings|heartbeat|news-fetch|news-queue|news-mark|event]"
     )
 
 
@@ -53,6 +53,27 @@ if __name__ == '__main__':
             if len(sys.argv) > 2:
                 payload["format"] = sys.argv[2]
             result = route_event_dict({"intent": "standings", "payload": payload})
+        elif mode == 'world-cup-analysis':
+            result = route_event_dict({"intent": "world_cup_analysis"})
+        elif mode == 'world-cup-analysis-queue':
+            payload = {}
+            if len(sys.argv) > 2:
+                payload["limit"] = int(sys.argv[2])
+            if len(sys.argv) > 3:
+                payload["status"] = sys.argv[3]
+            result = route_event_dict({"intent": "world_cup_analysis_queue", "payload": payload})
+        elif mode == 'world-cup-analysis-mark':
+            if len(sys.argv) < 4:
+                print(json.dumps({
+                    "action": "world_cup_analysis_mark",
+                    "success": False,
+                    "message": "Usage: python3 telegram_broadcast.py world-cup-analysis-mark <matchnumber> <draft|approved|published|rejected>",
+                }, ensure_ascii=False))
+                raise SystemExit(1)
+            result = route_event_dict({
+                "intent": "world_cup_analysis_mark",
+                "payload": {"matchnumber": int(sys.argv[2]), "status": sys.argv[3]},
+            })
         elif mode == 'world-cup-players':
             result = route_event_dict({"intent": "world_cup_players"})
         elif mode == 'world-cup-form':
