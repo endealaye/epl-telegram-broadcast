@@ -13,6 +13,10 @@ from telegram_limits import TELEGRAM_NEWS_CAPTION_TARGET, TELEGRAM_NEWS_MAX_LINE
 
 app = Flask(__name__)
 
+DEFAULT_DASHBOARD_LIMIT = 30
+MIN_DASHBOARD_LIMIT = 10
+MAX_DASHBOARD_LIMIT = 100
+
 
 def build_amharic_preview_text(title, story):
     parts = []
@@ -130,7 +134,7 @@ LIST_TEMPLATE = """
             <option value="{{ option }}" {% if option == selected_status %}selected{% endif %}>{{ option }}</option>
             {% endfor %}
           </select>
-          <input type="number" min="1" max="100" name="limit" value="{{ limit }}">
+          <input type="number" min="{{ min_limit }}" max="{{ max_limit }}" name="limit" value="{{ limit }}">
           <button type="submit">Apply</button>
         </form>
       </div>
@@ -472,10 +476,10 @@ DEFAULT_STATUSES = {
 def news_list():
     selected_status = request.args.get("status", "review")
     try:
-        limit = int(request.args.get("limit", 10))
+        limit = int(request.args.get("limit", DEFAULT_DASHBOARD_LIMIT))
     except (TypeError, ValueError):
-        limit = 10
-    limit = max(1, min(100, limit))
+        limit = DEFAULT_DASHBOARD_LIMIT
+    limit = max(MIN_DASHBOARD_LIMIT, min(MAX_DASHBOARD_LIMIT, limit))
     statuses = DEFAULT_STATUSES.get(selected_status, DEFAULT_STATUSES["review"])
     try:
         items = list_news_queue_preview(statuses=statuses, limit=limit)
@@ -490,6 +494,8 @@ def news_list():
         selected_status=selected_status,
         status_options=list(DEFAULT_STATUSES.keys()),
         limit=limit,
+        min_limit=MIN_DASHBOARD_LIMIT,
+        max_limit=MAX_DASHBOARD_LIMIT,
     )
 
 
