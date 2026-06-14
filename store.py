@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from supabase import Client, ClientOptions, create_client
 
-from bot_config import SUPABASE_KEY, SUPABASE_URL, get_eat_now, get_eat_today, parse_eat_datetime
+from bot_config import CURRENT_EPL_SEASON, SUPABASE_KEY, SUPABASE_URL, get_eat_now, get_eat_today, parse_eat_datetime
 
 
 supabase: Client = None
@@ -17,6 +17,7 @@ if SUPABASE_URL and SUPABASE_KEY:
     )
 
 LIVE_POLLING_WINDOW_MINUTES = int(os.getenv("LIVE_POLLING_WINDOW_MINUTES", "105"))
+KNOCKOUT_LIVE_POLLING_WINDOW_MINUTES = int(os.getenv("KNOCKOUT_LIVE_POLLING_WINDOW_MINUTES", "165"))
 
 def _safe_execute(query, default=None, context="supabase"):
     try:
@@ -147,8 +148,84 @@ def fixture_competition_name(fixture):
     return (fixture.get("matchgroup") or "Premier League").strip()
 
 
+def season_start_year(season):
+    label = (season or "").strip()
+    if not label:
+        return None
+    try:
+        return int(label.split("-", 1)[0])
+    except ValueError:
+        return None
+
+
+def season_date_bounds(season):
+    start_year = season_start_year(season)
+    if start_year is None:
+        return None, None
+    return f"{start_year}-08-01 00:00:00", f"{start_year + 1}-08-01 00:00:00"
+
+
+def fetch_premier_league_clubs_for_season(season=None):
+    if not supabase:
+        return set()
+
+    target_season = season or CURRENT_EPL_SEASON
+    rows = []
+    res = _safe_execute(
+        supabase.table("fixtures")
+        .select("hometeam,awayteam")
+        .eq("matchgroup", "Premier League")
+        .eq("season", target_season),
+        default=None,
+        context=f"fixtures.clubs.season:{target_season}",
+    )
+    if res is not None:
+        rows = res.data or []
+    else:
+        start_date, end_date = season_date_bounds(target_season)
+        query = (
+            supabase.table("fixtures")
+            .select("hometeam,awayteam")
+            .eq("matchgroup", "Premier League")
+        )
+        if start_date and end_date:
+            query = query.gte("dateeat", start_date).lt("dateeat", end_date)
+        fallback = _safe_execute(
+            query,
+            default=None,
+            context=f"fixtures.clubs.date_fallback:{target_season}",
+        )
+        rows = (fallback.data or []) if fallback is not None else []
+
+    clubs = set()
+    for row in rows:
+        if row.get("hometeam"):
+            clubs.add(row["hometeam"])
+        if row.get("awayteam"):
+            clubs.add(row["awayteam"])
+    return clubs
+
+
 def is_premier_league_fixture(fixture):
     return fixture_competition_name(fixture) == "Premier League"
+
+
+def is_world_cup_fixture(fixture):
+    return fixture_competition_name(fixture).startswith("FIFA World Cup")
+
+
+def is_world_cup_group_fixture(fixture):
+    return fixture_competition_name(fixture).startswith("FIFA World Cup - Group ")
+
+
+def fixture_allows_extra_time(fixture):
+    return is_world_cup_fixture(fixture) and not is_world_cup_group_fixture(fixture)
+
+
+def fixture_live_window_minutes(fixture):
+    if fixture_allows_extra_time(fixture):
+        return max(120, KNOCKOUT_LIVE_POLLING_WINDOW_MINUTES)
+    return max(90, LIVE_POLLING_WINDOW_MINUTES)
 
 
 def fixtures_in_window(start_dt, end_dt):
@@ -176,7 +253,8 @@ def is_in_live_polling_window(fixture, now=None, window_minutes=LIVE_POLLING_WIN
     kickoff = parse_eat_datetime(fixture.get('dateeat'))
     if not kickoff:
         return False
-    return kickoff <= current <= kickoff + timedelta(minutes=max(90, int(window_minutes)))
+    configured_window = max(int(window_minutes), fixture_live_window_minutes(fixture))
+    return kickoff <= current <= kickoff + timedelta(minutes=configured_window)
 
 
 def has_live_window_matches():
