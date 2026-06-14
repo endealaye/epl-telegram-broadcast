@@ -190,6 +190,10 @@ LIST_TEMPLATE = """
           <span>{{ item.published_at or 'No timestamp' }}</span>
           <span class="pill">{{ item.review_status }}</span>
           <span class="pill">score {{ item.relevance_score }}</span>
+          {% set match_meta = ((item.raw_payload or {}).get('match_metadata') or {}) %}
+          {% if match_meta and match_meta.get('match_type') and match_meta.get('match_type') != 'other' %}
+          <span class="pill">match: {{ match_meta.get('match_type') }}</span>
+          {% endif %}
           {% set limit = item.telegram_limit or {} %}
           <span class="limit-pill {% if limit.status == 'safe' %}limit-safe{% elif limit.status == 'warning' %}limit-warning{% else %}limit-bad{% endif %}">
             Telegram {{ limit.chars or 0 }}/{{ limit.hard_limit_chars or 1024 }} · {{ limit.lines or 0 }}/{{ limit.max_lines or '∞' }} lines · {{ limit.status or 'unknown' }}
@@ -294,6 +298,10 @@ DETAIL_TEMPLATE = """
         <span>{{ item.published_at or 'No timestamp' }}</span>
         <span>{{ item.review_status }}</span>
         <span>score {{ item.relevance_score }}</span>
+        {% set match_meta = ((item.raw_payload or {}).get('match_metadata') or {}) %}
+        {% if match_meta and match_meta.get('match_type') and match_meta.get('match_type') != 'other' %}
+        <span class="pill">match: {{ match_meta.get('match_type') }}</span>
+        {% endif %}
         {% set limit = item.telegram_limit or {} %}
         <span id="telegram_limit_pill" class="limit-pill {% if limit.status == 'safe' %}limit-safe{% elif limit.status == 'warning' %}limit-warning{% else %}limit-bad{% endif %}">
           Telegram {{ limit.chars or 0 }}/{{ limit.hard_limit_chars or 1024 }} · {{ limit.lines or 0 }}/{{ limit.max_lines or '∞' }} lines · {{ limit.status or 'unknown' }}
@@ -307,32 +315,6 @@ DETAIL_TEMPLATE = """
       </div>
       <h1>{{ item.title }}</h1>
       <p>{{ item.summary }}</p>
-      {% set match_meta = ((item.raw_payload or {}).get('match_metadata') or {}) %}
-      {% if match_meta and match_meta.get('match_type') and match_meta.get('match_type') != 'other' %}
-      <div class="detected-box">
-        <h3>Detected Match Structure</h3>
-        <p><strong>Type:</strong> {{ match_meta.get('match_type') }}</p>
-        {% if match_meta.get('prediction') %}
-        <p><strong>Prediction:</strong> {{ match_meta.get('prediction') }}</p>
-        {% endif %}
-        {% if match_meta.get('has_lineup_image') %}
-        <p><strong>Lineup Image:</strong> yes</p>
-        {% endif %}
-        {% if match_meta.get('final_score') %}
-        <p><strong>Final Score:</strong> {{ match_meta.get('final_score').get('home') }} {{ match_meta.get('final_score').get('home_score') }} - {{ match_meta.get('final_score').get('away_score') }} {{ match_meta.get('final_score').get('away') }}</p>
-        {% endif %}
-        {% if match_meta.get('scorers') %}
-        <p><strong>Scorers:</strong>
-          {% for scorer in match_meta.get('scorers') %}
-            {{ scorer.get('player') }} ({{ scorer.get('minute') }}){% if not loop.last %}, {% endif %}
-          {% endfor %}
-        </p>
-        {% endif %}
-        {% if match_meta.get('injury_update') %}
-        <p><strong>Injury:</strong> {{ match_meta.get('injury_update') }}</p>
-        {% endif %}
-      </div>
-      {% endif %}
       {% if item.story %}
       <div style="white-space: pre-wrap;">{{ item.story }}</div>
       {% endif %}
