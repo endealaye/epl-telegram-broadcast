@@ -253,14 +253,14 @@ Important operational consequence:
 
 ### `reminders`
 
-- Intended schedule: every 30 minutes
+- Intended schedule: every 10 minutes
 - Query: fixtures starting within the next 60 minutes and `reminder_sent` is false
 - Output: reminder message in Amharic
 - State change: updates sent rows to `reminder_sent = true`
 
 ### `results`
 
-- Intended schedule: every 30 minutes
+- Intended schedule: every 10 minutes
 - Query: today’s fixtures where score data exists and `result_sent` is false
 - Output: consolidated results roundup in Amharic
 - State change: updates sent rows to `result_sent = true`
@@ -297,8 +297,8 @@ Configured schedules:
   - Runs at `15:00 UTC`, which is `18:00 EAT`
 - `30 20 * * *`
   - Runs at `20:30 UTC`, which is `23:30 EAT`
-- `*/30 * * * *`
-  - Runs every 30 minutes
+- `*/10 * * * *`
+  - Runs every 10 minutes
 - `*/5 * * * *`
   - Runs every 5 minutes
 
@@ -307,13 +307,13 @@ Current workflow behavior:
 - `refresh` runs on the two daily refresh schedules and on manual dispatch.
 - `world-cup-analysis` runs before the World Cup evening and overnight kickoff blocks and on manual dispatch.
 - `world-cup-analysis-review-reminder` runs after analysis generation and sends the admin pending drafts for the next 8 hours.
-- `world-cup-analysis-publish` runs on the 30-minute schedule and posts approved previews whose kickoff is within 90 minutes.
+- `world-cup-analysis-publish` runs on the 10-minute schedule and posts approved previews whose kickoff is within 90 minutes.
 - `world-cup-fact` runs on the `05:00 UTC` schedule and on manual dispatch, stores a fact queue in `bot_state`, and sends one fact per EAT day.
-- `commands` runs on the 30-minute schedule and on manual dispatch.
+- `commands` runs on the 10-minute schedule and on manual dispatch.
 - `live` runs on the 5-minute live polling workflow and on manual dispatch.
-- The daily step runs on the `05:00 UTC`, 30-minute schedule, and on manual dispatch; policy blocks broadcasts once the first kickoff has been reached.
-- The reminders step runs on the 30-minute schedule and on manual dispatch.
-- The results step runs on the 30-minute schedule and on manual dispatch.
+- The daily step runs on the `05:00 UTC`, 10-minute schedule, and on manual dispatch; policy blocks broadcasts once the first kickoff has been reached.
+- The reminders step runs on the 10-minute schedule and on manual dispatch.
+- The results step runs on the 10-minute schedule and on manual dispatch.
 
 This means the 05:00 UTC run executes:
 
@@ -327,7 +327,7 @@ And the World Cup analysis schedules execute:
 - `world-cup-analysis` at `20:30 UTC` / `23:30 EAT`
 - `world-cup-analysis-review-reminder` after each generation run
 
-And the 30-minute schedule executes:
+And the 10-minute schedule executes:
 
 - `commands`
 - `reminders`

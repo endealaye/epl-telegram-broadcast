@@ -70,7 +70,7 @@ def send_admin_alert(message):
 def get_next_workflow_run_eat():
     now = get_eat_now()
     next_run = now.replace(second=0, microsecond=0)
-    minute_slot = ((next_run.minute // 30) + 1) * 30
+    minute_slot = ((next_run.minute // 10) + 1) * 10
     if minute_slot >= 60:
         next_run = next_run.replace(minute=0) + timedelta(hours=1)
     else:
@@ -96,11 +96,11 @@ def build_workflow_message():
     policy = classify_match_day()
     return (
         "🗓️ *Workflow Schedule*\n\n"
-        "• `commands`, `reminders`, `results`, `news-fetch`: every 30 minutes\n"
+        "• `commands`, `reminders`, `results`, `news-fetch`: every 10 minutes\n"
         "• `live`: every 5 minutes\n"
         "• `refresh`: twice daily\n"
         "• `daily`: once daily\n\n"
-        f"⏭️ *Next 30-minute cycle*: {next_run.strftime('%Y-%m-%d %H:%M')} EAT\n"
+        f"⏭️ *Next 10-minute cycle*: {next_run.strftime('%Y-%m-%d %H:%M')} EAT\n"
         f"🧠 *Current policy*: {build_policy_summary(policy)}"
     )
 

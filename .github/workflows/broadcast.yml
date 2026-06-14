@@ -6,8 +6,12 @@ on:
     - cron: '0 5 * * *'
     # 8 PM EAT = 5 PM UTC
     - cron: '0 17 * * *'
-    # Every 30 minutes for reminders, results, commands, and news
-    - cron: '*/30 * * * *'
+    # 6 PM EAT = 3 PM UTC, before the evening World Cup kickoff block
+    - cron: '0 15 * * *'
+    # 11:30 PM EAT = 8:30 PM UTC, before the overnight World Cup kickoff block
+    - cron: '30 20 * * *'
+    # Every 10 minutes for reminders, results, commands, and news
+    - cron: '*/10 * * * *'
   workflow_dispatch: # Allows manual trigger
 
 jobs:
@@ -105,8 +109,28 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python3 telegram_broadcast.py refresh
 
+      - name: Run World Cup Analysis
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 15 * * *' || github.event.schedule == '30 20 * * *'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_ADMIN_ID: ${{ secrets.TELEGRAM_ADMIN_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 telegram_broadcast.py world-cup-analysis
+
+      - name: Remind Admin To Review World Cup Analysis
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 15 * * *' || github.event.schedule == '30 20 * * *'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_ADMIN_ID: ${{ secrets.TELEGRAM_ADMIN_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 telegram_broadcast.py world-cup-analysis-review-reminder
+
       - name: Process Telegram Commands
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/30 * * * *'
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/10 * * * *'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -116,7 +140,7 @@ jobs:
         run: python3 telegram_broadcast.py commands
 
       - name: Run Daily Broadcast
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 5 * * *' || github.event.schedule == '*/30 * * * *'
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 5 * * *' || github.event.schedule == '*/10 * * * *'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -125,8 +149,18 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python3 telegram_broadcast.py daily
 
+      - name: Publish Daily World Cup Fact
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 5 * * *'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_ADMIN_ID: ${{ secrets.TELEGRAM_ADMIN_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 telegram_broadcast.py world-cup-fact
+
       - name: Run Reminders
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/30 * * * *'
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/10 * * * *'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -136,7 +170,7 @@ jobs:
         run: python3 telegram_broadcast.py reminders
 
       - name: Fetch News Queue
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/30 * * * *'
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/10 * * * *'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -145,8 +179,18 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python3 telegram_broadcast.py news-fetch
 
+      - name: Publish Approved World Cup Analysis
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/10 * * * *'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_ADMIN_ID: ${{ secrets.TELEGRAM_ADMIN_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 telegram_broadcast.py world-cup-analysis-publish
+
       - name: Run Results
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/30 * * * *'
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/10 * * * *'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
