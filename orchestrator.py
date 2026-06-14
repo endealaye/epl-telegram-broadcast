@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 from service_models import AgentEvent, ServiceResult
 from worker_services import (
@@ -8,19 +9,37 @@ from worker_services import (
     list_world_cup_analysis_queue_service,
     mark_news_item_service,
     mark_world_cup_analysis_service,
+    publish_world_cup_prediction_service,
+    publish_world_cup_fact_service,
+    publish_world_cup_analysis_service,
     process_admin_commands_service,
+    remind_world_cup_analysis_review_service,
     process_live_window_service,
     send_daily_broadcast_service,
     send_heartbeat_service,
     send_reminders_service,
     send_results_service,
     send_standings_service,
+    save_world_cup_prediction_service,
+    seed_world_cup_facts_service,
     audit_world_cup_squads_service,
+    refresh_world_cup_coaches_service,
     refresh_world_cup_form_service,
+    refresh_world_cup_bbc_squads_service,
     refresh_world_cup_players_service,
     refresh_world_cup_standings_service,
     sync_fixtures_service,
 )
+
+
+def convert_datetimes_to_iso(data):
+    if isinstance(data, datetime):
+        return data.isoformat()
+    if isinstance(data, dict):
+        return {k: convert_datetimes_to_iso(v) for k, v in data.items()}
+    if isinstance(data, list):
+        return [convert_datetimes_to_iso(elem) for elem in data]
+    return data
 
 
 INTENT_HANDLERS = {
@@ -32,6 +51,10 @@ INTENT_HANDLERS = {
     "results": lambda payload: send_results_service(),
     "standings": lambda payload: send_standings_service(format_name=payload.get("format")),
     "world_cup_analysis": lambda payload: generate_world_cup_analysis_service(),
+    "world_cup_analysis_review_reminder": lambda payload: remind_world_cup_analysis_review_service(),
+    "world_cup_analysis_publish": lambda payload: publish_world_cup_analysis_service(),
+    "world_cup_facts_seed": lambda payload: seed_world_cup_facts_service(),
+    "world_cup_fact": lambda payload: publish_world_cup_fact_service(),
     "world_cup_analysis_queue": lambda payload: list_world_cup_analysis_queue_service(
         limit=payload.get("limit", 20),
         status=payload.get("status", "draft"),
@@ -40,9 +63,24 @@ INTENT_HANDLERS = {
         matchnumber=payload.get("matchnumber"),
         status=payload.get("status", ""),
     ),
+    "world_cup_prediction_save": lambda payload: save_world_cup_prediction_service(
+        matchnumber=payload.get("matchnumber"),
+        predicted_home_score=payload.get("predicted_home_score"),
+        predicted_away_score=payload.get("predicted_away_score"),
+        prediction_text=payload.get("prediction_text", ""),
+        confidence=payload.get("confidence", "medium"),
+        source_context=payload.get("source_context"),
+        language=payload.get("language", "am"),
+    ),
+    "world_cup_prediction_publish": lambda payload: publish_world_cup_prediction_service(
+        matchnumber=payload.get("matchnumber"),
+        language=payload.get("language", "am"),
+    ),
     "world_cup_squad_audit": lambda payload: audit_world_cup_squads_service(),
+    "world_cup_coaches": lambda payload: refresh_world_cup_coaches_service(),
     "world_cup_form": lambda payload: refresh_world_cup_form_service(),
     "world_cup_players": lambda payload: refresh_world_cup_players_service(),
+    "world_cup_bbc_squads": lambda payload: refresh_world_cup_bbc_squads_service(),
     "world_cup_standings": lambda payload: refresh_world_cup_standings_service(),
     "heartbeat": lambda payload: send_heartbeat_service(chat_id=payload.get("chat_id")),
     "news_fetch": lambda payload: fetch_news_service(),
@@ -65,7 +103,10 @@ def route_event(event: AgentEvent):
             success=False,
             message=f"Unsupported intent: {event.intent}",
         )
-    return handler(event.payload)
+    result = handler(event.payload)
+    if result and result.data:
+        result.data = convert_datetimes_to_iso(result.data)
+    return result
 
 
 def route_event_dict(event_dict):
