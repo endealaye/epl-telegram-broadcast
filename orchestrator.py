@@ -9,7 +9,18 @@ from worker_services import (
     list_world_cup_analysis_queue_service,
     mark_news_item_service,
     mark_world_cup_analysis_service,
-    publish_world_cup_prediction_service,
+)
+try:
+    from worker_services import publish_world_cup_prediction_service
+except ImportError:
+    # Workaround for environments not correctly updating worker_services.py
+    def publish_world_cup_prediction_service(*args, **kwargs):
+        return ServiceResult(
+            action="world_cup_prediction_publish",
+            success=False,
+            message="publish_world_cup_prediction_service not available in this environment.",
+        )
+from worker_services import (
     publish_world_cup_fact_service,
     publish_world_cup_analysis_service,
     process_admin_commands_service,
