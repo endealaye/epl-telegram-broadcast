@@ -4,7 +4,14 @@ from datetime import datetime, timedelta, timezone
 
 from supabase import Client, ClientOptions, create_client
 
-from bot_config import CURRENT_EPL_SEASON, SUPABASE_KEY, SUPABASE_URL, get_eat_now, get_eat_today, parse_eat_datetime
+import bot_config
+
+SUPABASE_URL = bot_config.SUPABASE_URL
+SUPABASE_KEY = bot_config.SUPABASE_KEY
+CURRENT_EPL_SEASON = getattr(bot_config, "CURRENT_EPL_SEASON", os.getenv("CURRENT_EPL_SEASON", "2025-26"))
+get_eat_now = bot_config.get_eat_now
+get_eat_today = bot_config.get_eat_today
+parse_eat_datetime = bot_config.parse_eat_datetime
 
 
 supabase: Client = None
