@@ -17,6 +17,7 @@ from bot_config import (
 )
 from commands import send_admin_alert, send_telegram_message, send_telegram_photo_file
 from news_pipeline import load_watermark_image, resolve_watermark_asset
+from posting_policy import build_policy_summary, classify_match_day, should_send_daily
 from standings import (
     _build_standings_watermark_overlay,
     _fit_logo,
@@ -29,6 +30,7 @@ from standings import (
 from store import (
     acquire_bot_lock,
     fetch_fixtures_for_dates,
+    fixture_allows_extra_time,
     fixture_competition_name,
     fixtures_in_window,
     get_bot_state_value,
@@ -498,8 +500,23 @@ def _has_final_score(fixture):
 
 
 def _result_note(fixture):
+    if fixture_allows_extra_time(fixture):
+        if fixture.get("went_penalties"):
+            home_pens = fixture.get("home_penalties")
+            away_pens = fixture.get("away_penalties")
+            if home_pens is not None and away_pens is not None:
+                return f"pens {home_pens}-{away_pens}"
+            return "pens"
+        if fixture.get("went_extra_time"):
+            return "AET"
+
     note = (fixture.get("result_note") or fixture.get("last_broadcast_score") or "").strip()
     normal_score = f"{fixture.get('hometeamscore')}-{fixture.get('awayteamscore')}"
+    if not fixture_allows_extra_time(fixture) and any(
+        marker in note.lower()
+        for marker in ("aet", "extra time", "pen", "penalty", "penalties")
+    ):
+        return ""
     if note and note != normal_score:
         return note
     return ""
@@ -697,6 +714,10 @@ def reconcile_post_match_delivery(date_strings=None):
 def broadcast_daily():
     try:
         if not supabase:
+            return
+        policy = classify_match_day()
+        if not should_send_daily(policy):
+            print(f"Skip daily: {build_policy_summary(policy)}")
             return
         # Rule: clear unsent final scores before posting today's fixtures list.
         result_scope = _results_date_scope()

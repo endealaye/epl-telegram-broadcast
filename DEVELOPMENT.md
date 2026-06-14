@@ -50,6 +50,7 @@ The runtime expects the `fixtures` table to include at least these fields:
 - `hometeam`
 - `awayteam`
 - `matchgroup`
+- `season`
 - `hometeamscore`
 - `awayteamscore`
 - `broadcaststatus`
@@ -60,10 +61,13 @@ The runtime expects the `fixtures` table to include at least these fields:
 - `result_sent`
 
 The repository includes [add_broadcast_state_columns.sql](/Users/nebiyou.yirga/Downloads/ft_dd/add_broadcast_state_columns.sql) for the new broadcast-state columns.
+It also includes [add_fixture_season_column.sql](/Users/nebiyou.yirga/Downloads/ft_dd/add_fixture_season_column.sql)
+for the `season` column.
 
 Expected semantics:
 
 - `dateeat` stores the EAT-normalized kickoff datetime as a string.
+- `season` separates previous and new seasons, for example `2025-26`, `2026-27`, or `2026` for the World Cup.
 - `broadcaststatus` remains a compatibility/status field for coarse state.
 - `last_broadcast_score` prevents duplicate goal alerts.
 - `half_time_sent` prevents duplicate half-time alerts.
@@ -105,8 +109,12 @@ It also creates dedicated analysis tables:
 - `world_cup_player_availability`
 - `world_cup_group_standings`
 - `match_analysis`
+- `match_predictions`
 
-Run the SQL in Supabase SQL Editor, then populate source checks with:
+For only score-prediction storage, run [add_match_predictions_table.sql](/Users/nebiyou.yirga/Downloads/ft_dd/add_match_predictions_table.sql)
+in Supabase SQL Editor.
+
+Run the full World Cup analysis SQL in Supabase SQL Editor, then populate source checks with:
 
 ```bash
 python3 verify_world_cup_sources.py --persist
@@ -121,6 +129,11 @@ The verifier compares FixtureDownload against OpenFootball. Current expected sta
 - Known mismatches: `2` kickoff-time disagreements
   - Match 29: Brazil vs Haiti
   - Match 31: Türkiye vs Paraguay
+
+World Cup match-duration rule:
+
+- Group-stage matches are treated as 90-minute matches for result and standings logic.
+- Knockout matches can go beyond 90 minutes with extra time and penalty shoot-outs.
 
 ### Table: `news_items`
 
@@ -232,7 +245,8 @@ Important operational consequence:
 
 ### `daily`
 
-- Intended schedule: `08:00 EAT` / `05:00 UTC`
+- Intended schedule: only before the first World Cup kickoff of the day, so overnight and early-morning matchdays can still post once and only once before play starts.
+- Policy rule: `current_at < first_kickoff_at`
 - Query: fixtures whose `dateeat` starts with today’s EAT date and `daily_sent` is false
 - Output: grouped list of today’s fixtures in Amharic
 - State change: updates selected rows to `daily_sent = true`
@@ -279,6 +293,10 @@ Configured schedules:
   - Runs at `05:00 UTC`, which is `08:00 EAT`
 - `0 17 * * *`
   - Runs at `17:00 UTC`, which is `20:00 EAT`
+- `0 15 * * *`
+  - Runs at `15:00 UTC`, which is `18:00 EAT`
+- `30 20 * * *`
+  - Runs at `20:30 UTC`, which is `23:30 EAT`
 - `*/30 * * * *`
   - Runs every 30 minutes
 - `*/5 * * * *`
@@ -287,9 +305,13 @@ Configured schedules:
 Current workflow behavior:
 
 - `refresh` runs on the two daily refresh schedules and on manual dispatch.
+- `world-cup-analysis` runs before the World Cup evening and overnight kickoff blocks and on manual dispatch.
+- `world-cup-analysis-review-reminder` runs after analysis generation and sends the admin pending drafts for the next 8 hours.
+- `world-cup-analysis-publish` runs on the 30-minute schedule and posts approved previews whose kickoff is within 90 minutes.
+- `world-cup-fact` runs on the `05:00 UTC` schedule and on manual dispatch, stores a fact queue in `bot_state`, and sends one fact per EAT day.
 - `commands` runs on the 30-minute schedule and on manual dispatch.
 - `live` runs on the 5-minute live polling workflow and on manual dispatch.
-- The daily step runs on the `05:00 UTC` schedule and on manual dispatch.
+- The daily step runs on the `05:00 UTC`, 30-minute schedule, and on manual dispatch; policy blocks broadcasts once the first kickoff has been reached.
 - The reminders step runs on the 30-minute schedule and on manual dispatch.
 - The results step runs on the 30-minute schedule and on manual dispatch.
 
@@ -297,12 +319,20 @@ This means the 05:00 UTC run executes:
 
 - `refresh`
 - `daily`
+- `world-cup-fact`
+
+And the World Cup analysis schedules execute:
+
+- `world-cup-analysis` at `15:00 UTC` / `18:00 EAT`
+- `world-cup-analysis` at `20:30 UTC` / `23:30 EAT`
+- `world-cup-analysis-review-reminder` after each generation run
 
 And the 30-minute schedule executes:
 
 - `commands`
 - `reminders`
 - `news-fetch`
+- `world-cup-analysis-publish`
 - `results`
 
 And the 5-minute live workflow executes:

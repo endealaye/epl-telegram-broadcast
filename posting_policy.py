@@ -1,4 +1,3 @@
-import os
 from datetime import timedelta
 
 from bot_config import get_eat_now, get_eat_today, parse_eat_datetime
@@ -11,7 +10,6 @@ COMPETITION_PRIORITY = {
     "UEFA Europa League": 2,
     "UEFA Conference League": 3,
 }
-DAILY_BROADCAST_START_HOUR_EAT = int(os.getenv("DAILY_BROADCAST_START_HOUR_EAT", "7"))
 
 
 def _fixtures_for_policy_window(now=None):
@@ -89,10 +87,14 @@ def classify_match_day(now=None):
             ),
         )[0]
 
+    first_kickoff = min((kickoff for kickoff in (_kickoff_for_fixture(fixture) for fixture in today_fixtures) if kickoff), default=None)
+
     return {
         "state": state,
         "today": get_eat_today(),
         "current_hour_eat": current.hour,
+        "current_at": current,
+        "first_kickoff_at": first_kickoff,
         "fixture_count": len(today_fixtures),
         "live_count": len(live_fixtures),
         "upcoming_count": len(upcoming_fixtures),
@@ -110,8 +112,13 @@ def should_run_live(policy):
 def should_send_daily(policy):
     if not (policy or {}).get("fixture_count"):
         return False
-    current_hour = int((policy or {}).get("current_hour_eat", -1))
-    return current_hour >= DAILY_BROADCAST_START_HOUR_EAT
+    if (policy or {}).get("state") != "pre_match_day":
+        return False
+    current_at = (policy or {}).get("current_at")
+    first_kickoff_at = (policy or {}).get("first_kickoff_at")
+    if not current_at or not first_kickoff_at:
+        return False
+    return current_at < first_kickoff_at
 
 
 def should_send_reminders(policy):
@@ -122,9 +129,11 @@ def build_policy_summary(policy):
     if not policy:
         return "No policy state available."
     competitions = ", ".join(policy.get("competitions") or []) or "none"
+    first_kickoff = policy.get("first_kickoff_at")
+    first_kickoff_text = first_kickoff.strftime("%Y-%m-%d %H:%M") if first_kickoff else "none"
     return (
         f"state={policy.get('state')} | fixtures={policy.get('fixture_count', 0)} | "
         f"hour_eat={policy.get('current_hour_eat', '?')} | "
         f"live={policy.get('live_count', 0)} | upcoming={policy.get('upcoming_count', 0)} | "
-        f"completed={policy.get('completed_count', 0)} | competitions={competitions}"
+        f"completed={policy.get('completed_count', 0)} | first_kickoff={first_kickoff_text} | competitions={competitions}"
     )
