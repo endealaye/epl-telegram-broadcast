@@ -1,7 +1,9 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from bot_config import AMHARIC_TEAMS, SHORT_AMHARIC_TEAMS
-from store import supabase
+from bot_config import TELEGRAM_ADMIN_ID
+from commands import send_telegram_message
+from store import get_bot_state_value, set_bot_state_value, supabase
 from telegram_limits import (
     TELEGRAM_ANALYSIS_CAPTION_TARGET,
     TELEGRAM_ANALYSIS_MAX_LINES,
@@ -27,6 +29,8 @@ FIXTURE_SOURCE_URLS = [
 HOST_TEAMS_WITHOUT_QUALIFIER_FORM = {"Canada", "Mexico", "USA"}
 KEY_POSITION_ORDER = {"FW": 0, "MF": 1, "DF": 2, "GK": 3}
 VALID_REVIEW_STATUSES = {"draft", "approved", "published", "rejected"}
+ANALYSIS_REVIEW_WINDOW_HOURS = 8
+ANALYSIS_PUBLISH_WINDOW_MINUTES = 90
 
 
 def _team_am(team_name, short=False):
@@ -52,6 +56,14 @@ def _fixture_kickoff(fixture):
         except ValueError:
             continue
     return dateeat
+
+
+def _parse_fixture_kickoff(fixture):
+    dateeat = fixture.get("dateeat") or ""
+    try:
+        return datetime.strptime(dateeat, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
 
 
 def _fetch_group_fixtures():
@@ -82,6 +94,56 @@ def _fetch_existing_analysis():
     return {row["matchnumber"]: row for row in res.data or []}
 
 
+def _fetch_analysis_rows(status):
+    if not supabase:
+        return []
+    res = (
+        supabase.table("match_analysis")
+        .select("matchnumber,title,body,confidence,review_status,updated_at,source_urls")
+        .eq("analysis_type", "preview")
+        .eq("language", "am")
+        .eq("review_status", status)
+        .execute()
+    )
+    return res.data or []
+
+
+def _fetch_world_cup_fixture_map():
+    return {
+        fixture["matchnumber"]: fixture
+        for fixture in _fetch_group_fixtures()
+        if fixture.get("matchnumber") is not None
+    }
+
+
+def _analysis_with_fixtures(status, *, now=None, window=None):
+    current = (now or datetime.now(timezone.utc) + timedelta(hours=3)).replace(tzinfo=None)
+    fixture_map = _fetch_world_cup_fixture_map()
+    items = []
+    for row in _fetch_analysis_rows(status):
+        fixture = fixture_map.get(row.get("matchnumber"))
+        kickoff = _parse_fixture_kickoff(fixture or {})
+        if not fixture or not kickoff:
+            continue
+        if kickoff < current:
+            continue
+        if window and kickoff > current + window:
+            continue
+        items.append({**row, "fixture": fixture, "kickoff": kickoff})
+    return sorted(items, key=lambda item: (item["kickoff"], item.get("matchnumber") or 0))
+
+
+def _analysis_item_label(item):
+    fixture = item.get("fixture") or {}
+    kickoff = item.get("kickoff")
+    kickoff_text = kickoff.strftime("%Y-%m-%d %H:%M EAT") if kickoff else _fixture_kickoff(fixture)
+    return (
+        f"#{item.get('matchnumber')} "
+        f"{fixture.get('hometeam')} vs {fixture.get('awayteam')} "
+        f"({kickoff_text})"
+    )
+
+
 def _fetch_availability_map():
     if not supabase:
         return {}
@@ -95,6 +157,24 @@ def _fetch_availability_map():
     for row in res.data or []:
         availability.setdefault(row["team_name"], {})[row["player_name"]] = row
     return availability
+
+
+def _fetch_team_story_map():
+    if not supabase:
+        return {}
+    res = (
+        supabase.table("world_cup_teams")
+        .select("team_name,raw_payload")
+        .execute()
+    )
+    teams = {}
+    for row in res.data or []:
+        coach = ((row.get("raw_payload") or {}).get("coach") or {})
+        teams[row["team_name"]] = {
+            "coach_name": coach.get("name"),
+            "coach_source_url": coach.get("source_url"),
+        }
+    return teams
 
 
 def _player_caps(player):
@@ -186,13 +266,42 @@ def _confidence_am(confidence):
 
 def _availability_note(team_name, availability):
     rows = availability.get(team_name, {})
-    important = [name for name, row in rows.items() if row.get("status") in {"injured", "suspended"}]
-    if not important:
+    unavailable = [name for name, row in rows.items() if row.get("status") in {"injured", "suspended"}]
+    doubtful = [name for name, row in rows.items() if row.get("status") == "doubtful"]
+    notes = []
+    if unavailable:
+        notes.append(f"{', '.join(unavailable[:2])} አይገኙም")
+    if doubtful:
+        notes.append(f"{', '.join(doubtful[:2])} ጤናው ጥያቄ ላይ ነው")
+    if not notes:
         return None
-    return f"{_team_am(team_name, short=True)}: {', '.join(important[:2])} አይገኙም።"
+    return f"{_team_am(team_name, short=True)}: {'፤ '.join(notes)}።"
 
 
-def build_preview(fixture, availability):
+def _coach_line(home_team, away_team, team_story):
+    home_coach = (team_story.get(home_team) or {}).get("coach_name")
+    away_coach = (team_story.get(away_team) or {}).get("coach_name")
+    if not home_coach and not away_coach:
+        return None
+    parts = []
+    if home_coach:
+        parts.append(f"{_team_am(home_team, short=True)}: {home_coach}")
+    if away_coach:
+        parts.append(f"{_team_am(away_team, short=True)}: {away_coach}")
+    return "🧠 አሰልጣኞች: " + " | ".join(parts)
+
+
+def _coach_source_urls(home_team, away_team, team_story):
+    urls = []
+    for team_name in [home_team, away_team]:
+        source_url = (team_story.get(team_name) or {}).get("coach_source_url")
+        if source_url and source_url not in urls:
+            urls.append(source_url)
+    return urls
+
+
+def build_preview(fixture, availability, team_story=None):
+    team_story = team_story or {}
     home = fixture["hometeam"]
     away = fixture["awayteam"]
     group = _group_name(fixture.get("matchgroup"))
@@ -207,11 +316,18 @@ def build_preview(fixture, availability):
         f"🕘 {_fixture_kickoff(fixture)}",
         "",
         "📊 ቅድመ ጨዋታ እይታ",
-        _form_sentence(home, home_form),
-        _form_sentence(away, away_form),
-        "",
-        "👀 ሊታዩ የሚገባቸው",
     ]
+    coach_line = _coach_line(home, away, team_story)
+    if coach_line:
+        lines.append(coach_line)
+    lines.extend(
+        [
+            _form_sentence(home, home_form),
+            _form_sentence(away, away_form),
+            "",
+            "👀 ሊታዩ የሚገባቸው",
+        ]
+    )
     for player in home_players:
         lines.append(f"{_team_am(home, short=True)}: {_format_player(player)}")
     for player in away_players:
@@ -249,6 +365,7 @@ def build_preview(fixture, availability):
             WIKIPEDIA_SQUADS_URL,
             SKY_SQUADS_URL,
             QUALIFIER_SOURCE_URL,
+            *_coach_source_urls(home, away, team_story),
         ],
         "limit_status": telegram_limit_status(
             body,
@@ -266,6 +383,7 @@ def generate_group_stage_previews():
     fixtures = _fetch_group_fixtures()
     existing = _fetch_existing_analysis()
     availability = _fetch_availability_map()
+    team_story = _fetch_team_story_map()
     payload = []
     items = []
     skipped = 0
@@ -276,7 +394,7 @@ def generate_group_stage_previews():
         if current and current.get("review_status") in {"approved", "published"}:
             skipped += 1
             continue
-        preview = build_preview(fixture, availability)
+        preview = build_preview(fixture, availability, team_story=team_story)
         row = {
             "matchnumber": fixture["matchnumber"],
             "analysis_type": "preview",
@@ -353,3 +471,73 @@ def mark_analysis_preview(matchnumber, status):
     )
     rows = res.data or []
     return rows[0] if rows else None
+
+
+def send_analysis_review_reminder(window_hours=ANALYSIS_REVIEW_WINDOW_HOURS):
+    if not supabase:
+        return {"sent": False, "count": 0, "items": []}
+
+    items = _analysis_with_fixtures(
+        "draft",
+        window=timedelta(hours=int(window_hours)),
+    )
+    if not items:
+        return {"sent": False, "count": 0, "items": []}
+
+    matchnumbers = [str(item.get("matchnumber")) for item in items]
+    marker = ",".join(matchnumbers)
+    state_key = "world_cup_analysis_review_reminder_last"
+    if get_bot_state_value(state_key) == marker:
+        return {
+            "sent": False,
+            "skipped": True,
+            "count": len(items),
+            "items": [_analysis_item_label(item) for item in items],
+        }
+
+    lines = [
+        "📝 *World Cup analysis review needed*",
+        "",
+        f"Pending previews in the next {int(window_hours)} hours:",
+    ]
+    lines.extend(f"• `{_analysis_item_label(item)}`" for item in items[:12])
+    if len(items) > 12:
+        lines.append(f"• …and {len(items) - 12} more")
+    lines.extend(
+        [
+            "",
+            "Approve with:",
+            "`python3 telegram_broadcast.py world-cup-analysis-mark <matchnumber> approved`",
+        ]
+    )
+
+    sent = send_telegram_message("\n".join(lines), chat_id=TELEGRAM_ADMIN_ID)
+    if sent:
+        set_bot_state_value(state_key, marker)
+    return {
+        "sent": bool(sent),
+        "count": len(items),
+        "items": [_analysis_item_label(item) for item in items],
+    }
+
+
+def publish_due_analysis(window_minutes=ANALYSIS_PUBLISH_WINDOW_MINUTES):
+    if not supabase:
+        return {"published": 0, "items": []}
+
+    items = _analysis_with_fixtures(
+        "approved",
+        window=timedelta(minutes=int(window_minutes)),
+    )
+    published = []
+    for item in items:
+        title = item.get("title") or _fixture_title(item["fixture"])
+        body = item.get("body") or ""
+        message = f"*{title}*\n\n{body}".strip()
+        if not send_telegram_message(message):
+            continue
+        updated = mark_analysis_preview(item["matchnumber"], "published")
+        if updated:
+            published.append(_analysis_item_label(item))
+
+    return {"published": len(published), "items": published}
