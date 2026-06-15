@@ -10,8 +10,10 @@ from bs4 import BeautifulSoup
 
 from bot_config import (
     BBC_SCORES_URL_TEMPLATE,
+    CURRENT_EPL_SEASON,
     JSON_URL,
     TEAM_MAPPING,
+    WORLD_CUP_SEASON,
     WORLD_CUP_JSON_URL,
     get_eat_now,
     get_eat_today,
@@ -45,6 +47,26 @@ UEFA_REQUEST_HEADERS = {
     ),
     "Accept-Language": "en-GB,en;q=0.9",
 }
+
+
+def _upsert_fixture_rows(rows):
+    if not supabase or not rows:
+        return 0
+    try:
+        res = supabase.table("fixtures").upsert(rows).execute()
+        return len(res.data or rows)
+    except Exception as exc:
+        message = str(exc).lower()
+        if "season" not in message or "column" not in message:
+            raise
+        fallback_rows = []
+        for row in rows:
+            fallback = dict(row)
+            fallback.pop("season", None)
+            fallback_rows.append(fallback)
+        print("Fixture season column missing; upserting without season. Run add_fixture_season_column.sql.")
+        res = supabase.table("fixtures").upsert(fallback_rows).execute()
+        return len(res.data or fallback_rows)
 
 
 def _to_eat_datetime(date_string, uk_time_string):
@@ -224,6 +246,7 @@ def _sky_competition_fixtures_for_date(date_string, competitions=None):
                 "hometeamscore": None,
                 "awayteamscore": None,
                 "dateeat": dateeat,
+                "season": CURRENT_EPL_SEASON,
                 "roundlabel": round_name,
             }
         )
@@ -243,8 +266,7 @@ def _upsert_sky_competition_fixtures_for_date(date_string, competitions=None):
         row.pop("roundlabel", None)
         payload.append(row)
 
-    res = supabase.table("fixtures").upsert(payload).execute()
-    return len(res.data or payload)
+    return _upsert_fixture_rows(payload)
 
 
 def _season_year_for_date(month):
@@ -352,6 +374,7 @@ def _uefa_article_fixtures_for_date(date_string, article_url, competition_name):
                     "hometeamscore": parsed["home_score"],
                     "awayteamscore": parsed["away_score"],
                     "dateeat": _uefa_default_dateeat(date_string, paragraph_text),
+                    "season": CURRENT_EPL_SEASON,
                     "roundlabel": None,
                 }
             )
@@ -385,8 +408,7 @@ def _upsert_uefa_ucl_article_fixtures_for_date(date_string):
         row = dict(fixture)
         row.pop("roundlabel", None)
         payload.append(row)
-    res = supabase.table("fixtures").upsert(payload).execute()
-    return len(res.data or fixtures)
+    return _upsert_fixture_rows(payload)
 
 
 def _upsert_uefa_uel_article_fixtures_for_date(date_string):
@@ -400,8 +422,7 @@ def _upsert_uefa_uel_article_fixtures_for_date(date_string):
         row = dict(fixture)
         row.pop("roundlabel", None)
         payload.append(row)
-    res = supabase.table("fixtures").upsert(payload).execute()
-    return len(res.data or fixtures)
+    return _upsert_fixture_rows(payload)
 
 
 def _fixture_download_dateeat(utc_date):
@@ -447,6 +468,7 @@ def _world_cup_fixture_rows(data):
                 "hometeamscore": match.get("HomeTeamScore"),
                 "awayteamscore": match.get("AwayTeamScore"),
                 "dateeat": _fixture_download_dateeat(match.get("DateUtc")),
+                "season": WORLD_CUP_SEASON,
             }
         )
     return rows
@@ -460,38 +482,72 @@ def upsert_world_cup_fixtures():
     rows = _world_cup_fixture_rows(response.json())
     if not rows:
         return 0
-    res = supabase.table("fixtures").upsert(rows).execute()
-    return len(res.data or rows)
+    return _upsert_fixture_rows(rows)
 
 
 def update_fixtures_from_json():
     if not supabase:
+        print("Error: Supabase client not initialized.")
         return False
     try:
-        response = requests.get(JSON_URL)
-        response.raise_for_status()
-        data = response.json()
+        try:
+            response = requests.get(JSON_URL, timeout=30)
+            response.raise_for_status() # Raises HTTPError for bad responses (4xx or 5xx)
+            data = response.json()
+        except requests.exceptions.Timeout as e:
+            print(f"Error fetching fixtures from {JSON_URL}: Request timed out. {e}")
+            return False
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching fixtures from {JSON_URL}: Network or HTTP error. {e}")
+            return False
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON from {JSON_URL}: Invalid JSON response. {e}")
+            print(f"Response content: {response.text[:500]}...") # Print first 500 chars of response
+            return False
+        except Exception as e:
+            print(f"Unexpected error during initial fixture fetch from {JSON_URL}: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+        if not isinstance(data, list):
+            print(f"Error: Expected a list of fixtures, but got {type(data)} from {JSON_URL}.")
+            return False
+
         for match in data:
-            utc_date = match.get('DateUtc')
-            eat_date = _fixture_download_dateeat(utc_date)
-            supabase.table('fixtures').upsert({
-                "matchnumber": match.get('MatchNumber'),
-                "roundnumber": match.get('RoundNumber'),
-                "dateutc": utc_date,
-                "location": match.get('Location'),
-                "hometeam": match.get('HomeTeam'),
-                "awayteam": match.get('AwayTeam'),
-                "matchgroup": match.get('Group') or "Premier League",
-                "hometeamscore": match.get('HomeTeamScore'),
-                "awayteamscore": match.get('AwayTeamScore'),
-                "dateeat": eat_date,
-            }).execute()
+            try:
+                utc_date = match.get('DateUtc')
+                eat_date = _fixture_download_dateeat(utc_date)
+                _upsert_fixture_rows([{
+                    "matchnumber": match.get('MatchNumber'),
+                    "roundnumber": match.get('RoundNumber'),
+                    "dateutc": utc_date,
+                    "location": match.get('Location'),
+                    "hometeam": match.get('HomeTeam'),
+                    "awayteam": match.get('AwayTeam'),
+                    "matchgroup": match.get('Group') or "Premier League",
+                    "hometeamscore": match.get('HomeTeamScore'),
+                    "awayteamscore": match.get('AwayTeamScore'),
+                    "dateeat": eat_date,
+                    "season": CURRENT_EPL_SEASON,
+                }])
+            except Exception as e:
+                print(f"Error processing match {match.get('MatchNumber', 'N/A')}: {e}")
+                import traceback
+                traceback.print_exc()
+                # Decide if you want to continue or return False here
+                # For now, let's continue to process other matches but log the error
+                continue # Or return False if a single match failure should stop everything
+
         try:
             updated = upsert_world_cup_fixtures()
             if updated:
                 print(f"Upserted {updated} FIFA World Cup rows from FixtureDownload.")
         except Exception as world_cup_exc:
-            print(f"FIFA World Cup sync skipped: {world_cup_exc}")
+            print(f"FIFA World Cup sync skipped due to error: {world_cup_exc}")
+            import traceback
+            traceback.print_exc()
+
         yesterday = (get_eat_now() - timedelta(days=1)).strftime("%Y-%m-%d")
         today = get_eat_today()
         tomorrow = (get_eat_now() + timedelta(days=1)).strftime("%Y-%m-%d")
@@ -501,13 +557,17 @@ def update_fixtures_from_json():
                 if updated:
                     print(f"Upserted {updated} UEFA Champions League rows from UEFA.com on {date_string}.")
             except Exception as ucl_exc:
-                print(f"UEFA Champions League sync skipped for {date_string}: {ucl_exc}")
+                print(f"UEFA Champions League sync skipped for {date_string} due to error: {ucl_exc}")
+                import traceback
+                traceback.print_exc()
             try:
                 updated = _upsert_uefa_uel_article_fixtures_for_date(date_string)
                 if updated:
                     print(f"Upserted {updated} UEFA Europa League rows from UEFA.com on {date_string}.")
             except Exception as uel_exc:
-                print(f"UEFA Europa League sync skipped for {date_string}: {uel_exc}")
+                print(f"UEFA Europa League sync skipped for {date_string} due to error: {uel_exc}")
+                import traceback
+                traceback.print_exc()
 
         for date_string in {today, tomorrow}:
             try:
@@ -518,7 +578,9 @@ def update_fixtures_from_json():
                 if updated:
                     print(f"Upserted {updated} tracked European fixture rows on {date_string}.")
             except Exception as comp_exc:
-                print(f"European fixture sync skipped for {date_string}: {comp_exc}")
+                print(f"European fixture sync skipped for {date_string} due to error: {comp_exc}")
+                import traceback
+                traceback.print_exc()
         # Prioritize BBC kickoff times and normalize them to EAT for near-term fixtures.
         for date_string in {today, tomorrow}:
             try:
@@ -526,15 +588,21 @@ def update_fixtures_from_json():
                 if updated:
                     print(f"Applied BBC kickoff override for {updated} fixture rows on {date_string}.")
             except Exception as bbc_exc:
-                print(f"BBC kickoff override skipped for {date_string}: {bbc_exc}")
+                print(f"BBC kickoff override skipped for {date_string} due to error: {bbc_exc}")
+                import traceback
+                traceback.print_exc()
         for date_string in {yesterday, today}:
             try:
                 updated = _apply_sky_result_overrides(date_string)
                 if updated:
                     print(f"Applied Sky result override for {updated} fixture rows on {date_string}.")
             except Exception as sky_exc:
-                print(f"Sky result override skipped for {date_string}: {sky_exc}")
+                print(f"Sky result override skipped for {date_string} due to error: {sky_exc}")
+                import traceback
+                traceback.print_exc()
         return True
     except Exception as e:
-        print(f"Error updating fixtures: {e}")
+        print(f"Unhandled error updating fixtures: {e}")
+        import traceback
+        traceback.print_exc()
         return False
