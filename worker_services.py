@@ -1,6 +1,7 @@
 from broadcasts import broadcast_daily, broadcast_reminders, broadcast_results, maybe_send_auto_standings, reconcile_post_match_delivery
 from commands import broadcast_heartbeat, process_commands
 from live import process_live_updates
+from match_predictions import publish_match_prediction, save_match_prediction
 from news_pipeline import fetch_news_items, get_review_queue, mark_review_item
 from posting_policy import build_policy_summary, classify_match_day, should_run_live, should_send_daily, should_send_reminders
 from service_models import ServiceResult
@@ -8,9 +9,17 @@ from standings import broadcast_standings
 from store import fetch_fixtures_for_dates, has_live_window_matches, has_matches_today, has_pending_results, has_upcoming_matches
 from bot_config import get_eat_today
 from sync import update_fixtures_from_json
-from world_cup_analysis import generate_group_stage_previews, list_analysis_queue, mark_analysis_preview
+from world_cup_analysis import (
+    generate_group_stage_previews,
+    list_analysis_queue,
+    mark_analysis_preview,
+    publish_due_analysis,
+    send_analysis_review_reminder,
+)
+from world_cup_facts import publish_daily_world_cup_fact, seed_world_cup_facts
 from world_cup_form import refresh_world_cup_qualifier_form
-from world_cup_players import refresh_world_cup_players
+from world_cup_coaches import update_world_cup_coaches
+from world_cup_players import refresh_world_cup_players, refresh_world_cup_players_with_bbc
 from world_cup_squad_audit import audit_world_cup_squads
 from world_cup_standings import refresh_world_cup_group_standings
 
@@ -180,6 +189,45 @@ def refresh_world_cup_standings_service():
         )
 
 
+def seed_world_cup_facts_service():
+    try:
+        result = seed_world_cup_facts()
+        return ServiceResult(
+            action="world_cup_facts_seed",
+            success=True,
+            message=f"World Cup fact queue seeded with {result.get('total', 0)} facts.",
+            data=result,
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_facts_seed",
+            success=False,
+            message=f"World Cup fact seeding failed: {e}",
+        )
+
+
+def publish_world_cup_fact_service():
+    try:
+        result = publish_daily_world_cup_fact()
+        return ServiceResult(
+            action="world_cup_fact",
+            success=True,
+            skipped=result.get("skipped", False),
+            message=(
+                f"World Cup fact sent: {result.get('fact_id')}."
+                if result.get("sent")
+                else f"World Cup fact skipped: {result.get('reason', 'no_fact_sent')}."
+            ),
+            data=result,
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_fact",
+            success=False,
+            message=f"World Cup fact publish failed: {e}",
+        )
+
+
 def refresh_world_cup_players_service():
     try:
         result = refresh_world_cup_players()
@@ -199,6 +247,48 @@ def refresh_world_cup_players_service():
             action="world_cup_players",
             success=False,
             message=f"World Cup players refresh failed: {e}",
+        )
+
+
+def refresh_world_cup_bbc_squads_service():
+    try:
+        result = refresh_world_cup_players_with_bbc()
+        return ServiceResult(
+            action="world_cup_bbc_squads",
+            success=True,
+            message=(
+                f"BBC squads refreshed: {result.get('confirmed_players', 0)} players confirmed, "
+                f"{result.get('inserted_players', 0)} inserted, "
+                f"{result.get('teams_confirmed', 0)} teams confirmed, "
+                f"{result.get('availability_rows', 0)} availability rows added."
+            ),
+            data=result,
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_bbc_squads",
+            success=False,
+            message=f"BBC squad refresh failed: {e}",
+        )
+
+
+def refresh_world_cup_coaches_service():
+    try:
+        result = update_world_cup_coaches()
+        return ServiceResult(
+            action="world_cup_coaches",
+            success=True,
+            message=(
+                f"World Cup coaches refreshed: {result.get('updated', 0)} teams updated "
+                f"({'columns' if result.get('columns_updated') else 'raw payload'})."
+            ),
+            data=result,
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_coaches",
+            success=False,
+            message=f"World Cup coaches refresh failed: {e}",
         )
 
 
@@ -263,6 +353,46 @@ def generate_world_cup_analysis_service():
         )
 
 
+def remind_world_cup_analysis_review_service():
+    try:
+        result = send_analysis_review_reminder()
+        return ServiceResult(
+            action="world_cup_analysis_review_reminder",
+            success=True,
+            skipped=result.get("skipped", False) or not result.get("sent", False),
+            message=(
+                f"World Cup analysis review reminder sent for {result.get('count', 0)} previews."
+                if result.get("sent")
+                else f"No new World Cup analysis review reminder sent; {result.get('count', 0)} previews pending."
+            ),
+            data=result,
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_analysis_review_reminder",
+            success=False,
+            message=f"World Cup analysis review reminder failed: {e}",
+        )
+
+
+def publish_world_cup_analysis_service():
+    try:
+        result = publish_due_analysis()
+        return ServiceResult(
+            action="world_cup_analysis_publish",
+            success=True,
+            skipped=result.get("published", 0) == 0,
+            message=f"World Cup analysis published {result.get('published', 0)} approved previews.",
+            data=result,
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_analysis_publish",
+            success=False,
+            message=f"World Cup analysis publish failed: {e}",
+        )
+
+
 def list_world_cup_analysis_queue_service(limit=20, status="draft"):
     try:
         items = list_analysis_queue(limit=limit, status=status)
@@ -298,6 +428,66 @@ def mark_world_cup_analysis_service(matchnumber, status):
             action="world_cup_analysis_mark",
             success=False,
             message=f"World Cup analysis mark failed: {e}",
+        )
+
+
+def save_world_cup_prediction_service(
+    matchnumber,
+    predicted_home_score,
+    predicted_away_score,
+    prediction_text,
+    confidence="medium",
+    source_context=None,
+    language="am",
+):
+    try:
+        item = save_match_prediction(
+            matchnumber=matchnumber,
+            predicted_home_score=predicted_home_score,
+            predicted_away_score=predicted_away_score,
+            prediction_text=prediction_text,
+            confidence=confidence,
+            source_context=source_context,
+            language=language,
+        )
+        return ServiceResult(
+            action="world_cup_prediction_save",
+            success=item is not None,
+            message=(
+                f"Prediction {matchnumber} saved."
+                if item
+                else f"Prediction {matchnumber} was not saved."
+            ),
+            data={"item": item} if item else {},
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_prediction_save",
+            success=False,
+            message=f"World Cup prediction save failed: {e}",
+        )
+
+
+def publish_world_cup_prediction_service(matchnumber, language="am"):
+    try:
+        result = publish_match_prediction(matchnumber=matchnumber, language=language)
+        item = result.get("item") or {}
+        return ServiceResult(
+            action="world_cup_prediction_publish",
+            success=True,
+            skipped=result.get("skipped", False),
+            message=(
+                f"Prediction {matchnumber} already published."
+                if result.get("skipped")
+                else f"Prediction {matchnumber} published."
+            ),
+            data={"item": item, "sent": result.get("sent", False)},
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_prediction_publish",
+            success=False,
+            message=f"World Cup prediction publish failed: {e}",
         )
 
 
