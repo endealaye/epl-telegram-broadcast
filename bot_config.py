@@ -25,6 +25,8 @@ load_env()
 
 JSON_URL = 'https://fixturedownload.com/feed/json/epl-2025'
 WORLD_CUP_JSON_URL = 'https://fixturedownload.com/feed/json/fifa-world-cup-2026'
+CURRENT_EPL_SEASON = _clean_env('CURRENT_EPL_SEASON') or '2025-26'
+WORLD_CUP_SEASON = _clean_env('WORLD_CUP_SEASON') or '2026'
 BBC_SCORES_URL = 'https://www.bbc.com/sport/football/premier-league/scores-fixtures'
 BBC_SCORES_URL_TEMPLATE = 'https://www.bbc.com/sport/football/scores-fixtures/{date}'
 SKY_SCORES_URL_TEMPLATE = 'https://www.skysports.com/football-scores-fixtures/{date}'
