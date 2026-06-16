@@ -36,8 +36,6 @@ TELEGRAM_CHAT_ID = _clean_env('TELEGRAM_CHAT_ID')
 TELEGRAM_ADMIN_ID = _clean_env('TELEGRAM_ADMIN_ID')
 SUPABASE_URL = _clean_env('SUPABASE_URL')
 SUPABASE_KEY = _clean_env('SUPABASE_KEY')
-RAPIDAPI_KEY = _clean_env('RAPIDAPI_KEY')
-RAPIDAPI_HOST = _clean_env('RAPIDAPI_HOST')
 
 
 def get_eat_now():
