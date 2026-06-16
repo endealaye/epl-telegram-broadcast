@@ -13,6 +13,24 @@ on:
     # Every 10 minutes for reminders, results, commands, and news
     - cron: '*/10 * * * *'
   workflow_dispatch: # Allows manual trigger
+    inputs:
+      command:
+        description: 'Which telegram_broadcast.py command to run'
+        required: true
+        type: choice
+        default: 'refresh'
+        options:
+          - 'refresh'
+          - 'results'
+          - 'live'
+          - 'commands'
+          - 'daily'
+          - 'world-cup-analysis'
+          - 'world-cup-analysis-review-reminder'
+          - 'world-cup-analysis-publish'
+          - 'world-cup-fact'
+          - 'reminders'
+          - 'news-fetch'
 
 jobs:
   broadcast:
@@ -100,7 +118,7 @@ jobs:
           PY
 
       - name: Refresh Fixtures
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 5 * * *' || github.event.schedule == '0 17 * * *'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'refresh' || github.event_name == 'schedule' && (github.event.schedule == '0 5 * * *' || github.event.schedule == '0 17 * * *')
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -113,7 +131,7 @@ jobs:
         run: python3 telegram_broadcast.py refresh
 
       - name: Run World Cup Analysis
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 15 * * *' || github.event.schedule == '30 20 * * *'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'world-cup-analysis' || github.event_name == 'schedule' && (github.event.schedule == '0 15 * * *' || github.event.schedule == '30 20 * * *')
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -123,7 +141,7 @@ jobs:
         run: python3 telegram_broadcast.py world-cup-analysis
 
       - name: Remind Admin To Review World Cup Analysis
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 15 * * *' || github.event.schedule == '30 20 * * *'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'world-cup-analysis-review-reminder' || github.event_name == 'schedule' && (github.event.schedule == '0 15 * * *' || github.event.schedule == '30 20 * * *')
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -133,7 +151,7 @@ jobs:
         run: python3 telegram_broadcast.py world-cup-analysis-review-reminder
 
       - name: Process Telegram Commands
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/10 * * * *'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'commands' || github.event_name == 'schedule' && github.event.schedule == '*/10 * * * *'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -143,7 +161,7 @@ jobs:
         run: python3 telegram_broadcast.py commands
 
       - name: Run Daily Broadcast
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 5 * * *' || github.event.schedule == '*/10 * * * *'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'daily' || github.event_name == 'schedule' && (github.event.schedule == '0 5 * * *' || github.event.schedule == '*/10 * * * *')
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -153,7 +171,7 @@ jobs:
         run: python3 telegram_broadcast.py daily
 
       - name: Publish Daily World Cup Fact
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 5 * * *'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'world-cup-fact' || github.event_name == 'schedule' && github.event.schedule == '0 5 * * *'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -163,7 +181,7 @@ jobs:
         run: python3 telegram_broadcast.py world-cup-fact
 
       - name: Run Reminders
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/10 * * * *'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'reminders' || github.event_name == 'schedule' && github.event.schedule == '*/10 * * * *'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -173,7 +191,7 @@ jobs:
         run: python3 telegram_broadcast.py reminders
 
       - name: Fetch News Queue
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/10 * * * *'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'news-fetch' || github.event.name == 'schedule' && github.event.schedule == '*/10 * * * *'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -183,7 +201,7 @@ jobs:
         run: python3 telegram_broadcast.py news-fetch
 
       - name: Publish Approved World Cup Analysis
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/10 * * * *'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'world-cup-analysis-publish' || github.event.name == 'schedule' && github.event.schedule == '*/10 * * * *'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -193,7 +211,7 @@ jobs:
         run: python3 telegram_broadcast.py world-cup-analysis-publish
 
       - name: Run Results
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/10 * * * *'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'results' || github.event.name == 'schedule' && github.event.schedule == '*/10 * * * *'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
