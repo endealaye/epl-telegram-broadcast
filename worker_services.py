@@ -19,7 +19,17 @@ from world_cup_analysis import (
 from world_cup_facts import publish_daily_world_cup_fact, seed_world_cup_facts
 from world_cup_form import refresh_world_cup_qualifier_form
 from world_cup_coaches import update_world_cup_coaches
-from world_cup_players import refresh_world_cup_players, refresh_world_cup_players_with_bbc
+try:
+    from world_cup_players import refresh_world_cup_players, refresh_world_cup_players_with_bbc
+except ImportError as e:
+    print(f"DEBUG: Failed to import players functions from world_cup_players: {e}")
+    # Define dummy functions to allow the rest of the script to run for diagnostics
+    def refresh_world_cup_players(*args, **kwargs):
+        print("DEBUG: Dummy refresh_world_cup_players called.")
+        return {"error": f"ImportError: {e}"}
+    def refresh_world_cup_players_with_bbc(*args, **kwargs):
+        print("DEBUG: Dummy refresh_world_cup_players_with_bbc called.")
+        return {"error": f"ImportError: {e}"}
 from world_cup_squad_audit import audit_world_cup_squads
 from world_cup_standings import refresh_world_cup_group_standings
 
