@@ -7,6 +7,9 @@ from zoneinfo import ZoneInfo
 
 import requests
 from bs4 import BeautifulSoup
+import os
+import logging # NEW
+
 
 from bot_config import (
     BBC_SCORES_URL_TEMPLATE,
@@ -487,31 +490,42 @@ def upsert_world_cup_fixtures():
 
 def update_fixtures_from_json():
     if not supabase:
-        print("Error: Supabase client not initialized.")
+        logging.error("Error: Supabase client not initialized.")
         return False
+    
+    headers = {}
+    target_url = os.getenv('JSON_URL', JSON_URL) # Prioritize env var for JSON_URL
+
+    # Check if RapidAPI keys are provided and if the target URL is a RapidAPI endpoint
+    if RAPIDAPI_KEY and RAPIDAPI_HOST and "rapidapi.com" in target_url:
+        headers = {
+            "X-RapidAPI-Key": RAPIDAPI_KEY,
+            "X-RapidAPI-Host": RAPIDAPI_HOST
+        }
+    
     try:
         try:
-            response = requests.get(JSON_URL, timeout=30)
+            response = requests.get(target_url, headers=headers, timeout=30)
             response.raise_for_status() # Raises HTTPError for bad responses (4xx or 5xx)
             data = response.json()
         except requests.exceptions.Timeout as e:
-            print(f"Error fetching fixtures from {JSON_URL}: Request timed out. {e}")
+            logging.error(f"Error fetching fixtures from {target_url}: Request timed out. {e}")
             return False
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching fixtures from {JSON_URL}: Network or HTTP error. {e}")
+            logging.error(f"Error fetching fixtures from {target_url}: Network or HTTP error. {e}")
             return False
         except json.JSONDecodeError as e:
-            print(f"Error decoding JSON from {JSON_URL}: Invalid JSON response. {e}")
-            print(f"Response content: {response.text[:500]}...") # Print first 500 chars of response
+            logging.error(f"Error decoding JSON from {target_url}: Invalid JSON response. {e}")
+            logging.error(f"Response content: {response.text[:500]}...")
             return False
         except Exception as e:
-            print(f"Unexpected error during initial fixture fetch from {JSON_URL}: {e}")
+            logging.error(f"Unexpected error during initial fixture fetch from {target_url}: {e}")
             import traceback
             traceback.print_exc()
             return False
 
         if not isinstance(data, list):
-            print(f"Error: Expected a list of fixtures, but got {type(data)} from {JSON_URL}.")
+            logging.error(f"Error: Expected a list of fixtures, but got {type(data)} from {target_url}.")
             return False
 
         for match in data:
@@ -532,19 +546,17 @@ def update_fixtures_from_json():
                     "season": CURRENT_EPL_SEASON,
                 }])
             except Exception as e:
-                print(f"Error processing match {match.get('MatchNumber', 'N/A')}: {e}")
+                logging.error(f"Error processing match {match.get('MatchNumber', 'N/A')}: {e}")
                 import traceback
                 traceback.print_exc()
-                # Decide if you want to continue or return False here
-                # For now, let's continue to process other matches but log the error
-                continue # Or return False if a single match failure should stop everything
+                continue
 
         try:
             updated = upsert_world_cup_fixtures()
             if updated:
-                print(f"Upserted {updated} FIFA World Cup rows from FixtureDownload.")
+                logging.info(f"Upserted {updated} FIFA World Cup rows from FixtureDownload.")
         except Exception as world_cup_exc:
-            print(f"FIFA World Cup sync skipped due to error: {world_cup_exc}")
+            logging.error(f"FIFA World Cup sync skipped due to error: {world_cup_exc}")
             import traceback
             traceback.print_exc()
 
@@ -555,17 +567,17 @@ def update_fixtures_from_json():
             try:
                 updated = _upsert_uefa_ucl_article_fixtures_for_date(date_string)
                 if updated:
-                    print(f"Upserted {updated} UEFA Champions League rows from UEFA.com on {date_string}.")
+                    logging.info(f"Upserted {updated} UEFA Champions League rows from UEFA.com on {date_string}.")
             except Exception as ucl_exc:
-                print(f"UEFA Champions League sync skipped for {date_string} due to error: {ucl_exc}")
+                logging.error(f"UEFA Champions League sync skipped for {date_string} due to error: {ucl_exc}")
                 import traceback
                 traceback.print_exc()
             try:
                 updated = _upsert_uefa_uel_article_fixtures_for_date(date_string)
                 if updated:
-                    print(f"Upserted {updated} UEFA Europa League rows from UEFA.com on {date_string}.")
+                    logging.info(f"Upserted {updated} UEFA Europa League rows from UEFA.com on {date_string}.")
             except Exception as uel_exc:
-                print(f"UEFA Europa League sync skipped for {date_string} due to error: {uel_exc}")
+                logging.error(f"UEFA Europa League sync skipped for {date_string} due to error: {uel_exc}")
                 import traceback
                 traceback.print_exc()
 
@@ -576,9 +588,9 @@ def update_fixtures_from_json():
                     competitions={"UEFA Conference League"},
                 )
                 if updated:
-                    print(f"Upserted {updated} tracked European fixture rows on {date_string}.")
+                    logging.info(f"Upserted {updated} tracked European fixture rows on {date_string}.")
             except Exception as comp_exc:
-                print(f"European fixture sync skipped for {date_string} due to error: {comp_exc}")
+                logging.error(f"European fixture sync skipped for {date_string} due to error: {comp_exc}")
                 import traceback
                 traceback.print_exc()
         # Prioritize BBC kickoff times and normalize them to EAT for near-term fixtures.
@@ -586,23 +598,23 @@ def update_fixtures_from_json():
             try:
                 updated = _apply_bbc_kickoff_overrides(date_string)
                 if updated:
-                    print(f"Applied BBC kickoff override for {updated} fixture rows on {date_string}.")
+                    logging.info(f"Applied BBC kickoff override for {updated} fixture rows on {date_string}.")
             except Exception as bbc_exc:
-                print(f"BBC kickoff override skipped for {date_string} due to error: {bbc_exc}")
+                logging.error(f"BBC kickoff override skipped for {date_string} due to error: {bbc_exc}")
                 import traceback
                 traceback.print_exc()
         for date_string in {yesterday, today}:
             try:
                 updated = _apply_sky_result_overrides(date_string)
                 if updated:
-                    print(f"Applied Sky result override for {updated} fixture rows on {date_string}.")
+                    logging.info(f"Applied Sky result override for {updated} fixture rows on {date_string}.")
             except Exception as sky_exc:
-                print(f"Sky result override skipped for {date_string} due to error: {sky_exc}")
+                logging.error(f"Sky result override skipped for {date_string} due to error: {sky_exc}")
                 import traceback
                 traceback.print_exc()
         return True
     except Exception as e:
-        print(f"Unhandled error updating fixtures: {e}")
+        logging.error(f"Unhandled error updating fixtures: {e}")
         import traceback
         traceback.print_exc()
         return False
