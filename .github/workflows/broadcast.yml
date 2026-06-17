@@ -178,6 +178,16 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python3 telegram_broadcast.py world-cup-fact
 
+      - name: Run Results
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'results' || github.event_name == 'schedule' && github.event.schedule == '*/10 * * * *'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_ADMIN_ID: ${{ secrets.TELEGRAM_ADMIN_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 telegram_broadcast.py results
+
       - name: Run Reminders
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'reminders' || github.event_name == 'schedule' && github.event.schedule == '*/10 * * * *'
         env:
@@ -207,16 +217,6 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python3 telegram_broadcast.py world-cup-analysis-publish
-
-      - name: Run Results
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'results' || github.event_name == 'schedule' && github.event.schedule == '*/10 * * * *'
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_ADMIN_ID: ${{ secrets.TELEGRAM_ADMIN_ID }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python3 telegram_broadcast.py results
 
       - name: Notify Admin Workflow Failed
         if: failure()
