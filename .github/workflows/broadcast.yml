@@ -2,8 +2,8 @@ name: EPL Broadcast
 
 on:
   schedule:
-    # 8 AM EAT = 5 AM UTC
-    - cron: '0 5 * * *'
+    # 6 AM EAT = 3 AM UTC
+    - cron: '0 3 * * *'
     # 8 PM EAT = 5 PM UTC
     - cron: '0 17 * * *'
     # 6 PM EAT = 3 PM UTC, before the evening World Cup kickoff block
