@@ -189,7 +189,7 @@ jobs:
         run: python3 telegram_broadcast.py reminders
 
       - name: Fetch News Queue
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'news-fetch' || github.event.name == 'schedule' && github.event.schedule == '*/10 * * * *'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'news-fetch' || github.event_name == 'schedule' && github.event.schedule == '*/10 * * * *'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -199,7 +199,7 @@ jobs:
         run: python3 telegram_broadcast.py news-fetch
 
       - name: Publish Approved World Cup Analysis
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'world-cup-analysis-publish' || github.event.name == 'schedule' && github.event.schedule == '*/10 * * * *'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'world-cup-analysis-publish' || github.event_name == 'schedule' && github.event.schedule == '*/10 * * * *'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -209,7 +209,7 @@ jobs:
         run: python3 telegram_broadcast.py world-cup-analysis-publish
 
       - name: Run Results
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'results' || github.event.name == 'schedule' && github.event.schedule == '*/10 * * * *'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'results' || github.event_name == 'schedule' && github.event.schedule == '*/10 * * * *'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
