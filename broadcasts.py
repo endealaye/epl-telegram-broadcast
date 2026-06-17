@@ -715,23 +715,13 @@ def broadcast_daily():
     try:
         if not supabase:
             return
-        policy = classify_match_day()
-        if not should_send_daily(policy):
-            print(f"Skip daily: {build_policy_summary(policy)}")
-            return
-        # Rule: clear unsent final scores before posting today's fixtures list.
-        result_scope = _results_date_scope()
-        if has_pending_results(date_strings=result_scope):
-            broadcast_results(date_strings=result_scope)
-
-        if not has_matches_today():
-            print("Skip daily: no fixtures scheduled today.")
-            return
-
+        
         today = get_eat_today()
-        matches = [m for m in fetch_fixtures_for_dates([today]) if not m.get('daily_sent')]
+        # Fetch all fixtures for today, regardless of daily_sent status
+        matches = fetch_fixtures_for_dates([today])
+        
         if not matches:
-            print("Skip daily: today's fixtures were already broadcast.")
+            send_telegram_message(f"📅 የዛሬ ጨዋታዎች ({format_display_date(today)}):\n\n ምንም የታቀዱ ጨዋታዎች የሉም።")
             return
 
         matches.sort(key=_match_sort_key)
@@ -754,10 +744,13 @@ def broadcast_daily():
             for competition in sorted(competition_groups.keys(), key=_competition_sort_key)
         ]
         send_telegram_message(_build_daily_fixtures_text(today, groups))
+        
+        # Mark as sent
         supabase.table('fixtures').update({
             "daily_sent": True,
             "broadcaststatus": 'scheduled',
         }).in_('matchnumber', match_ids).execute()
+        
     except Exception as e:
         error_msg = f"Daily broadcast error: {e}"
         print(error_msg)
