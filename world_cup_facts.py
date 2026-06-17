@@ -106,7 +106,7 @@ def _format_fact_message(fact):
     return (
         "🌍 *የዓለም ዋንጫ እውነታ*\n\n"
         f"{fact['text']}\n\n"
-        "#WorldCup #GatangaFootball"
+        "#WorldCup"
     )
 
 
