@@ -27,6 +27,8 @@ from standings import (
     _resolve_logo_path,
     broadcast_standings,
 )
+from world_cup_analysis import broadcast_post_match_analysis_for_fixtures
+from world_cup_standings import broadcast_world_cup_standings_card_for_fixture, world_cup_group_name_for_fixture
 from store import (
     acquire_bot_lock,
     fetch_fixtures_for_dates,
@@ -440,12 +442,12 @@ def _send_match_board(title, subtitle, groups, mode="fixtures", caption=None):
             image_path = _render_results_news_style(title, subtitle, groups)
         else:
             image_path = _render_match_board(title, subtitle, groups, mode=mode)
-        return send_telegram_photo_file(image_path, caption or title)
+        return send_telegram_photo_file(image_path, caption or title, parse_mode=None)
     except Exception as exc:
         fallback_text = _build_results_text(title, subtitle, groups) if mode == "results" else _build_daily_fixtures_text(subtitle, groups)
         print(f"Match board fallback to text: {exc}")
         send_admin_alert(f"Match board fallback to text: {exc}")
-        return send_telegram_message(fallback_text)
+        return send_telegram_message(fallback_text, parse_mode=None)
     finally:
         if image_path is not None:
             image_path.unlink(missing_ok=True)
@@ -542,7 +544,7 @@ def _match_sort_key(match):
 
 
 def _build_daily_fixtures_text(today, groups):
-    lines = [f"📅 የዛሬ ጨዋታዎች ({format_display_date(today)})", ""]
+    lines = [f"📅 የዛሬ ጨዋታዎች ({format_display_date(today)})", "━━━━━━━━━━━━━━━━━━━━", ""]
     for competition, matches in groups:
         lines.append(f"🏆 {competition}")
         current_time = None
@@ -560,7 +562,7 @@ def _build_daily_fixtures_text(today, groups):
 
 
 def _build_results_text(title, subtitle, groups):
-    lines = [f"{title} ({format_display_date(subtitle)})", ""]
+    lines = [f"{title} ({format_display_date(subtitle)})", "━━━━━━━━━━━━━━━━━━━━", ""]
     for competition, matches in groups:
         lines.append(f"🏆 {competition}")
         for match in matches:
@@ -721,7 +723,10 @@ def broadcast_daily():
         matches = fetch_fixtures_for_dates([today])
         
         if not matches:
-            send_telegram_message(f"📅 የዛሬ ጨዋታዎች ({format_display_date(today)}):\n\n ምንም የታቀዱ ጨዋታዎች የሉም።")
+            send_telegram_message(
+                f"📅 የዛሬ ጨዋታዎች ({format_display_date(today)}):\n\n ምንም የታቀዱ ጨዋታዎች የሉም።",
+                parse_mode=None,
+            )
             return
 
         matches.sort(key=_match_sort_key)
@@ -743,7 +748,7 @@ def broadcast_daily():
             (competition, competition_groups[competition])
             for competition in sorted(competition_groups.keys(), key=_competition_sort_key)
         ]
-        send_telegram_message(_build_daily_fixtures_text(today, groups))
+        send_telegram_message(_build_daily_fixtures_text(today, groups), parse_mode=None)
         
         # Mark as sent
         supabase.table('fixtures').update({
@@ -780,7 +785,7 @@ def broadcast_reminders():
             away_am = _team_amharic_name(match['awayteam'])
             competition = fixture_competition_name(match)
             msg = f"🔔 *የጨዋታ ማሳሰቢያ!*\n\n🏆 {competition}\n⏰ {time} | {home_am} vs {away_am}\nተዘጋጁ! ⚽"
-            send_telegram_message(msg)
+            send_telegram_message(msg, parse_mode=None)
             mark_match_state(match['matchnumber'], reminder_sent=True, broadcaststatus='reminded')
     except Exception as e:
         error_msg = f"Reminder broadcast error: {e}"
@@ -845,8 +850,19 @@ def broadcast_results(date_strings=None):
             "broadcaststatus": 'result_sent',
         }).in_('matchnumber', sent_ids).execute()
 
+        broadcasted_groups = set()
+        for result in results:
+            try:
+                group_name = world_cup_group_name_for_fixture(result)
+                if group_name and group_name not in broadcasted_groups:
+                    broadcasted_groups.add(group_name)
+                    broadcast_world_cup_standings_card_for_fixture(result)
+            except Exception as e:
+                print(f"Failed to auto-broadcast standing card for match {result.get('matchnumber')}: {e}")
+
         refreshed_target_day = fetch_fixtures_for_dates([target_date])
         maybe_send_auto_standings(refreshed_target_day, today=target_date)
+        broadcast_post_match_analysis_for_fixtures(date_strings=normalized_dates)
     except Exception as e:
         error_msg = f"Results broadcast error: {e}"
         print(error_msg)

@@ -3,6 +3,37 @@ import sys
 from datetime import datetime
 
 from orchestrator import parse_event_json, route_event_dict
+from store import supabase_health_check
+
+
+SUPABASE_REQUIRED_MODES = {
+    "refresh",
+    "commands",
+    "live",
+    "daily",
+    "reminders",
+    "results",
+    "standings",
+    "world-cup-analysis",
+    "world-cup-analysis-review-reminder",
+    "world-cup-analysis-publish",
+    "world-cup-recap",
+    "world-cup-analysis-queue",
+    "world-cup-analysis-mark",
+    "world-cup-prediction-save",
+    "world-cup-prediction-publish",
+    "world-cup-facts-seed",
+    "world-cup-fact",
+    "world-cup-squad-audit",
+    "world-cup-coaches",
+    "world-cup-form",
+    "world-cup-players",
+    "world-cup-bbc-squads",
+    "world-cup-standings",
+    "news-fetch",
+    "news-queue",
+    "news-mark",
+}
 
 
 def json_serial(obj):
@@ -15,7 +46,7 @@ def json_serial(obj):
 def print_usage():
     print(
         "Usage: python3 telegram_broadcast.py "
-        "[refresh|commands|live|daily|reminders|results|standings [short|full]|world-cup-analysis|world-cup-analysis-review-reminder|world-cup-analysis-publish|world-cup-analysis-queue|world-cup-analysis-mark|world-cup-prediction-save|world-cup-prediction-publish|world-cup-facts-seed|world-cup-fact|world-cup-squad-audit|world-cup-coaches|world-cup-form|world-cup-players|world-cup-bbc-squads|world-cup-standings|heartbeat|news-fetch|news-queue|news-mark|event]"
+        "[refresh|commands|live|daily|reminders|results|standings [short|full]|world-cup-analysis|world-cup-analysis-review-reminder|world-cup-analysis-publish|world-cup-recap|world-cup-analysis-queue|world-cup-analysis-mark|world-cup-prediction-save|world-cup-prediction-publish|world-cup-facts-seed|world-cup-fact|world-cup-squad-audit|world-cup-coaches|world-cup-form|world-cup-players|world-cup-bbc-squads|world-cup-standings|heartbeat|news-fetch|news-queue|news-mark|event]"
     )
 
 
@@ -24,6 +55,16 @@ if __name__ == '__main__':
         print_usage()
     else:
         mode = sys.argv[1]
+        if mode in SUPABASE_REQUIRED_MODES:
+            health = supabase_health_check()
+            if not health.get("ok"):
+                print(json.dumps({
+                    "action": "supabase_health_check",
+                    "success": False,
+                    "message": f"Supabase startup check failed: {health.get('message', 'unknown error')}",
+                    "data": health,
+                }, ensure_ascii=False, default=json_serial))
+                raise SystemExit(1)
         if mode == 'event':
             raw_event = sys.argv[2] if len(sys.argv) > 2 else sys.stdin.read()
             if not raw_event.strip():
@@ -67,6 +108,11 @@ if __name__ == '__main__':
             result = route_event_dict({"intent": "world_cup_analysis_review_reminder"})
         elif mode == 'world-cup-analysis-publish':
             result = route_event_dict({"intent": "world_cup_analysis_publish"})
+        elif mode == 'world-cup-recap':
+            payload = {}
+            if len(sys.argv) > 2:
+                payload["date_strings"] = [part.strip() for part in sys.argv[2].split(",") if part.strip()]
+            result = route_event_dict({"intent": "world_cup_recap", "payload": payload})
         elif mode == 'world-cup-facts-seed':
             result = route_event_dict({"intent": "world_cup_facts_seed"})
         elif mode == 'world-cup-fact':

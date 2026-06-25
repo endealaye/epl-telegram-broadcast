@@ -69,6 +69,28 @@ def set_bot_state_value(key, value):
     return res is not None
 
 
+def supabase_health_check():
+    if not supabase:
+        return {
+            "ok": False,
+            "reason": "not_configured",
+            "message": "Supabase client is not configured.",
+        }
+    try:
+        supabase.table("bot_state").select("key").limit(1).execute()
+        return {
+            "ok": True,
+            "reason": "reachable",
+            "message": "Supabase connection is healthy.",
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "reason": "connection_failed",
+            "message": str(exc),
+        }
+
+
 def _parse_lock_value(raw_value):
     if not raw_value:
         return None

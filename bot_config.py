@@ -99,8 +99,10 @@ TEAM_MAPPING = {
     "Bosnia-Herzegovina": "Bosnia and Herzegovina",
     "Cape Verde": "Cabo Verde",
     "Curacao": "Curaçao",
-    "Czech Republic": "Czechia",
+    "Czech Republic": "Czech Republic",
+    "Czechia": "Czech Republic",
     "DR Congo": "Congo DR",
+
     "Democratic Republic of Congo": "Congo DR",
     "Iran": "IR Iran",
     "Ivory Coast": "Côte d'Ivoire",

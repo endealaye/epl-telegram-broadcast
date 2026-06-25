@@ -1,11 +1,10 @@
+from bot_config import SUPABASE_KEY, SUPABASE_URL
 from supabase import create_client
-
-# Configuration
-SUPABASE_URL = "https://urqgbjtgrilgaltrmrmk.supabase.co"
-SUPABASE_KEY = "sb_publishable_iVSr4QF92Ox-PRSaIUaLVA_c7j_xbOt"
 
 def add_live_columns():
     try:
+        if not SUPABASE_URL or not SUPABASE_KEY:
+            raise RuntimeError("Missing SUPABASE_URL or SUPABASE_KEY")
         create_client(SUPABASE_URL, SUPABASE_KEY)
         
         # We need to track the last score sent to avoid duplicate goal alerts
@@ -22,6 +21,7 @@ def add_live_columns():
         print("ALTER TABLE fixtures ADD COLUMN IF NOT EXISTS half_time_sent BOOLEAN DEFAULT FALSE;")
         print("ALTER TABLE fixtures ADD COLUMN IF NOT EXISTS daily_sent BOOLEAN DEFAULT FALSE;")
         print("ALTER TABLE fixtures ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT FALSE;")
+        print("ALTER TABLE fixtures ADD COLUMN IF NOT EXISTS live_final_sent BOOLEAN DEFAULT FALSE;")
         print("ALTER TABLE fixtures ADD COLUMN IF NOT EXISTS result_sent BOOLEAN DEFAULT FALSE;")
         print("-" * 30)
         

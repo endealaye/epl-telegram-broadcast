@@ -1,7 +1,7 @@
 from broadcasts import broadcast_daily, broadcast_reminders, broadcast_results, maybe_send_auto_standings, reconcile_post_match_delivery
 from commands import broadcast_heartbeat, process_commands
 from live import process_live_updates
-from match_predictions import publish_match_prediction, save_match_prediction
+
 from news_pipeline import fetch_news_items, get_review_queue, mark_review_item
 from posting_policy import build_policy_summary, classify_match_day, should_run_live, should_send_daily, should_send_reminders
 from service_models import ServiceResult
@@ -14,22 +14,13 @@ from world_cup_analysis import (
     list_analysis_queue,
     mark_analysis_preview,
     publish_due_analysis,
+    publish_world_cup_recap_service,
     send_analysis_review_reminder,
 )
 from world_cup_facts import publish_daily_world_cup_fact, seed_world_cup_facts
 from world_cup_form import refresh_world_cup_qualifier_form
 from world_cup_coaches import update_world_cup_coaches
-try:
-    from world_cup_players import refresh_world_cup_players, refresh_world_cup_players_with_bbc
-except ImportError as e:
-    print(f"DEBUG: Failed to import players functions from world_cup_players: {e}")
-    # Define dummy functions to allow the rest of the script to run for diagnostics
-    def refresh_world_cup_players(*args, **kwargs):
-        print("DEBUG: Dummy refresh_world_cup_players called.")
-        return {"error": f"ImportError: {e}"}
-    def refresh_world_cup_players_with_bbc(*args, **kwargs):
-        print("DEBUG: Dummy refresh_world_cup_players_with_bbc called.")
-        return {"error": f"ImportError: {e}"}
+from world_cup_players import refresh_world_cup_players, refresh_world_cup_players_with_bbc
 from world_cup_squad_audit import audit_world_cup_squads
 from world_cup_standings import refresh_world_cup_group_standings
 
@@ -131,22 +122,31 @@ def send_results_service():
     try:
         reconciliation = reconcile_post_match_delivery()
         if reconciliation.get("results_sent_dates") or reconciliation.get("standings_sent_dates"):
+            recap = publish_world_cup_recap_service()
             return ServiceResult(
                 action="results",
                 success=True,
                 message="Post-match reconciliation completed.",
-                data=reconciliation,
+                data={**reconciliation, "recap": recap},
             )
 
         if not has_pending_results():
             today = get_eat_today()
             retry_result = maybe_send_auto_standings(fetch_fixtures_for_dates([today]), today=today)
+            recap = publish_world_cup_recap_service()
             if retry_result.get("sent"):
                 return ServiceResult(
                     action="results",
                     success=True,
                     message="No new results, but standings retry was sent.",
-                    data={"standings_retry": retry_result},
+                    data={"standings_retry": retry_result, "recap": recap},
+                )
+            if recap.get("published", 0):
+                return ServiceResult(
+                    action="results",
+                    success=True,
+                    message="No new results, but post-match recap was sent.",
+                    data={"recap": recap},
                 )
             return ServiceResult(
                 action="results",
@@ -403,6 +403,24 @@ def publish_world_cup_analysis_service():
         )
 
 
+def publish_world_cup_recap_service(date_strings=None):
+    try:
+        result = broadcast_post_match_analysis_for_fixtures(date_strings=date_strings)
+        return ServiceResult(
+            action="world_cup_recap",
+            success=True,
+            skipped=result.get("published", 0) == 0,
+            message=f"World Cup post-match recap published {result.get('published', 0)} fixtures.",
+            data=result,
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="world_cup_recap",
+            success=False,
+            message=f"World Cup post-match recap failed: {e}",
+        )
+
+
 def list_world_cup_analysis_queue_service(limit=20, status="draft"):
     try:
         items = list_analysis_queue(limit=limit, status=status)
@@ -441,64 +459,10 @@ def mark_world_cup_analysis_service(matchnumber, status):
         )
 
 
-def save_world_cup_prediction_service(
-    matchnumber,
-    predicted_home_score,
-    predicted_away_score,
-    prediction_text,
-    confidence="medium",
-    source_context=None,
-    language="am",
-):
-    try:
-        item = save_match_prediction(
-            matchnumber=matchnumber,
-            predicted_home_score=predicted_home_score,
-            predicted_away_score=predicted_away_score,
-            prediction_text=prediction_text,
-            confidence=confidence,
-            source_context=source_context,
-            language=language,
-        )
-        return ServiceResult(
-            action="world_cup_prediction_save",
-            success=item is not None,
-            message=(
-                f"Prediction {matchnumber} saved."
-                if item
-                else f"Prediction {matchnumber} was not saved."
-            ),
-            data={"item": item} if item else {},
-        )
-    except Exception as e:
-        return ServiceResult(
-            action="world_cup_prediction_save",
-            success=False,
-            message=f"World Cup prediction save failed: {e}",
-        )
 
 
-def publish_world_cup_prediction_service(matchnumber, language="am"):
-    try:
-        result = publish_match_prediction(matchnumber=matchnumber, language=language)
-        item = result.get("item") or {}
-        return ServiceResult(
-            action="world_cup_prediction_publish",
-            success=True,
-            skipped=result.get("skipped", False),
-            message=(
-                f"Prediction {matchnumber} already published."
-                if result.get("skipped")
-                else f"Prediction {matchnumber} published."
-            ),
-            data={"item": item, "sent": result.get("sent", False)},
-        )
-    except Exception as e:
-        return ServiceResult(
-            action="world_cup_prediction_publish",
-            success=False,
-            message=f"World Cup prediction publish failed: {e}",
-        )
+
+
 
 
 def send_heartbeat_service(chat_id=None):

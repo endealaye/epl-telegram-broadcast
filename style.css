@@ -1,0 +1,133 @@
+/* style.css */
+/* Dark theme with glass‑morphism cards */
+
+:root {
+  --bg-color: #0d0d0d;
+  --card-bg: rgba(255, 255, 255, 0.08);
+  --card-border: rgba(255, 255, 255, 0.12);
+  --text-primary: #e0e0e0;
+  --text-muted: #a0a0a0;
+  --accent: #4fd1c5; /* teal accent */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-color);
+  color: var(--text-primary);
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header.header {
+  text-align: center;
+  padding: 2rem 1rem;
+  background: linear-gradient(135deg, #111, #1a1a1a);
+}
+
+header.header h1 {
+  margin-bottom: 0.5rem;
+  font-size: 2rem;
+  color: var(--accent);
+}
+
+header.header p {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* Grid container */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem;
+  flex: 1;
+}
+
+/* Card */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 1.2rem;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+
+.card h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+  color: var(--accent);
+}
+
+.card .meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.8rem;
+}
+
+.card .recap {
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  white-space: pre-wrap; /* preserve line breaks */
+}
+
+.card button.copy-btn {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+
+.card button.copy-btn:hover {
+  background: #3ab7a5;
+}
+
+/* Pagination controls */
+.pagination {
+  text-align: center;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.pagination button {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  margin: 0 0.3rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.pagination button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination button:hover:not([disabled]) {
+  background: var(--card-border);
+}

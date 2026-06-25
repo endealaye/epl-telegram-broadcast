@@ -2,7 +2,7 @@ from collections import defaultdict
 from functools import cmp_to_key
 
 from bot_config import AMHARIC_TEAMS, SHORT_AMHARIC_TEAMS
-from store import supabase
+from store import fixture_competition_name, supabase
 
 
 WORLD_CUP_MATCHNUMBER_MIN = 2_026_001
@@ -216,3 +216,63 @@ def format_group_standings_text(grouped_rows):
     while lines and not lines[-1]:
         lines.pop()
     return "\n".join(lines)
+
+
+def broadcast_world_cup_standings_card(group_name):
+    from commands import send_telegram_photo_file
+    from render_standings import render_world_cup_group_card
+
+    if not supabase:
+        return None
+
+    # Ensure standings are fresh
+    refresh_world_cup_group_standings()
+
+    # Fetch standings for the specific group
+    res = (
+        supabase.table("world_cup_group_standings")
+        .select("*")
+        .eq("group_name", group_name)
+        .order("points", desc=True)
+        .order("goal_difference", desc=True)
+        .order("goals_for", desc=True)
+        .order("team_name")
+        .execute()
+    )
+    rows = res.data or []
+    if not rows:
+        return None
+
+    # Add position
+    for i, row in enumerate(rows, start=1):
+        row["position"] = i
+
+    image_path = render_world_cup_group_card(group_name, rows)
+    try:
+        caption = f"📊 የዓለም ዋንጫ ደረጃ ሰንጠረዥ - {group_name}"
+        return send_telegram_photo_file(image_path, caption, parse_mode=None)
+    finally:
+        if image_path and image_path.exists():
+            image_path.unlink()
+
+
+def world_cup_group_name_for_fixture(fixture):
+    competition = fixture_competition_name(fixture)
+    group_label = (fixture.get("matchgroup") or "").strip()
+    if not competition.startswith("FIFA World Cup") or "Group" not in group_label:
+        return None
+
+    group_name = group_label.replace("FIFA World Cup - ", "")
+    if not group_name:
+        return None
+
+    return group_name
+
+
+def broadcast_world_cup_standings_card_for_fixture(fixture):
+    group_name = world_cup_group_name_for_fixture(fixture)
+    if not group_name:
+        return None
+
+    broadcast_world_cup_standings_card(group_name)
+    return group_name

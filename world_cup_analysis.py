@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from bot_config import AMHARIC_TEAMS, SHORT_AMHARIC_TEAMS
 from bot_config import TELEGRAM_ADMIN_ID
 from commands import send_telegram_message
-from store import get_bot_state_value, set_bot_state_value, supabase
+from store import fetch_fixtures_for_dates, get_bot_state_value, set_bot_state_value, supabase
 from telegram_limits import (
     TELEGRAM_ANALYSIS_CAPTION_TARGET,
     TELEGRAM_ANALYSIS_MAX_LINES,
@@ -12,7 +12,11 @@ from telegram_limits import (
 )
 from world_cup_form import fetch_team_recent_form
 from world_cup_squad_audit import FIFA_ALL_SQUAD_ANNOUNCEMENTS_URL, FIFA_SQUADS_CONFIRMED_URL
-from world_cup_standings import WORLD_CUP_MATCHNUMBER_MAX, WORLD_CUP_MATCHNUMBER_MIN
+from world_cup_standings import (
+    WORLD_CUP_MATCHNUMBER_MAX,
+    WORLD_CUP_MATCHNUMBER_MIN,
+    refresh_world_cup_group_standings,
+)
 
 
 SKY_SQUADS_URL = (
@@ -31,6 +35,13 @@ KEY_POSITION_ORDER = {"FW": 0, "MF": 1, "DF": 2, "GK": 3}
 VALID_REVIEW_STATUSES = {"draft", "approved", "published", "rejected"}
 ANALYSIS_REVIEW_WINDOW_HOURS = 8
 ANALYSIS_PUBLISH_WINDOW_MINUTES = 90
+ANALYSIS_PUBLISH_GRACE_MINUTES = 30
+RECAP_ANALYSIS_TYPE = "recap"
+RECAP_STATE_KEY_PREFIX = "world_cup_recap_sent:"
+RESULT_SOURCE_URLS = [
+    "https://fixturedownload.com/feed/json/fifa-world-cup-2026",
+    "https://github.com/openfootball/worldcup.json",
+]
 
 
 def _team_am(team_name, short=False):
@@ -45,6 +56,10 @@ def _group_name(matchgroup):
 
 def _fixture_title(fixture):
     return f"{_team_am(fixture['hometeam'], short=True)} vs {_team_am(fixture['awayteam'], short=True)} - ቅድመ ጨዋታ እይታ"
+
+
+def _recap_title(fixture):
+    return f"{_team_am(fixture['hometeam'], short=True)} vs {_team_am(fixture['awayteam'], short=True)} - ጨዋታ በኋላ ትንታኔ"
 
 
 def _fixture_kickoff(fixture):
@@ -108,6 +123,19 @@ def _fetch_analysis_rows(status):
     return res.data or []
 
 
+def _fetch_recap_rows():
+    if not supabase:
+        return []
+    res = (
+        supabase.table("match_analysis")
+        .select("matchnumber,review_status,body,title,confidence,source_urls,updated_at")
+        .eq("analysis_type", RECAP_ANALYSIS_TYPE)
+        .eq("language", "am")
+        .execute()
+    )
+    return res.data or []
+
+
 def _fetch_world_cup_fixture_map():
     return {
         fixture["matchnumber"]: fixture
@@ -116,7 +144,27 @@ def _fetch_world_cup_fixture_map():
     }
 
 
-def _analysis_with_fixtures(status, *, now=None, window=None):
+def _fetch_completed_world_cup_fixtures(date_strings=None):
+    date_scope = date_strings or [
+        (datetime.now(timezone.utc) + timedelta(hours=3) - timedelta(days=1)).strftime("%Y-%m-%d"),
+        (datetime.now(timezone.utc) + timedelta(hours=3)).strftime("%Y-%m-%d"),
+    ]
+    fixtures = fetch_fixtures_for_dates(date_scope)
+    completed = []
+    for fixture in fixtures:
+        if fixture.get("matchnumber") is None:
+            continue
+        if fixture.get("hometeamscore") is None or fixture.get("awayteamscore") is None:
+            continue
+        if not WORLD_CUP_MATCHNUMBER_MIN <= int(fixture["matchnumber"]) <= WORLD_CUP_MATCHNUMBER_MAX:
+            continue
+        if not (fixture.get("matchgroup") or "").startswith("FIFA World Cup - Group "):
+            continue
+        completed.append(fixture)
+    return sorted(completed, key=lambda item: (item.get("dateeat") or "", item.get("matchnumber") or 0))
+
+
+def _analysis_with_fixtures(status, *, now=None, window=None, past_grace=None):
     current = (now or datetime.now(timezone.utc) + timedelta(hours=3)).replace(tzinfo=None)
     fixture_map = _fetch_world_cup_fixture_map()
     items = []
@@ -125,7 +173,10 @@ def _analysis_with_fixtures(status, *, now=None, window=None):
         kickoff = _parse_fixture_kickoff(fixture or {})
         if not fixture or not kickoff:
             continue
-        if kickoff < current:
+        if past_grace is not None:
+            if kickoff < current - past_grace:
+                continue
+        elif kickoff < current:
             continue
         if window and kickoff > current + window:
             continue
@@ -142,6 +193,29 @@ def _analysis_item_label(item):
         f"{fixture.get('hometeam')} vs {fixture.get('awayteam')} "
         f"({kickoff_text})"
     )
+
+
+def _recap_state_key(matchnumber):
+    return f"{RECAP_STATE_KEY_PREFIX}{matchnumber}"
+
+
+def _group_standings_rows(group_name):
+    if not supabase or not group_name:
+        return []
+    res = (
+        supabase.table("world_cup_group_standings")
+        .select("team_name,played,won,drawn,lost,goals_for,goals_against,goal_difference,points")
+        .eq("group_name", group_name)
+        .order("points", desc=True)
+        .order("goal_difference", desc=True)
+        .order("goals_for", desc=True)
+        .order("team_name")
+        .execute()
+    )
+    rows = res.data or []
+    for index, row in enumerate(rows, start=1):
+        row["position"] = index
+    return rows
 
 
 def _fetch_availability_map():
@@ -164,15 +238,15 @@ def _fetch_team_story_map():
         return {}
     res = (
         supabase.table("world_cup_teams")
-        .select("team_name,raw_payload")
+        .select("team_name,coach_name,coach_source_url,raw_payload")
         .execute()
     )
     teams = {}
     for row in res.data or []:
         coach = ((row.get("raw_payload") or {}).get("coach") or {})
         teams[row["team_name"]] = {
-            "coach_name": coach.get("name"),
-            "coach_source_url": coach.get("source_url"),
+            "coach_name": coach.get("name") or row.get("coach_name"),
+            "coach_source_url": coach.get("source_url") or row.get("coach_source_url"),
         }
     return teams
 
@@ -300,6 +374,118 @@ def _coach_source_urls(home_team, away_team, team_story):
     return urls
 
 
+def _result_summary(fixture):
+    home = fixture.get("hometeam")
+    away = fixture.get("awayteam")
+    home_score = fixture.get("hometeamscore")
+    away_score = fixture.get("awayteamscore")
+    if home_score is None or away_score is None:
+        return None
+
+    home_name = _team_am(home, short=True)
+    away_name = _team_am(away, short=True)
+    summary = f"{home_name} {home_score}-{away_score} {away_name}"
+    extra = []
+    if fixture.get("went_penalties"):
+        home_pens = fixture.get("home_penalties")
+        away_pens = fixture.get("away_penalties")
+        if home_pens is not None and away_pens is not None:
+            extra.append(f"pens {home_pens}-{away_pens}")
+        else:
+            extra.append("pens")
+    elif fixture.get("went_extra_time"):
+        extra.append("AET")
+    note = (fixture.get("result_note") or "").strip()
+    if note:
+        extra.append(note)
+    if extra:
+        summary = f"{summary} ({'; '.join(extra)})"
+    return summary
+def build_recap(fixture):
+    """Generate a post‑match recap for a completed fixture."""
+    title = _recap_title(fixture)
+    body = _result_summary(fixture) or "ምንም ውጤት የለም።"
+    home_form = fetch_team_recent_form(fixture.get('hometeam'))
+    away_form = fetch_team_recent_form(fixture.get('awayteam'))
+    confidence = _confidence(fixture, home_form, away_form)
+    return {
+        "title": title,
+        "body": body,
+        "confidence": confidence,
+        "source_urls": [],
+    }
+
+
+
+
+def _recap_already_sent(matchnumber):
+    if not supabase:
+        return False
+    if get_bot_state_value(_recap_state_key(matchnumber)):
+        return True
+    res = (
+        supabase.table("match_analysis")
+        .select("matchnumber,review_status")
+        .eq("matchnumber", int(matchnumber))
+        .eq("analysis_type", RECAP_ANALYSIS_TYPE)
+        .eq("language", "am")
+        .eq("review_status", "published")
+        .limit(1)
+        .execute()
+    )
+    return bool(res.data or [])
+
+
+def broadcast_post_match_analysis_for_fixtures(date_strings=None):
+    if not supabase:
+        return {"published": 0, "items": [], "skipped": 0}
+
+    refresh_world_cup_group_standings()
+    fixtures = _fetch_completed_world_cup_fixtures(date_strings=date_strings)
+    published = []
+    skipped = 0
+    now = datetime.now(timezone.utc).isoformat()
+
+    for fixture in fixtures:
+        matchnumber = fixture.get("matchnumber")
+        if _recap_already_sent(matchnumber):
+            skipped += 1
+            continue
+
+        recap = build_recap(fixture)
+        message = f"{recap['title']}\n━━━━━━━━━━━━━━━━━━━━\n{recap['body']}"
+        if not send_telegram_message(message, parse_mode=None):
+            continue
+
+        supabase.table("match_analysis").upsert(
+            {
+                "matchnumber": matchnumber,
+                "analysis_type": RECAP_ANALYSIS_TYPE,
+                "language": "am",
+                "title": recap["title"],
+                "body": recap["body"],
+                "confidence": recap["confidence"],
+                "source_urls": recap["source_urls"],
+                "review_status": "published",
+                "updated_at": now,
+            },
+            on_conflict="matchnumber,analysis_type,language",
+        ).execute()
+        set_bot_state_value(_recap_state_key(matchnumber), now)
+        published.append(_analysis_item_label({**fixture, "kickoff": _parse_fixture_kickoff(fixture)}))
+
+    return {
+        "published": len(published),
+        "skipped": skipped,
+        "items": published,
+    }
+
+# Deprecated alias for backward compatibility
+
+def publish_world_cup_recap_service(date_strings=None):
+    return broadcast_post_match_analysis_for_fixtures(date_strings=date_strings)
+
+
 def build_preview(fixture, availability, team_story=None):
     team_story = team_story or {}
     home = fixture["hometeam"]
@@ -388,10 +574,15 @@ def generate_group_stage_previews():
     items = []
     skipped = 0
     now = datetime.now(timezone.utc).isoformat()
+    current_eat = (datetime.now(timezone.utc) + timedelta(hours=3)).replace(tzinfo=None)
 
     for fixture in fixtures:
         current = existing.get(fixture["matchnumber"])
-        if current and current.get("review_status") in {"approved", "published"}:
+        if current and current.get("review_status") in {"approved", "published", "rejected"}:
+            skipped += 1
+            continue
+        kickoff = _parse_fixture_kickoff(fixture)
+        if not kickoff or kickoff < current_eat:
             skipped += 1
             continue
         preview = build_preview(fixture, availability, team_story=team_story)
@@ -528,13 +719,14 @@ def publish_due_analysis(window_minutes=ANALYSIS_PUBLISH_WINDOW_MINUTES):
     items = _analysis_with_fixtures(
         "approved",
         window=timedelta(minutes=int(window_minutes)),
+        past_grace=timedelta(minutes=ANALYSIS_PUBLISH_GRACE_MINUTES),
     )
     published = []
     for item in items:
         title = item.get("title") or _fixture_title(item["fixture"])
         body = item.get("body") or ""
-        message = f"*{title}*\n\n{body}".strip()
-        if not send_telegram_message(message):
+        message = f"{title}\n━━━━━━━━━━━━━━━━━━━━\n{body}".strip()
+        if not send_telegram_message(message, parse_mode=None):
             continue
         updated = mark_analysis_preview(item["matchnumber"], "published")
         if updated:

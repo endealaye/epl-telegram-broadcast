@@ -1,0 +1,1302 @@
+Translated news items: 120
+
+---
+id: 11242
+status: published
+published_at: 2026-05-07T13:49:56+00:00
+source: Crystal Palace
+original_title: 'They reflect the beautiful game': An analysis of Shakhtar Donetsk
+translated_title_am: የዩክሬኑ ኃያል ሻክታር ዶኔትስክ፡ ለፓላስ ከባድ ፈተና
+translated_story_am:
+ክሪስታል ፓላስ በታሪኩ ለመጀመሪያ ጊዜ የአውሮፓ ፋይናል ለመድረስ አንድ እርምጃ ቢቀረውም፣ የሻክታር ዶኔትስክን የማጥቃት ጥበብ ሊዘነጋ አይገባም። ሻክታር በቴክኒክ ብቃትና በፈጣን ሽግግር ላይ የተመሰረተ "ውቡን እግር ኳስ" የሚተገብር ቡድን ነው። የፓላስ ተከላካዮች የዩክሬኑን ሻምፒዮን ለመግታት ከፍተኛ ትኩረትና ጥንቃቄ ማድረግ የሚጠበቅባቸው ወሳኝ ምሽት ይሆናል።
+
+---
+id: 11241
+status: published
+published_at: 2026-05-07T13:39:25+00:00
+source: Crystal Palace
+original_title: Canvot: We play football to be involved in this type of game
+translated_title_am: ክሪስታል ፓላስ ለታሪካዊ የፍፃሜ ጨዋታ ተቃርቧል!
+translated_story_am:
+የክሪስታል ፓላሱ ወጣት ተከላካይ ጄይዲ ካንቮት ቡድኑ ከሻክታር ዶኔትስክ ጋር ለሚያደርገው የኮንፈረንስ ሊግ የግማሽ ፍፃሜ የመልስ ጨዋታ ያለውን ዝግጁነት ገለፀ። በሜዳቸው ሴልኸርስት ፓርክ 3-1 እየመሩ የሚገቡት "አሞራዎቹ"፥ ካንቮት እንዳለው "ይህን መሰል ትልቅ ጨዋታ ላይ ለመሳተፍ ነው እግር ኳስ የምንጫወተው" ሲል ለታሪካዊ ድል መነሳሳታቸውን አረጋግጧል።
+
+---
+id: 11237
+status: published
+published_at: 2026-05-07T12:47:05+00:00
+source: The Guardian Premier League
+original_title: Football regulator urged to ban Premier League clubs from unlicensed gambling money
+translated_title_am: የእንግሊዝ ፕሪሚየር ሊግ እና ህገ-ወጥ ቁማር
+translated_story_am:
+የእንግሊዝ እግር ኳስ ተቆጣጣሪ ተቋም (IFR) በዩኬ ፈቃድ ከሌላቸው የቁማር ድርጅቶች ጋር የሚደረጉ የስፖንሰርሺፕ ስምምነቶችን እንዲያግድ ግፊት እየበረታበት ነው። በተለይ ኤቨርተን እና ፉልሃምን የመሰሉ ክለቦች በሀገሪቱ እውቅና ከሌላቸው ቁማር ቤቶች ጋር ያላቸው ቁርኝት ስጋት ፈጥሯል።
+
+የሊጉ ክለቦች ከህገ-ወጥ የቁማር ማስታወቂያዎች ራሳቸውን እንዲያርቁና የስፖርቱን ደህንነት እንዲጠብቁ ጥሪ ቀርቧል። ህገ-ወጥ ቁማር ከስርቆትና ከታክስ ማጭበርበር ጋር ተያያዥነት እንዳለውም ተገልጿል።
+
+---
+id: 11240
+status: published
+published_at: 2026-05-07T11:15:24+00:00
+source: Wolves
+original_title: Gallery | Doyle back in training after Blues loan ends
+translated_title_am: ቶሚ ዶይል ወደ ሞሊኒው ተመልሷል
+translated_story_am:
+የዎልቭስ አማካኝ ቶሚ ዶይል በበርሚንግሃም ሲቲ የነበረውን የውሰት ቆይታ አጠናቆ ወደ ቀድሞ ክለቡ በመመለስ ልምምድ ጀምሯል። በሴንት አንድሪውስ ስኬታማ ጊዜን ያሳለፈው ወጣቱ ኮከብ፣ አሁን ትኩረቱን በጋሪ ኦኒል ስር ቦታውን ለማስጠበቅ አድርጓል።
+
+በልምምድ ሜዳው ላይ በደስታ ሲሳተፍ የታየው ዶይል፣ በቀጣይ የውድድር ዓመት ለዎልቭስ አማካኝ ክፍል ተጨማሪ ጥንካሬ እንደሚሆን ይጠበቃል። ተጫዋቹ በውሰት ያገኘውን ልምድ ተጠቅሞ በፕሪምየር ሊጉ ራሱን ለማረጋገጥ ቆርጦ ተነስቷል።
+
+---
+id: 11233
+status: published
+published_at: 2026-05-07T09:21:08+00:00
+source: BBC Sport Football
+original_title: How Kane goal could earn Germany extra Champions League spot
+translated_title_am: የሀሪ ኬን ግብ ለጀርመን ተጨማሪ የቻምፒዮንስ ሊግ ቦታ ልታስገኝ ነው
+translated_story_am:
+ባየርን ሙኒክ በፒኤስጂ ተሸንፎ ከውድድሩ ቢወጣም፣ ሀሪ ኬን በ94ኛው ደቂቃ ያስቆጠራት ግብ ለቡንደስሊጋው ትልቅ ትርጉም አላት። ይህች አቻ ውጤት ጀርመን በአውሮፓ መድረክ ባላት ነጥብ (EPS) ከጣሊያን በልጣ ተጨማሪ አምስተኛ የቻምፒዮንስ ሊግ ቦታ እንድታገኝ በር ከፋች ሆናለች።
+
+---
+id: 11236
+status: published
+published_at: 2026-05-07T08:59:57+00:00
+source: Crystal Palace
+original_title: Behind the scenes of Palace's European semi-final preparations
+translated_title_am: የክሪስታል ፓላስ የአውሮፓ ታሪክ ጉዞ - ከትዕይንቱ ጀርባ
+translated_story_am:
+ክሪስታል ፓላስ ከሻክታር ዶኔትስክ ጋር ለሚያደርገው የዩኤፋ ኮንፈረንስ ሊግ የግማሽ ፍፃሜ ወሳኝ ጨዋታ ያለውን ዝግጅት የሚያሳይ ልዩ ምስል ይፋ ሆኗል። ባለፈው ሳምንት 3-1 በሆነ ውጤት መምራታቸውን ተከትሎ፣ ተጫዋቾቹ በራስ መተማመን እና በትኩረት ልምምዳቸውን ሲያከናውኑ ታይተዋል።
+
+ኦሊቨር ግላስነር ቡድኑ ለሶስተኛ የዋንጫ ድል ለመቅረብ ያለውን ዝግጁነት የገለጹ ሲሆን፣ የደቡብ ለንደኑ ክለብ በሴልኸርስት ፓርክ ታሪክ ለመስራት ቆርጦ ተነስቷል። ተጫዋቾቹም ለደጋፊዎቻቸው ሌላ የማይረሳ ምሽት ለመስጠት በከፍተኛ መነሳሳት ላይ ይገኛሉ።
+
+---
+id: 11239
+status: published
+published_at: 2026-05-07T08:50:00+00:00
+source: Everton
+original_title: What The Papers Say - 7 May
+translated_title_am: የኤቨርተን የዝውውር አሰሳና የአዲሱ ስታዲየም ስሌት
+translated_story_am:
+የመርሲሳይዱ ክለብ ኤቨርተን በክረምቱ የዝውውር መስኮት ስብስቡን ለማደስና በፋይናንስ ረገድ ራሱን ለማመጣጠን ጥረት እያደረገ መሆኑን የዛሬ የጋዜጦች ወሬዎች ጠቁመዋል።
+
+የማንጋላ ጉዳይ፦ በውሰት አስደናቂ ብቃት ያሳየው ኦሬል ማንጋላ በጉዲሰን ፓርክ የመቆየት እድሉ ሰፊ ነው። ክለቡ የሊዮኑን አማካኝ በቋሚነት ለማስፈረም ድርድር መጀመሩ ተሰምቷል።
+
+ወደ ታችኛው ሊግ ትኩረት፦ ክለቡ የፋይናንስ ጫናዎችን ለመቋቋም ወጣትና ርካሽ ተሰጥኦዎችን እያሰሰ ይገኛል። የብላክበርኑ አይጎር ታይሮን የዚህ ስትራቴጂ አካል ተደርጎ ተወስዷል።
+
+የፋይናንስ ጥንቃቄ፦ አዲሱ ስታዲየም ከፍተኛ ወጪ የሚጠይቅ በመሆኑ፣ ክለቡ ከፍተኛ ደሞዝ የሚከፈላቸውን ነባር ተጫዋቾች በመሸኘት ለወጣቶች ዕድል ለመስጠት አቅዷል።
+
+የፕሪምየር ሊግ ቁጥጥር፦ ከትርፍና ዘላቂነት (PSR) ደንብ ጋር በተያያዘ ኤቨርተን በዝውውር ገበያው ላይ እያንዳንዱን እርምጃ በጥንቃቄ እየወሰደ መሆኑ ታውቋል።
+
+---
+id: 11234
+status: published
+published_at: 2026-05-07T07:00:43+00:00
+source: The Guardian Premier League
+original_title: Michael Carrick has the light touch Manchester United need for next chapter | Jonathan Liew
+translated_title_am: የማይክል ካሪክ ዝምተኛው ስኬት፤ ለማንቸስተር ዩናይትድ አዲስ ምዕራፍ?
+translated_story_am:
+በአጭር ጊዜ ቆይታቸው ሁሉንም የዩናይትድ ተቀናቃኞች በማሸነፍ አስደናቂ ጉዞ እያደረጉ ያሉት ማይክል ካሪክ፣ ክለቡን ወደ ቀድሞ ክብሩ ለመመለስ ትክክለኛ ሰው ስለመሆናቸው ጆናታን ሊው በትንታኔው ዳስሷል።
+
+የካሪክ "ረጋ ያለ" አመራር፦ ካሪክ በተጫዋችነት ዘመናቸውም ሆነ አሁን በአሰልጣኝነት፣ ትርምስ ባለበት ቦታ ረጋ ብሎ መሥራትን መለያቸው አድርገዋል። በሜዳ ላይ አስቸጋሪ ሁኔታዎች ቢፈጠሩም፣ ዕቅዳቸውን ሳይለቁ በዝምታ ውጤት ማምጣትን ይመርጣሉ።
+
+አስደናቂ ውጤት፦ ካሪክ ኃላፊነቱን ከወሰዱ በኋላ ዩናይትድ ለ2026-27 የቻምፒዮንስ ሊግ ተሳትፎውን አረጋግጧል። የውድድር ዘመኑ እሳቸው ከመጡ በኋላ ቢጀመር ኖሮ፣ ዩናይትድ በ5 ነጥብ ልዩነት ሊጉን ይመራ ነበር።
+
+የተጫዋቾች ድጋፍ፦ እንደ ኮቢ ማይኑ ያሉ ወጣት ተሰጥኦዎች ለአሰልጣኙ ያላቸው ክብርና ፍቅር ለስኬታቸው ትልቅ መሠረት ሆኗል።
+
+ጥያቄው፦ ምንም እንኳን ካሪክ ሁሉንም ትልልቅ ክለቦች ቢያሸንፉም፣ አሁንም ድረስ ውጤቱ በአጋጣሚ የመጣ ነው የሚሉ ተጠራጣሪዎች አሉ። ይሁንና ካሪክ በረጋ መንፈስና በስልት ክለቡን ወደ ስኬት እየመሩት ይገኛሉ።
+
+---
+id: 11235
+status: published
+published_at: 2026-05-07T07:00:00+00:00
+source: Aston Villa
+original_title: Villa lock horns with Forest in decisive second leg
+translated_title_am: አስቶን ቪላ ከ ኖቲንግሃም ፎረስት፡ ወሳኙ የቪላ ፓርክ ፍልሚያ
+translated_story_am:
+አስቶን ቪላ በዩሮፓ ሊግ ግማሽ ፍፃሜ የመልስ ጨዋታ ኖቲንግሃም ፎረስት ያስተናግዳል። በመጀመሪያው ጨዋታ 1-0 የተሸነፉት ቪላዎች፣ ውጤቱን ቀልብሰው ለፍፃሜ ለመድረስ የሜዳቸው ጉልበትና የኡናይ ኤምሬ ልምድ ይረዳቸዋል ተብሎ ይጠበቃል። ፎረስት በበኩሉ ውጤቱን አስጠብቆ ወደ ኢስታንቡል ለመጓዝ ይፋለማል።
+
+ለነገው ወሳኝ ፍልሚያ የተወሰኑ አሃዛዊ መረጃዎች እነሆ፦
+
+የቪላ የሜዳ ላይ ጥንካሬ፦
+አስቶን ቪላ በቪላ ፓርክ ባደረጋቸው ያለፉት ዘጠኝ የአውሮፓ መድረክ ጨዋታዎች በሙሉ ድል ቀንቶታል። በተጨማሪም ቡድኑ በሜዳው ባደረጋቸው 32 ጨዋታዎች ውስጥ ግብ ሳያስቆጥር የወጣው በአንዱ ብቻ ነው።
+
+የተጫዋቾች ቁልፍ መረጃ፦
+
+ሞርጋን ሮጀርስ፡ በዚህ የውድድር ዘመን በዩሮፓ ሊግ በሜዳው ባደረጋቸው 6 ጨዋታዎች ላይ በ5 ግቦች (2 ግብ እና 3 አሲስት) ላይ በቀጥታ ተሳትፏል።
+
+ኢጎር ጄሱስ (ፎረስት)፦ በዘንድሮው ዩሮፓ ሊግ ከሜዳው ውጪ በብዛት ግብ ላይ የተሳተፈ ተጫዋች ሲሆን (4 ግብ እና 1 አሲስት)፣ በጠቅላላው ውድድርም ከፍተኛ ሙከራ በማድረግ ቀዳሚ ነው።
+
+ታሪካዊ አጋጣሚዎች፦
+
+ቪላ ባለፉት 30 ዓመታት (ከ1994 ጀምሮ) ፎረስት በቪላ ፓርክ አሸንፎት አያውቅም (7 ድል እና 3 አቻ)።
+
+ሁለቱም ቡድኖች በዘንድሮው ውድድር እኩል 7 የግብ ንፅህናቸውን (clean sheet) መጠበቅ ችለዋል።
+
+የአሰልጣኝ ኤምሬ ስኬት፦
+ኡናይ ኤምሬ በዩሮፓ ሊግ ታሪካቸው በደርሶ መልስ ጨዋታዎች ተሸንፈው የወጡት አንድ ጊዜ ብቻ ነው፤ ካለፉት 22 ተመሳሳይ አጋጣሚዎች ደግሞ ሁሉንም አልፈዋል።
+
+---
+id: 11232
+status: published
+published_at: 2026-05-07T05:50:23+00:00
+source: BBC Sport Football
+original_title: Villa's nearly men entering their defining moment
+translated_title_am: ፔሬራ፡ "በትኩረት ማጣት ዕድል መምከን ዋጋ ያስከፍላል"
+translated_story_am:
+የኖቲንግሃም ፎረስት አሰልጣኝ ቪቶር ፔሬራ ቡድናቸው አስቶን ቪላን በድምር ውጤት 2-1 ጥሎ ለዩሮፓ ሊግ ፍጻሜ መብቃቱን በታላቅ ኩራት አብስረዋል። በመልሱ ጨዋታ 1-1 በሆነ አቻ ውጤት ቢለያዩም፣ በመጀመሪያው ዙር ያገኙት ጠባብ መሪነት ለታሪካዊው ስኬት በቅቷቸዋል። ፔሬራ በሰጡት መግለጫ፣ ተጫዋቾቻቸው እስከ መጨረሻው ደቂቃ የነበራቸው ትኩረት የሚደነቅ መሆኑን ጠቅሰው፣ በዚህ ደረጃ የሚገኙ ዕድሎች መምከን ለሽንፈት እንደሚዳርግና ቡድናቸው ግን ያንን በሚገባ መወጣቱን ገልጸዋል። አሁን ሬድሶቹ ከ46 ዓመታት በኋላ ለመጀመሪያ ጊዜ ወደ አውሮፓ መድረክ ፍጻሜ በማቅናት ለታሪክ ተሰልፈዋል።
+
+---
+id: 11226
+status: published
+published_at: 2026-05-06T22:58:01+00:00
+source: BBC Sport Football
+original_title: From ego-ridden team to complete package - why PSG pose ultimate test
+translated_title_am: ፒኤስጂ የአርሰናል የመጨረሻው ፈተና፡ ከግለኝነት ወደ ሙሉነት
+translated_story_am:
+ሉዊስ ኤንሪኬ በፒኤስጂ የገነቡት አዲሱ የቡድን መንፈስ እና ስነ-ልቦና፣ መድፈኞቹ በሻምፒዮንስ ሊግ ፍጻሜው ከባድ ፈተና እንደሚጠብቃቸው አመላካች ሆኗል። ፓሪሳውያኑ ባየርን ሙኒክን በመረታት ለፍጻሜው ሲበቁ፣ በተለይም የጆርጂያው ኮከብ ክቪቻ ክቫራትስኬሊያ እና ኡስማን ዴምቤሌ ያላቸው ቅንጅት ለባየርን ተከላካዮች ቅዠት ሆኖባቸው አምሽቷል። አርሰናል ዋንጫውን ለማንሳት በሜዳው የሰረጸውን ግለኝነት አጥፍቶ ወደ አንድነት የተለወጠውን ይህን በታሪካዊ ብቃት ላይ የሚገኝ የፒኤስጂ ስብስብ በግንቦት 22 ማሸነፍ ይኖርበታል።
+
+---
+id: 11227
+status: published
+published_at: 2026-05-06T22:19:46+00:00
+source: BBC Sport Football
+original_title: Why resolute Arsenal will believe prolific PSG can be beaten in final
+translated_title_am: አርሰናል እና ፒኤስጂ ለታሪካዊ የፍጻሜ ፍልሚያ
+translated_story_am:
+ለ20 ዓመታት የናፈቀውን የአውሮፓ ሻምፒዮንስ ሊግ ፍጻሜ የተቀላቀለው አርሰናል፣ የግዙፉን ፒኤስጂ የፊት መስመር ጥቃት ተቋቁሞ ዋንጫውን ለመጀመሪያ ጊዜ ለማንሳት ግንቦት 22 ቀን ወደ ሜዳ ይገባል። መድፈኞቹ አትሌቲኮ ማድሪድን ጥለው ለፍጻሜው እንዲበቁ ቡካዮ ሳካ ወሳኝ ጎል ቢያስቆጥርም፣ በምሽቱ ግን የጋብርኤል አስደናቂ የመከላከል ብቃት እና የመድፈኞቹ የኋላ ደጅ ጥንካሬ ለስኬቱ ቁልፍ ሚና ተጫውቷል። አሰልጣኝ ሚኬል አርቴታም የቡድኑን የአንድነት መንፈስ እና ወሳኝ በሆኑ ቅጽበቶች የሚታየውን "ጥቂት አስማት" ለፍጻሜው ድል እንደ መተማመኛ ወስደውታል።
+
+---
+id: 11224
+status: published
+published_at: 2026-05-06T20:43:38+00:00
+source: BBC Sport Football
+original_title: Man Utd have no plans for Rashford - Thursday's gossip
+translated_title_am: የሐሙስ የእግር ኳስ ወሬዎች በአጭሩ
+translated_story_am:
+ማርከስ ራሽፎርድ፦ ማንቸስተር ዩናይትድ በባርሴሎና በውሰት ላይ የሚገኘውን ራሽፎርድን የመመለስ ዕቅድ የለውም፤ ተጫዋቹ ግን በካምፕ ኑ የመቆየት ፍላጎት አለው።
+
+ጆዜ ሞሪንሆ፦ ሪያል ማድሪድ የቀድሞ አሰልጣኙን ለመመለስ ቢፈልግም ቤንፊካ ግን አሰልጣኙን የማቆየት ጽኑ ፍላጎት አለው።
+
+ኤንዞ ፈርናንዴዝ፦ አርሰናል፣ ማንቸስተር ሲቲ እና ባርሴሎና የቼልሲውን አማካኝ ለማስፈረም ፉክክር ውስጥ ናቸው።
+
+ኒውካስል፦ በግብ ጠባቂ መስመር ያለበትን ክፍተት ለመሙላት ጄምስ ትራፎርድን እና ባርት ቨርብሩገንን የዝውውር ቅድሚያ ሰጥቷል።
+
+---
+id: 11225
+status: published
+published_at: 2026-05-06T18:30:00+00:00
+source: Nottingham Forest
+original_title: REDS TRAVEL TO VILLA FOR A HISTORIC PLACE IN UEL FINAL
+translated_title_am: ኖቲንግሃም ፎረስት ከ አስቶን ቪላ፡ የፍጻሜው ትንቅንቅ
+translated_story_am:
+በመጀመሪያው ዙር 1-0 መምራት የቻሉት ሬድሶች፣ ከ40 ዓመታት በኋላ ለመጀመሪያ ጊዜ ወደ አውሮፓ መድረክ ፍጻሜ ለመድረስ ዛሬ ቪላ ፓርክ ላይ ይፋለማሉ። ቪቶር ፔሬራ ካለፉት 10 ጨዋታዎች ሽንፈት ባላየው ስብስባቸው ቪላዎችን ለመርታት ቢዘጋጁም፣ ኡናይ ኤምሪ በበኩላቸው በሜዳቸው የድል ድርቅን ለመስበርና ውጤቱን ለመቀልበስ ብርቱ ትንቅንቅ እንደሚያደርጉ ይጠበቃል።
+
+---
+id: 11220
+status: published
+published_at: 2026-05-06T18:26:25+00:00
+source: BBC Sport Football
+original_title: Neymar apologises for slapping teenager Robinho Jr
+translated_title_am: ኔይማርና ሮቢንሆ ጁኒየር፡ ጠብ በሳንቶስ!
+translated_story_am:
+ኔይማር በልምምድ ወቅት ታዳጊውን ሮቢንሆ ጁኒየርን በጥፊ በመምታቱ "መስመር አልፌያለሁ" ሲል በይፋ ይቅርታ ጠየቀ። በኮፓ ሱዳሜሪካና ጨዋታ ላይ ጎል ካስቆጠረ በኋላ የሮቢንሆ ልጅ የሆነውን ታዳጊ በማቀፍ አለመግባባቱ መክሰሙን አሳይቷል። በክለቡ ውስጥ ሰላም ወርዷል!
+
+---
+id: 11217
+status: published
+published_at: 2026-05-06T14:45:10+00:00
+source: Aston Villa
+original_title: Konsa: It will be a special night
+translated_title_am: ኤዝሪ ኮንሳ፡ "ለየት ያለ ምሽት ይሆንልናል"
+translated_story_am:
+የአስቶን ቪላው ተከላካይ ኤዝሪ ኮንሳ ከኖቲንግሃም ፎረስት ጋር ለሚደረገው የዩሮፓ ሊግ የግማሽ ፍጻሜ የመልስ ጨዋታ ቡድኑ ዝግጁ መሆኑን ገለጸ። በመጀመሪያው ጨዋታ 1-0 የተሸነፉት ቪላዎች፣ በቪላ ፓርክ ያላቸውን የ9 ተከታታይ የአውሮፓ መድረክ የቤት ድል ታሪክ በመጠቀም ውጤቱን ለመቀልበስ እንደሚጫወቱ ኮንሳ ተናግሯል። ያለፉትን ሶስት ጨዋታዎች ሽንፈት በመርሳት በነገው ጨዋታ ላይ ብቻ ትኩረት ማድረጋቸውንና በደጋፊዎቻቸው ፊት ለየት ያለ ስኬት እንደሚያስመዘግቡም ያላቸውን እምነት ገልጿል።
+
+---
+id: 11218
+status: published
+published_at: 2026-05-06T14:20:04+00:00
+source: Aston Villa
+original_title: Emery looks ahead to second leg
+translated_title_am: ኤምሬ ከኖቲንግሃም ፎረስት ፍልሚያ በፊት፡ "ታሪክ ለመስራት ተዘጋጅተናል"
+translated_story_am:
+አስቶን ቪላ በዩሮፓ ሊግ የግማሽ ፍፃሜ የመልስ ጨዋታ ኖቲንግሃም ፎረስትን ቪላ ፓርክ ላይ ያስተናግዳል። የመጀመሪያው ጨዋታ በፎረስት 1-0 አሸናፊነት መጠናቀቁን ተከትሎ፣ ኡናይ ኤምሬ ቡድናቸው ውጤቱን ቀልብሶ ለፍፃሜ ለመድረስ ከፍተኛ መነሳሳት ላይ መሆኑን ገልጸዋል።
+
+ኤምሬ ለጋዜጠኞች እንደተናገሩት፣ ጨዋታው እስከ መለያ ምት ሊያመራ እንደሚችል በማሰብ ቡድኑ በሁሉም ረገድ ዝግጅቱን አጠናቋል። "ቪላ ፓርክ ላይ ከደጋፊዎቻችን ጋር ልዩ ድባብ እንፈጥራለን" ያሉት አሰልጣኙ፣ ምንም እንኳን ፎረስት በውጤቱ ቢመራም፣ ቪላዎች ታሪክ ለመስራት ቆርጠው ተነስተዋል። በክለቡ ውስጥ ከፍተኛ መነሳሳትና ሰላም ሰፍኗል!
+
+---
+id: 11206
+status: published
+published_at: 2026-05-06T13:00:00+00:00
+source: Sky Sports Premier League
+original_title: 'Rock bottom' Chelsea need manager with PL experience
+translated_title_am: የቼልሲ መከራ፦ "ልምድ ያለው መሪ ፍለጋ"
+translated_story_am:
+ቼልሲ ኤንዞ ማሬስካን በማባረር እና ልምድ የሌለውን ሊያም ሮሲኒየርን በመሾም የሰራው ስህተት ዋጋ አስከፍሎታል። ክለቡ አሁን ካለበት "የመጨረሻ ደረጃ" ውድቀት ለመውጣት የፕሪሚየር ሊግ ልምድ ያለው አሰልጣኝ እና ሜዳ ላይ የሚመሩ አንጋፋ ተጫዋቾች የግድ ያስፈልጉታል። የታዳጊዎች ስብስብ ብቻውን ስላልሰራ፣ በክረምቱ የዝውውር ፖሊሲያቸውን ማስተካከል ይኖርባቸዋል።
+
+---
+id: 11215
+status: published
+published_at: 2026-05-06T12:52:08+00:00
+source: Crystal Palace
+original_title: Team News: Updates on Hughes, Guessand & Sosa ahead of Shakhtar
+translated_title_am: ክሪስታል ፓላስ፡ የተጫዋቾች ዝመና ከሻክታር ጨዋታ በፊት
+translated_story_am:
+ክሪስታል ፓላስ ከሻክታር ዶኔትስክ ጋር ለሚያደርገው የወዳጅነት ጨዋታ የዊል ሂውዝ፣ ጉዌሳንድ እና ሶሳ ሁኔታ መሻሻሉን አረጋግጧል። ኦሊቨር ግላስነር ቡድኑን ለዝግጅት እያዘጋጁት ሲሆን፣ ጉዳት ላይ የነበሩ ተጫዋቾች ወደ ሜዳ ለመመለስ መቃረባቸው ለክለቡ ትልቅ እፎይታ ሆኗል። ሰላም ሰፍኗል!
+
+---
+id: 11205
+status: published
+published_at: 2026-05-06T11:37:16+00:00
+source: BBC Sport Football
+original_title: Was Arsenal ecstasy justified or a 'bit too much'?
+translated_title_am: መድፈኞቹ ለፍጻሜ ደረሱ፤ ደስታቸው ግን አከራካሪ ሆኗል
+translated_story_am:
+አርሰናል አትሌቲኮ ማድሪድን በመርታት ከ20 ዓመታት በኋላ ለቻምፒዮንስ ሊግ ፍጻሜ በመብቃቱ ደጋፊዎቹ በታላቅ ደስታ ላይ ናቸው። ሆኖም ዋይን ሩኒ "ገና ዋንጫ ስላልበሉ ደስታቸው ይበዛል" ሲል ተችቷል። በአንጻሩ የቀድሞው አሰልጣኝ አርሴን ቬንገር ደስታው የሚገባ ቢሆንም ትኩረታቸው ፍጻሜው ላይ መሆን እንዳለበት መክረዋል። መድፈኞቹ ታሪክ ለመስራት ተቃርበዋል!
+
+---
+id: 11209
+status: published
+published_at: 2026-05-06T09:42:00+00:00
+source: Everton
+original_title: O’Brien Sets Personal Target & Reveals Takeaways From City Draw
+translated_title_am: ጄክ ኦብራይን፡ "ጎሉ ዘግይቷል!"
+translated_story_am:
+ኤቨርተን ከማንችስተር ሲቲ ጋር 3 ለ 3 በሆነ አስደናቂ ውጤት ሲለያዩ፣ ኦብራይን የመጀመሪያ የውድድር ዓመት ጎሉን አስቆጥሯል። "ጎሉ መቆጠር ከነበረበት ጊዜ ዘግይቷል" ያለው ተከላካዩ፣ ቡድኑ የአውሮፓ ተሳትፎን ለማሳካት ለ90 ደቂቃ ሙሉ በጥንካሬ መጫወት እንዳለበትና ወጥ አቋም እንደሚያስፈልገው አስገንዝቧል። የታየው መነሳሳት ድንቅ ቢሆንም፣ በጭማሪ ሰዓት ጎል መቆጠሩ ግን ልብ ሰባሪ መሆኑን ገልጿል።
+
+---
+id: 11210
+status: published
+published_at: 2026-05-06T08:22:17+00:00
+source: Everton
+original_title: What The Papers Say - 6 May
+translated_title_am: ሜርሊን ሮል እና የኤንዞ ቦዮሞ የዝውውር ጭምጭምታ
+translated_story_am:
+በሲቲው ጨዋታ በክንፍ ተሰልፎ ያበራው ሜርሊን ሮል ለቡድኑ ስኬት በማንኛውም ቦታ ለመጫወት ዝግጁ መሆኑን ሲገልጽ፤ ኤቨርተን ደግሞ የኦሳሱናውን ተከላካይ ኤንዞ ቦዮሞን በ£22 ሚሊዮን የውል ማፍረሻ ለማስፈረም ፉክክር ውስጥ መግባቱ ተሰምቷል። የሮል ሁለገብነት እና አዲስ ተከላካይ የማደን ጥረቱ የክለቡን የአውሮፓ ጉዞ ለማሳካት የታለሙ ናቸው።
+
+---
+id: 11203
+status: published
+published_at: 2026-05-06T07:00:00+00:00
+source: Sky Sports Premier League
+original_title: McGinn: European glory with Aston Villa would mean everything
+translated_title_am: ክሪስታል ፓላስ እና የሻክታር ዶኔትስክ ወሳኝ ፍልሚያ!
+translated_story_am:
+ክሪስታል ፓላስ በታሪኩ ለመጀመሪያ ጊዜ ለአውሮፓ የፍጻሜ ጨዋታ ለመድረስ ሐሙስ ምሽት በሴልኸርስት ፓርክ ከሻክታር ዶኔትስክ ጋር ይፋለማል። በሜዳው የሚያደርገውን ይህን የኮንፈረንስ ሊግ የግማሽ ፍጻሜ መልስ ጨዋታ እንዲመሩት የጀርመናዊው ዳኛ ፌሊክስ ዝዋየር ቡድን ተመርጧል። ፓላስ በመጀመሪያው ጨዋታ 3-1 በማሸነፉ ለፍጻሜው ትልቅ ብልጫ ቢኖረውም፣ አሰልጣኝ ኦሊቨር ግላስነር ግን ጨዋታው ከባድ እንደሚሆን አስጠንቅቀዋል!
+
+---
+id: 11202
+status: published
+published_at: 2026-05-06T05:49:33+00:00
+source: BBC Sport Football
+original_title: Chelsea owners face moment of reckoning amid fan backlash
+translated_title_am: የቼልሲ ባለቤቶች እና የደጋፊዎች ቁጣ፡ የውሳኔው ሰዓት ደረሰ!
+translated_story_am:
+የቼልሲ የብሉኮ (BlueCo) ባለቤቶች አሁን ከደጋፊዎቻቸው የሚሰነዘርባቸውን ከፍተኛ ተቃውሞ እያስተናገዱ ይገኛሉ። ቡድኑ በኖቲንግሃም ፎረስት በደረሰበት የ 3-1 ሽንፈት ምክንያት የሻምፒዮንስ ሊግ ተስፋው መክኗል። በአራት ዓመት ውስጥ ስድስተኛ አሰልጣኝ ፍለጋ ላይ የሚገኘው ክለቡ፣ በደጋፊዎች እና በአመራሩ መካከል ያለው ግንኙነት እጅግሻክሯል!
+
+---
+id: 11200
+status: published
+published_at: 2026-05-05T23:29:43+00:00
+source: BBC Sport Football
+original_title: The league is the dream - but is this Arsenal's moment in Europe?
+translated_title_am: አርሰናል በአውሮፓ መድረክ፡ የህልም ጉዞ ወደ ፍጻሜ!
+translated_story_am:
+አርሰናል በአትሌቲኮ ማድሪድ ላይ ባስመዘገበው ድል ከ20 ዓመታት በኋላ ለመጀመሪያ ጊዜ ለቻምፒዮንስ ሊግ ፍጻሜ በቅቷል። በውድድሩ እስካሁን ሽንፈት ያላስተናገደው መድፈኞቹ፣ በሊጉ ካላቸው ጠንካራ ፉክክር ጎን ለጎን በአውሮፓም ታሪክ ለመስራት ቡዳፔስት ላይ ቀጠሮ ይዘዋል። አርቴታና ልጆቹ የለንደንን ክብር ከፍ ለማድረግና የዓመታት ጥማቸውን ለማርካት አሁን አንድ ጨዋታ ብቻ ቀርቷቸዋል!
+
+---
+id: 11201
+status: published
+published_at: 2026-05-05T20:04:32+00:00
+source: BBC Sport Football
+original_title: Napoli to make Hojlund's move permanent - Wednesday's gossip
+translated_title_am: አጫጭር የዝውውር ወሬዎች
+translated_story_am:
+ሆይሉንድ ወደ ናፖሊ
+ናፖሊ የማንቸስተር ዩናይትዱን አጥቂ ራስመስ ሆይሉንድን በቋሚነት ለመግዛት የ38 ሚሊዮን ፓውንድ ሂሳብ አዘጋጅቷል። ዝውውሩ የሚሳካው ክለቡ የቻምፒዮንስ ሊግ ተሳትፎን ሲያረጋግጥ ይሆናል።
+
+ዣቪ ወደ ስታምፎርድ ብሪጅ?
+ቼልሲዎች የቀድሞውን የባርሴሎና አሰልጣኝ ዣቪ ሄርናንዴዝን ቀጣዩ የክለቡ መሪ ለማድረግ በቁም ነገር እያሰቡበት ነው።
+
+ካሴሚሮ እና ሜሲ
+ብራዚላዊው ካሴሚሮ ከሊዮኔል ሜሲ ጋር ለመጫወት ካለው ጉጉት የተነሳ ደመወዙን ቀንሶ ኢንተር ማያሚን ለመቀላቀል ፍቃደኛ ሆኗል።
+
+የሊቨርፑል እና ቶተንሃም ኮከቦች በኢንተር ሚላን
+የጣሊያኑ ኢንተር ሚላን የቶተንሃሙን ግብ ጠባቂ ቪካሪዮን እና የሊቨርፑሉን አማካኝ ከርቲስ ጆንስን ለማስፈረም ጥያቄ ለማቅረብ እያጠና ነው።
+
+የቪኒሺየስ ቅድመ ሁኔታ
+ቪኒሺየስ ዡኒየር በማድሪድ አዲስ ውል ለመፈረም ከገንዘብ ባለፈ በክለቡ ውስጥ አስተዳደራዊ ለውጦች እንዲደረጉ ፍላጎት አሳይቷል።
+
+ሰመርቪል በመሸኘት ላይ
+ዌስትሃም ከወረደ የክንፍ ተጫዋቹ ክሪሴንሲዮ ሰመርቪል በቅናሽ ዋጋ ለሌሎች የአውሮፓ ክለቦች ሊሸጥ እንደሚችል ተሰምቷል።
+
+---
+id: 11198
+status: published
+published_at: 2026-05-05T18:00:46+00:00
+source: The Guardian Premier League
+original_title: Thierno Barry provides human touch with fresh twist in title race full of uncertainties | Barney Ronay
+translated_title_am: የፕሪምየር ሊጉ ድራማ፦ ሲቲ ተደናቀፈ፣ አርሰናል ብልጫ ወሰደ
+translated_story_am:
+የኤቨርተን እልህ እና የቲየርኖ ባሪ ድንቅ ብቃት
+ማንቸስተር ሲቲ በጉዲሰን ፓርክ ከኤቨርተን ጋር 3-3 በሆነ አቻ ውጤት በመለያየቱ ለዋንጫው የነበረው የበላይነት ጥያቄ ውስጥ ወድቋል። በተለይም ቲየርኖ ባሪ በ13 ደቂቃዎች ውስጥ ያስቆጠራቸው ሁለት ግቦች ሲቲን ዋጋ አስከፍለዋል። ፔፕ ጋርዲዮላ በውጤቱ ቢበሳጭም፣ አርሰናል አሁን የሊጉን ዋንጫ ለመሳብ ትልቅ ዕድል አግኝቷል።
+
+የአርሰናል መነሳሳት እና የጂዮከሬስ ግቦች
+ቪክቶር ጂዮከሬስ ለመድፈኞቹ እያሳየ ያለው ድንቅ አጨራረስ ቡድኑን ወደ ዋንጫው እያቃረበው ይገኛል። አርሰናል ከዚህ ቀደም የነበረበትን የ"መጨረሻ ሰዓት መንቀጥቀጥ" (Choking) ታሪክ የቀየረ ይመስላል። አርቴታ ቡድኑን ለወሳኝ ድሎች እያዘጋጀ ሲሆን፣ እሁድ ከዌስትሃም ጋር የሚደረገው ጨዋታ የሊጉን እጣ ፈንታ ለመወሰን ትልቅ ሚና ይኖረዋል።
+
+---
+id: 11184
+status: published
+published_at: 2026-05-05T16:24:33+00:00
+source: BBC Sport Football
+original_title: Everton fan arrested for alleged Semenyo racist abuse
+translated_title_am: በሴሜንዮ ላይ ለደረሰው ዘረኝነት የኤቨርተን ደጋፊ በቁጥጥር ስር ዋለ!
+translated_story_am:
+ኤቨርተን ከማንችስተር ሲቲ ጋር ባደረገው ጨዋታ በአንቶኒ ሴሜንዮ ላይ የዘረኝነት ስድብ ሰንዝሯል የተባለ የ71 ዓመት አዛውንት በቁጥጥር ስር ውሏል። ደጋፊው በዋስ ቢፈታም፣ ጨዋታ በሚኖርበት ወቅት ከስታዲየም አንድ ማይል ርቀት ላይ እንዳይገኝ ታግዷል። ፖሊስ ከኤቨርተን ጋር በመተባበር ምርመራውን እያጣራ ይገኛል!
+
+---
+id: 11185
+status: published
+published_at: 2026-05-05T15:33:12+00:00
+source: BBC Sport Football
+original_title: Is Gibbs-White favourite to start as England's number 10 at World Cup?
+translated_title_am: ጊብስ-ዋይት እና የእንግሊዝ ቁጥር 10 ሚና!
+translated_story_am:
+ሞርጋን ጊብስ-ዋይት በ2026 እያሳየ ያለው ድንቅ ብቃት የቶማስ ቱሄልን ትኩረት ስቧል። በዚህ የውድድር ዘመን 13 ጎሎችን ያስቆጠረው ኮከቡ፣ ምንም እንኳን ለወዳጅነት ጨዋታዎች ባይመረጥም፣ አሁን ግን ለዓለም ዋንጫው የእንግሊዝ ቁጥር 10 ሚና ዋነኛ እጩ ሆኗል። የጊብስ-ዋይት መነሳሳት ለሶስቱ አንበሶች ትልቅ ተስፋ ሆኗል!
+
+---
+id: 11188
+status: published
+published_at: 2026-05-05T13:26:00+00:00
+source: Sky Sports Premier League
+original_title: New names emerge as Man Utd midfield plans ramp up
+translated_title_am: የዩናይትድ የአማካይ ክፍል ግንባታ እና አዳዲስ ስሞች!
+translated_story_am:
+ማንችስተር ዩናይትድ በክረምቱ የዝውውር መስኮት የአማካይ ክፍሉን ለማጠናከር የቦርንመውቶቹን ታይለር አዳምስ እና አሌክስ ስኮትን እንዲሁም የዌስትሃሙን ማቲውስ ፈርናንዴዝን በእጩነት ይዟል። ክለቡ የቡድኑን ጥራት ለማሻሻል ወጣትና ብርቱ ተጫዋቾችን ለማምጣት በዝግጅት ላይ ነው!
+
+---
+id: 11186
+status: published
+published_at: 2026-05-05T12:35:22+00:00
+source: BBC Sport Football
+original_title: How did Guehi 'assist' allow Barry to score when offside?
+translated_title_am: የጌሂ 'አሲስት' እና የባሪ አወዛጋቢ ጎል!
+translated_story_am:
+ኤቨርተን ከማንችስተር ሲቲ ጋር 3-3 በተለያየበት ጨዋታ ቲየርኖ ባሪ ከመሬት ተነስቶ ያስቆጠራት ጎል መነጋገሪያ ሆናለች። ባሪ ከጨዋታ ውጪ በሆነ ቦታ ላይ ቢገኝም፣ የሲቲው ማርክ ጌሂ ኳሷን ለማጽዳት ሲሞክር ለባሪ በማመቻቸቱ ጎሉ ሊጸድቅ ችሏል። የህጉ ፍትሃዊነት ጥያቄ ቢያስነሳም፣ ዳኛው ግን በጌሂ "ሆን ተብሎ የተደረገ ጨዋታ" ምክንያት የባሪን ከጨዋታ ውጪ መሆን ሽረውታል!
+
+---
+id: 11179
+status: published
+published_at: 2026-05-05T11:34:06+00:00
+source: BBC Sport Football
+original_title: 'Caption this' - Ferdinand and Carragher's social spat
+translated_title_am: የፈርዲናንድ እና ካራገር የትዊተር ፍጥጫ!
+translated_story_am:
+የቀድሞዎቹ የእንግሊዝ ብሄራዊ ቡድን ተከላካዮች ሪዮ ፈርዲናንድ እና ጄሚ ካራገር በማህበራዊ ሚዲያ ላይ እሰጥ አገባ ውስጥ ገብተዋል። ፈርዲናንድ በ2004 ማንችስተር ዩናይትድ ሊቨርፑልን ሲያሸንፍ ካራገር አዝኖ የሚታይበትን ምስል "Caption this" በማለት በመለጠፍ ትንኮሳውን ጀምሯል። ሁለቱ ተቀናቃኞች አሁንም ለቀድሞ ክለቦቻቸው ያላቸው ወገንተኝነት በሜዳ ውጪም እንደቀጠለ ነው!
+
+---
+id: 11187
+status: published
+published_at: 2026-05-05T11:34:00+00:00
+source: Sky Sports Premier League
+original_title: Merson: Chelsea are in a mess - who would want the manager's job?
+translated_title_am:  ቼልሲ ውጥንቅጡ ወጥቷል - ማንስ ይህን የስራ ድርሻ ይፈልገዋል?
+translated_story_am:
+ታዋቂው ተንታኝ ፖል መርሰን ቼልሲ በአሁኑ ወቅት ያለበትን ሁኔታ "ውጥንቅጥ" ሲል ገልጾታል። ክለቡ በሜዳው በኖቲንግሃም ፎረስት 3-1 መሸነፉን ተከትሎ፣ የቼልሲ "ፕሮጀክት" እየሰራ እንዳልሆነና ማንኛውም ትልቅ አሰልጣኝ ወደ ስታምፎርድ ብሪጅ ለመምጣት እንደሚቸገር ጥያቄ አቅርቧል። ቼልሲ ተከታታይ ስድስት ጨዋታዎችን በመሸነፍ ለቻምፒዮንስ ሊግ የማለፍ ተስፋው መምከኑ መርሰንን በእጅጉ አሳስቦታል!
+
+---
+id: 11178
+status: published
+published_at: 2026-05-05T11:16:53+00:00
+source: BBC Sport Football
+original_title: Derry says debut a 'dream come true' despite injury
+translated_title_am: የዴሪ ህልም እና አስደንጋጭ ጉዳት!
+translated_story_am:
+የ18 አመቱ የቼልሲ አጥቂ ጄሲ ዴሪ በኖቲንግሃም ፎረስት ላይ ያደረገው የመጀመሪያ ጨዋታ "ህልሜ እውን የሆነበት ነው" ብሏል። በጨዋታው ላይ በደረሰበት የራስ ጉዳት ወደ ሆስፒታል ቢወሰድም፣ አሁን ግን ተሽሎት መውጣቱ ተረጋግጧል። ዴሪ በሜዳ ላይ ኦክስጅን እስከመቀበል ቢደርስም፣ ክለቡ ክትትል እንደሚያደርግለትና በህይወት መኖሩ ትልቅ እፎይታ መሆኑን ገልጿል!
+
+---
+id: 11193
+status: published
+published_at: 2026-05-05T10:56:00+00:00
+source: Everton
+original_title: Röhl Discusses Hidden Attribute, Penalty Incident & Why He Is 'Living A Dream'
+translated_title_am: የሮህል አስደናቂ ብቃት እና የ"ህልም" ቆይታ!
+translated_story_am:
+ሜርሊን ሮህል ኤቨርተን ከማንችስተር ሲቲ ጋር 3-3 በሆነ ውጤት በተለያየበት ጨዋታ ያሳየው ብቃት የብዙዎችን ትኩረት ስቧል። ወጣቱ ኮከብ በተለያዩ ቦታዎች ላይ ተሰልፎ መጫወት እንደሚችልና ለኤቨርተን መጫወት "ህልሙ" እንደሆነ ገልጿል። በሁለተኛው አጋማሽ በርናርዶ ሲልቫ በሰራበት ጥፋት የፍጹም ቅጣት ምት ሊሰጠው ይገባ እንደነበርና በደጋፊው ድባብ መደሰቱን ተናግሯል!
+
+---
+id: 11177
+status: published
+published_at: 2026-05-05T09:13:12+00:00
+source: BBC Sport Football
+original_title: Foden reaches agreement over new Man City deal
+translated_title_am: ፎደን በሲቲ ለመቆየት ተስማማ!
+translated_story_am:
+የማንችስተር ሲቲው ኮከብ ፊል ፎደን በኢቲሃድ እስከ 2030 የሚያቆየውን የአራት አመት ውል ለመፈረም በመርህ ደረጃ ተስማምቷል። ምንም እንኳን ተጫዋቹ በቅርብ ወራት የጎል ድርቅ ቢመታውም፣ ሲቲ ግን ለልጁ ያለውን እምነት አድሷል። ፎደን አሁን ትኩረቱን በቱሄል የዓለም ዋንጫ ስብስብ ውስጥ ለመካተት አድርጓል!
+
+---
+id: 11181
+status: published
+published_at: 2026-05-05T08:22:49+00:00
+source: Everton
+original_title: What The Papers Say - 5 May
+translated_title_am: የኤቨርተን የዝውውር እና የቡድን ዜናዎች!
+translated_story_am:
+ኤቨርተን ለማንችስተር ሲቲው ወሳኝ ፍልሚያ ቤቶን ለማሰለፍ እየተጠባበቀ ነው። በሌላ በኩል ዱስበሪ-ሆል ቀሪዎቹ ጨዋታዎች ላይ መሻሻል እንደሚገባ አሳስቧል። ክለቡ የ2026/27 የውድድር ዘመን ቲኬት ዋጋን ይፋ ማድረጉም በጋዜጦች ሰፊ ሽፋን አግኝቷል። ታላቅ ፉክክር ይጠብቀናል!
+
+---
+id: 11176
+status: published
+published_at: 2026-05-05T08:11:48+00:00
+source: BBC Sport Football
+original_title: Forest hopeful of Gibbs-White fitness for Europa tie
+translated_title_am: የጊብስ-ዋይት የሽንፈት ስጋት እና የፔሬራ ተስፋ!
+translated_story_am:
+ኖቲንግሃም ፎረስት ለዩሮፓ ሊግ የግማሽ ፍጻሜ መልስ ጨዋታ ሞርጋን ጊብስ-ዋይትን ለማሰለፍ "ተአምር" እየጠበቀ ነው። አሰልጣኝ ቪቶር ፔሬራ ኮከባቸው እንዲደርስላቸው ከፍተኛ ተስፋ ቢያደርጉም፣ የተጫዋቹ ዝግጁነት ግን አሁንም ጥያቄ ምልክት ውስጥ ነው። ፎረስት ወሳኝ ፍልሚያ ይጠብቀዋል!
+
+---
+id: 11154
+status: published
+published_at: 2026-05-04T22:00:00+00:00
+source: Sky Sports Premier League
+original_title: Man City salvage late draw at Everton but hand title advantage to Arsenal
+translated_title_am: ኤቨርተን ሲቲን አስቆመ፤ የፕሪሚየር ሊጉ ዋንጫ ወደ ለንደን እያመራ ነው?
+translated_story_am:
+በጉጉት በተጠበቀው የሰኞ ምሽት ጨዋታ ኤቨርተን እና ማንቸስተር ሲቲ 3-3 በሆነ አስደናቂ ውጤት ተለያይተዋል። ሲቲ በዶኩ አማካኝነት ቀዳሚ ቢሆንም፣ በ13 ደቂቃዎች ውስጥ ሦስት ግቦችን በማስተናገድ ክፉኛ ተደናቅፏል። ምንም እንኳን ሃላንድ እና ዶኩ ግቦችን ቢያስቆጥሩም፣ ነጥብ መጣላቸው ለአርሰናል የዋንጫ መንገዱን አመቻችቷል። አርሰናል እሁድ ዌስትሃምን ካሸነፈ ሻምፒዮንነቱን ያረጋግጣል!
+
+---
+id: 11157
+status: published
+published_at: 2026-05-04T21:20:53+00:00
+source: The Guardian Premier League
+original_title: Everton 3-3 Manchester City: Premier League – as it happened
+translated_title_am: ጄሬሚ ዶኩ ሲቲን ከሽንፈት ታደገ፤ የዋንጫው ዕጣ ግን በአርሰናል እጅ ነው
+translated_story_am:
+በጎል ናዳ በታጀበው የሰኞ ምሽት ጨዋታ ማንቸስተር ሲቲ እና ኤቨርተን 3-3 በሆነ ውጤት ተለያይተዋል። ጄሬሚ ዶኩ በጭማሪ ሰዓት ባስቆጠራት ድንቅ ግብ ሲቲን ከሽንፈት ቢታደገውም፣ የዋንጫው ፉክክር ቁልፍ አሁን ወደ አርሰናል ተላልፏል። መድፈኞቹ ቀሪ ጨዋታዎቻቸውን ካሸነፉ የሊጉ ሻምፒዮን መሆናቸውን ያረጋግጣሉ።
+
+⚽️ የጨዋታው ግቦችና ደቂቃዎች፦
+
+• 43' ጄሬሚ ዶኩ (ሲቲ)
+• 69' ቲየርኖ ባሪ (ኤቨርተን)
+• 73' ጄክ ኦብራይን (ኤቨርተን)
+• 81' ቲየርኖ ባሪ (ኤቨርተን)
+• 83' ኤርሊንግ ሃላንድ (ሲቲ)
+• 90+7' ጄሬሚ ዶኩ (ሲቲ)
+
+---
+id: 11133
+status: published
+published_at: 2026-05-04T20:20:42+00:00
+source: BBC Sport Football
+original_title: The high-quality relegation battle more like a title race
+translated_title_am: የፕሪሚየር ሊጉ የግርጌ ፍልሚያ ወይስ የዋንጫ ፉክክር?
+translated_story_am:
+የዘንድሮው የፕሪሚየር ሊግ ላለመውረድ የሚደረገው ትንቅንቅ ልክ እንደ ዋንጫ ፉክክር በዝግጅትና በውጥረት የታጀበ ሆኗል። ኖቲንግሃም ፎረስት፣ ቶተንሃም እና ዌስትሃም በውጤት መጣበብ ውስጥ ሲሆኑ፤ አንዱ ሲያሸንፍ ሌላው የሚቀጣበት፣ ስህተት የማይታገስ እጅግ ፈታኝ የህልውና ጦርነት ላይ ናቸው። የታችኛው ሰንጠረዥ አሁን እንደ አናት ይፋጃል!
+
+---
+id: 11136
+status: published
+published_at: 2026-05-04T19:46:00+00:00
+source: Sky Sports Premier League
+original_title: Should Lewis-Skelly start against Atletico? I'd like to see it, says Henry
+translated_title_am: ማይልስ ሉዊስ-ስኬሊ ወይስ ማርቲን ዙቢሜንዲ? የሄነሪ ትንበያ እና የአርሰናል ፈተና
+translated_story_am:
+ታዋቂው ቲየሪ ሄነሪ ወጣቱ ማይልስ ሉዊስ-ስኬሊ የወደፊት ዕጣ ፈንታው አማካኝ ክፍል ላይ መሆኑን በልበ ሙሉነት ተናግሯል። በፉልሃም ላይ ያሳየው ድንቅ ብቃት ለቻምፒዮንስ ሊግ የግማሽ ፍፃሜ ከአትሌቲኮ ማድሪድ ጋር ለሚደረገው ጨዋታ በቋሚነት እንዲሰለፍ ከፍተኛ ግፊት ፈጥሯል። ልምድ ያለው ዙቢሜንዲ ወይስ የጉልበት ጥማት ያለው ወጣቱ ስኬሊ? የአርቴታ ምርጫ የአውሮፓ ጉዟቸውን ይወስነዋል።
+
+---
+id: 11134
+status: published
+published_at: 2026-05-04T19:31:39+00:00
+source: BBC Sport Football
+original_title: Will a fit Saka prove key to Arsenal's season finale?
+translated_title_am: ቡካዮ ሳካ፦ የአርሰናል የውድድር ዓመት ማሳረጊያ ቁልፍ?
+translated_story_am:
+ከጉዳት የተመለሰው ቡካዮ ሳካ በፉልሃም ላይ ባሳየው ብቃት አርሰናልን ወደ ቀድሞ ጥንካሬው መልሶታል። መድፈኞቹ ከአትሌቲኮ ማድሪድ ጋር ለሚያደርጉት ወሳኝ የቻምፒዮንስ ሊግ የግማሽ ፍፃሜ ጨዋታ፣ የሳካ ጤንነትና ዝግጁነት ለሚኬል አርቴታ ትልቅ ተስፋ ሆኗል። ይህ ኮከብ ክለቡን ከ2020 በኋላ ለመጀመሪያ ጊዜ ለታላቅ ዋንጫ ለማብቃት በሜዳ ላይ የሚፈጥረው ልዩነት ይጠበቃል።
+
+---
+id: 11146
+status: published
+published_at: 2026-05-04T19:06:50+00:00
+source: Nottingham Forest
+original_title: AWONIYI: KEEP THE MENTALITY GOING AGAINST VILLA
+translated_title_am: አዎኒዪ ለቪቶር ፔሬራ ምስጋና አቀረበ፦ ፎረስት በስታምፎርድ ብሪጅ ደመቀ
+translated_story_am:
+ታይዎ አዎኒዪ በቼልሲ ላይ ባስቆጠራቸው ሁለት ግቦች ኖቲንግሃም ፎረስት ወሳኝ የ3-1 ድል እንዲቀዳጅ ረድቷል። ናይጄሪያዊው አጥቂ ለዚህ ውጤት አሰልጣኝ ቪቶር ፔሬራንና ስታፋቸውን አመስግኖ፣ ቡድኑ እስከ ውድድር ዓመቱ መጨረሻ ድረስ ይሄንኑ የማሸነፍ መንፈስ ይዞ እንዲቀጥል ጥሪ አቅርቧል። ፎረስት አሁን ፊቱን ወደ አስቶን ቪላ ጨዋታ አዙሯል!
+
+---
+id: 11132
+status: published
+published_at: 2026-05-04T17:56:35+00:00
+source: BBC Sport Football
+original_title: What Champions League failure means for 'broken club' Chelsea
+translated_title_am: የቼልሲ መፈራረስ እና የቻምፒዮንስ ሊግ ህልም መምከን
+translated_story_am:
+በኖቲንግሃም ፎረስት የደረሰባቸው የ3-1 ሽንፈት የቼልሲን የውድድር ዓመት ወደ የባሰ ቀውስ ውስጥ ከቶታል። ስድስት ተከታታይ ሽንፈቶችን ያስመዘገበውና አሰልጣኝ አልባ የሆነው ይሄኛው "የተሰበረ ክለብ"፣ የቻምፒዮንስ ሊግ ተሳትፎ እድሉ አሁን መምከኑ ተረጋግጧል። በታሪኩ አይቶት የማያውቀው የውጤት ማሽቆልቆል ለለንደኑ ክለብ ከባድ የገንዘብና የክብር ኪሳራ ይዞ መምጣቱ አይቀሬ ነው።
+
+---
+id: 11147
+status: published
+published_at: 2026-05-04T17:54:55+00:00
+source: Nottingham Forest
+original_title: PEREIRA: 'SPECIAL GROUP' DESERVED WIN
+translated_title_am: ቪቶር ፔሬራ በክለቡ መንፈስ ተደስተዋል፤ የጊብስ-ኋይት ሁኔታም አሳሳቢ አይደለም
+translated_story_am:
+ኖቲንግሃም ፎረስት በቼልሲ ላይ የተቀዳጀውን የ3-1 ድል ተከትሎ፣ አሰልጣኝ ቪቶር ፔሬራ ለተጫዋቾቻቸው ያላቸውን አድናቆት ገልጸዋል። በጨዋታው ላይ ጉዳት የገጠመው ሞርጋን ጊብስ-ኋይት የከፋ ችግር እንዳልደረሰበትና ለሐሙሱ የአስቶን ቪላ የዩሮፓ ሊግ ወሳኝ ግጥሚያ እንደሚደርስ ተስፋ አድርገዋል። ፎረስት አሁን እጣ ፈንታውን በራሱ እጅ የማድረግ ሙሉ በራስ መተማመን አግኝቷል።
+
+---
+id: 11135
+status: published
+published_at: 2026-05-04T17:34:30+00:00
+source: BBC Sport Football
+original_title: Chelsea's Derry, 18, taken to hospital after head injury
+translated_title_am: የቼልሲው ወጣት ጄሲ ዴሪ በጭንቅላት ጉዳት ወደ ሆስፒታል ተወሰደ
+translated_story_am:
+በቼልሲ እና ኖቲንግሃም ፎረስት ጨዋታ ላይ የመጀመሪያ የፕሪሚየር ሊግ ሰልፉን ያደረገው የ18 ዓመቱ ጄሲ ዴሪ፣ ባጋጠመው የጭንቅላት ጉዳት ወደ ሆስፒታል ተወስዷል። በሜዳ ላይ የኦክስጅን ድጋፍ ተደርጎለት በቃሬዛ የወጣው ወጣቱ አጥቂ፣ አሁን ባለበት ሁኔታ ንቃተ ህሊናው የተመለሰና በንግግር ላይ እንደሚገኝ ክለቡ አረጋግጧል። ጊዜያዊ አሰልጣኙ ካለም ማክፋርሌንም የተጫዋቹን ሁኔታ ተስፋ ሰጪ መሆኑን ገልጸዋል።
+
+---
+id: 11125
+status: published
+published_at: 2026-05-04T15:18:57+00:00
+source: BBC Sport Football
+original_title: How De Zerbi brought life to sinking Spurs
+translated_title_am: ደ ዜርቢ ስፐርስን ከወራጅ ቀጠና አወጡ!
+translated_story_am:
+ሮቤርቶ ደ ዜርቢ ቶተንሃምን በመረከብ አስገራሚ ለውጥ እያመጡ ነው። ስፐርስ አስቶን ቪላን 2-1 በማሸነፍ ከወራጅ ቀጠናው መውጣት ችለዋል። የደ ዜርቢ ታክቲክ የተጫዋቾችን ውሳኔ አሰጣጥ በማቅለሉ፣ ቡድኑ በአዲስ መንፈስ እና በራስ መተማመን ለሁለተኛ ተከታታይ ጊዜ ድል ቀንቶታል።
+
+---
+id: 11124
+status: published
+published_at: 2026-05-04T15:05:40+00:00
+source: BBC Sport Football
+original_title: Mourinho's Benfica still unbeaten - but miss out on title
+translated_title_am: ሞሪንሆ ሳይሸነፍ ዋንጫ ሊያአጣ ነው!
+translated_story_am:
+ጆሴ ሞሪንሆ ከቤንፊካ ጋር በሊጉ እስካሁን ባይሸነፍም የፖርቱጋል ሻምፒዮን መሆን አይችሉም። በቪላስ ቦአስ የሚመራው ፖርቶ ዋንጫውን ማረጋገጡን ተከትሎ፣ ቤንፊካ በ10 አቻ ውጤቶች ምክንያት ሳይሸነፍ ዘውድ የሚያጣ ድንቅ ግን አስቆጪ ታሪክ ሊመዘግብ ተቃርቧል።
+
+---
+id: 11143
+status: published
+published_at: 2026-05-04T14:57:00+00:00
+source: Bournemouth
+original_title: Simon Francis departs as technical director at AFC Bournemouth
+translated_title_am: ሳይመን ፍራንሲስ ከቦርንመዝ ጋር ያለውን የ15 ዓመታት ቆይታ ሊያበቃ ነው
+translated_story_am:
+የቦርንመዝ የቴክኒክ ዳይሬክተር ሳይመን ፍራንሲስ በውድድር ዓመቱ መጨረሻ ክለቡን እንደሚለቅ ተረጋግጧል። ከ2011 ጀምሮ በምርጥ ተጫዋችነት፣ በአምበልነትና በቴክኒክ ዳይሬክተርነት ክለቡን ያገለገለው ፍራንሲስ፤ ለቦርንመዝ ታሪካዊ እድገት ትልቅ አሻራ ጥሎ አልፏል። የክለቡ ሊቀመንበር ቢል ፎሊ ለታማኙ አገልጋይ ያላቸውን ጥልቅ ክብር ገልጸውለታል። የቼሪዎቹ አንዱ ምሰሶ ተሰናባች ሆኗል!
+
+---
+id: 11126
+status: published
+published_at: 2026-05-04T14:39:19+00:00
+source: BBC Sport Football
+original_title: Hurzeler agrees new long-term deal with Brighton
+translated_title_am: ሀርዝለር በብራይተን ለመቆየት ተስማማ!
+translated_story_am:
+የ33 አመቱ ጀርመናዊ አሰልጣኝ ፋቢያን ሀርዝለር በብራይተን ለተጨማሪ ረጅም አመታት ለመቆየት አዲስ ውል ተፈራርሟል። ብራይተንን በሊጉ 8ኛ ደረጃ ላይ ይዞ የሚገኘው ሀርዝለር፣ ክለቡ ለሁለተኛ ጊዜ በአውሮፓ መድረክ እንዲሳተፍ ለማድረግ እያገዘ ሲሆን፣ ይህ አዲስ ውል በደቡብ ካናዳው ክለብ ያለውን ቆይታ ያራዝመዋል።
+
+---
+id: 11129
+status: published
+published_at: 2026-05-04T14:00:00+00:00
+source: Manchester United
+original_title: Carrick records 10th win this season
+translated_title_am: ካሪክ በሊቨርፑል ላይ የ10ኛ ድሉን አስመዘገበ!
+translated_story_am:
+ማይክል ካሪክ ማንቸስተር ዩናይትድን በመምራት በሊቨርፑል ላይ የዘንድሮውን 10ኛ ድል አስመዝግቧል። ዩናይትድ በካርሪክ ስር አስደናቂ ጥንካሬ እያሳየ ሲሆን፣ በታሪካዊ ባላንጣው ላይ ያገኘው ይህ ድል አሰልጣኙ በኦልድ ትራፎርድ ያለውን ተቀባይነት ከፍ አድርጎታል። የክለቡ ደጋፊዎችም በካሪክ ስኬት ተደስተዋል።
+
+---
+id: 11123
+status: published
+published_at: 2026-05-04T13:52:44+00:00
+source: The Guardian Premier League
+original_title: Viktor Gyökeres has scored 21 goals this season. He deserves more respect
+translated_title_am: ዮከሬስ በኤምሬትስ ታሪክ እየሰራ ነው!
+translated_story_am:
+ቪክቶር ዮከሬስ በፉልሃም ላይ ባስቆጠራቸው ሁለት ጎሎች የውድድር ዘመን የጎል መጠኑን ወደ 21 አድርሷል። በሊጉ ታሪክ በመጀመሪያ የውድድር ዘመናቸው ከሳንቼዝ እና ከሄንሪ በመቀጠል ከፍተኛ ጎል ያስቆጠረ ተጫዋች መሆን ችሏል። ይህ ስዊድናዊ አጥቂ ለአርሰናል የፊት መስመር እውነተኛ ንጉስ መሆኑን እያስመሰከረ ይገኛል! በማጥቃት ረገድ መድፈኞቹን ወደ ሌላ ደረጃ አሸጋግሯቸዋል።
+
+---
+id: 11044
+status: published
+published_at: 2026-05-04T06:31:07+00:00
+source: BBC Sport Football
+original_title: Davide Ancelotti: My dad, my tactics and Brazil's World Cup prospects
+translated_title_am: ዳቪዴ አንቸሎቲ ስለ ታክቲክና ብራዚል!
+translated_story_am:
+የሪያል ማድሪዱ ረዳት አሰልጣኝ ዳቪዴ አንቸሎቲ ከቢቢሲ ጋር በነበረው ቆይታ ስለ አሰልጣኝነት ፍልስፍናውና ከታዋቂው አባቱ ካርሎ አንቸሎቲ ስለቀሰመው ልምድ አውርቷል። ዳቪዴ በልጅነቱ እንደ ቡፎን ካሉ ኮከቦች ጋር ልምምድ በመስራት ያደገ ሲሆን፣ አሁን ደግሞ በብራዚል ብሔራዊ ቡድን ዙሪያ ያለውን ተስፋ ገልጿል።
+
+---
+id: 11042
+status: published
+published_at: 2026-05-04T06:04:52+00:00
+source: BBC Sport Football
+original_title: What happened to Everton's £40m signing Dibling?
+translated_title_am: ታይለር ዲብሊንግ ኤቨርተንን ተቀላቀለ!
+translated_story_am:
+ኤቨርተን ወጣቱን ኮከብ ታይለር ዲብሊንግን በ40 ሚሊዮን ፓውንድ ማስፈረሙን አረጋግጧል። በዴቪድ ሞይስ የሚመራው ኤቨርተን በአዲሱ ሂል ዲኪንሰን ስታዲየም ለሚጀምረው አዲስ ጉዞ ዲብሊንግ እንደ ዋና የቡድኑ አካል ይታያል። የቀድሞ አሰልጣኙ ራስል ማርቲን "ካየኋቸው ተጫዋቾች ሁሉ እጅግ ተሰጥኦ ያለው ነው" ሲሉ አወድሰውታል።
+
+---
+id: 10844
+status: published
+published_at: 2026-05-03T21:51:31+00:00
+source: BBC Sport Football
+original_title: Juventus target Man City's Reijnders - Monday's gossip
+translated_title_am: ዋና ዋና ነጥቦች
+translated_story_am:
+ማንቸስተር ሲቲ እና ኤቨርተን፦ ሲቲ የዋንጫ ፉክክሩን ለመምራት ዛሬ ጉዲሰን ፓርክ ላይ ከኤቨርተን ጋር ይጋጠማል። አርሰናል ነጥብ በጣለበት ማግስት ሲቲ ይህን ዕድል ለመጠቀም ይተጋል።
+
+ቼልሲ እና ፎረስት፦ ቼልሲዎች ሪስ ጀምስን በመሰለ አካል መልሰው ያገኙበትን ጨዋታ በሜዳቸው ያደርጋሉ። ፎረስት በበኩሉ ከወራጅ ቀጠና ለመራቅ ነጥብ ይፈልጋል።
+
+የአየርላንድ ሊግ፦ በዛሬው ዕለት ቦሂሚያንስ ከ ሼልቦርን፣ ደሪ ሲቲ ከ ጋልዌይ ዩናይትድ እንዲሁም ሻምሮክ ሮቨርስ ከ ድሮገዳ የሚያደርጓቸው ጨዋታዎች ይጠበቃሉ።
+
+ሌሎች ሊጎች፦ በሳውዲ ፕሮ ሊግ አል ኢቲሃድ ከ አል ኮሎድ ጋር ሲጫወቱ፣ በፖርቱጋል ደግሞ ስፖርቲንግ ሲፒ ከ ቪቶሪያ ጊማሬሽ ጋር ይፋለማሉ።
+
+---
+id: 10692
+status: published
+published_at: 2026-05-03T16:00:00+00:00
+source: Sky Sports Premier League
+original_title: Bournemouth move into European places as unbeaten run continues with Palace win
+translated_title_am: ቦርንመዝ ፓላስን በመርታት የአውሮፓ ተሳትፎ ተስፋውን አቀጣጠለ!
+translated_story_am:
+ቦርንመዝ ክሪስታል ፓላስን 3-0 በሆነ ሰፊ ውጤት በመርታት ያለመሸነፍ ጉዞውን ወደ 15 ጨዋታዎች አራዝሟል። ይሄ ድል "ቼሪዎቹ" በደረጃ ሰንጠረዡ ወደ አውሮፓ ውድድሮች በሚያስገቡት ቦታዎች ላይ እንዲቀመጡ አስችሏቸዋል።
+
+---
+id: 10691
+status: published
+published_at: 2026-05-03T15:49:00+00:00
+source: Sky Sports Premier League
+original_title: Sir Alex Ferguson taken to hospital after feeling unwell at Old Trafford
+translated_title_am: የሰር አሌክስ ፈርጉሰን በድንገት መታመም አሳሳቢ ሆኗል!
+translated_story_am:
+የማንቸስተር ዩናይትዱ አንጋፋ አሰልጣኝ ሰር አሌክስ ፈርጉሰን፣ ቡድናቸው ከሊቨርፑል ጋር ከሚያደርገው ታላቅ ፍልሚያ ቀደም ብሎ ባጋጠማቸው የጤና መታወክ ወደ ሆስፒታል መወሰዳቸው ተሰምቷል። የ84 ዓመቱ እገታ በምን ሁኔታ ላይ እንደሚገኙ ክለቡ እስካሁን ዝርዝር መረጃ ባይሰጥም፣ መላው የእግር ኳስ ቤተሰብ በጸሎትና በምኞት ከጎናቸው መሆኑን እየገለጸ ይገኛል።
+
+---
+id: 10681
+status: published
+published_at: 2026-05-03T15:37:10+00:00
+source: BBC Sport Football
+original_title: Howe set to stay in charge of Newcastle after summit
+translated_title_am: ኤዲ ሃው በኒውካስል ቤት ለመቆየት ተስማሙ!
+translated_story_am:
+የኒውካስል ዩናይትድ አሰልጣኝ ኤዲ ሃው ከክለቡ የሳውዲ አረቢያ ባለቤቶች ጋር ካደረጉት ወሳኝ ስብሰባ በኋላ በቀጣይ የውድድር ዘመን ቡድኑን ለመምራት ከስምምነት ደርሰዋል። ክለቡ በዚህ አመት ያጋጠመውን ውድቀት በጥናት ላይ ተመስርቶ ለመፍታት የወሰነ ሲሆን፣ ኤዲ ሃውም ለክለቡ ቀጣይ እቅድ እንደ መፍትሄ አካል ተቆጥረዋል።
+
+---
+id: 10162
+status: published
+published_at: 2026-05-03T07:00:00+00:00
+source: Crystal Palace
+original_title: View from the Opposition: Outgoing Iraola's verdict on Palace
+translated_title_am: የኢራኦላ የመጨረሻ አስተያየት በፓላስ ላይ!
+translated_story_am:
+ከቦርንመዝ ጋር እንደሚለያዩ የታወቀው አሰልጣኝ አንዶኒ ኢራኦላ፣ ከክሪስታል ፓላስ ጋር ከመጫወታቸው በፊት ለተጋጣሚያቸው ያላቸውን አድናቆት ገልጸዋል። ፓላስ በአሰልጣኝ ኦሊቨር ግላስነር ስር እያሳየ ያለው ለውጥ አስደናቂ መሆኑን የጠቀሱት ኢራኦላ፣ ጨዋታው ከባድ ፈተና እንደሚሆንባቸው ተንብየዋል።
+
+---
+id: 10195
+status: published
+published_at: 2026-05-03T07:00:00+00:00
+source: Manchester United
+original_title: Pundit Predictions: Will Cunha start v Liverpool?
+translated_title_am: የባለሙያዎች ግምት ለማንቼ እና ሊቨርፑል ፍልሚያ!
+translated_story_am:
+ከግንቦት 3ቱ ታላቅ የሰሜን ምዕራብ ደርቢ በፊት ታዋቂ የእግር ኳስ ተንታኞች የየራሳቸውን ግምት ሰጥተው ነበር። አብዛኞቹ ባለሙያዎች ጨዋታው በዩናይትድ አሸናፊነት ይጠናቀቃል ብለው የገመቱ ሲሆን፣ በተለይም የክለቡ የወቅቱ ብቃት እና የሜዳው ድባብ ለቀያይ ሰይጣኖቹ ትልቅ ብልጫ እንደሚሰጥ ጠቁመዋል።
+
+---
+id: 10114
+status: published
+published_at: 2026-05-02T22:30:55+00:00
+source: BBC Sport Football
+original_title: Is it advantage Arsenal in dramatic title race?
+translated_title_am: አርሰናል ለዋንጫው ተቃርቧል?
+translated_story_am:
+መድፈኞቹ ፉልሃምን 3-0 በማሸነፍ ከማንቸስተር ሲቲ በ6 ነጥብ ርቀዋል። ምንም እንኳን ሲቲ ሁለት ተከታታይ ጨዋታዎች ቢቀሩትም፣ ዋይን ሩኒ አርሰናል የ22 ዓመት የዋንጫ ጥማቱን ለመቁረጥ አሁን ትልቅ ግምት የሚሰጠው ክለብ ሆኗል ብሏል።
+
+---
+id: 10024
+status: published
+published_at: 2026-05-02T21:09:30+00:00
+source: BBC Sport Football
+original_title: Liverpool target Napoli's Beukema - Sunday's gossip
+translated_title_am: የዝውውር ሹክሹክታ፡ ሊቨርፑል፣ ማንቼ እና አርሰናል
+translated_story_am:
+ሊቨርፑል ለሆላንዳዊው ተከላካይ ሳም ቤውኬማ 24.2 ሚሊዮን ፓውንድ አቅርቧል። ኤሲ ሚላን ራፋኤል ሊያኦን ለለንደን ክለቦች እና ለማንቼ ለማቅረብ ሲዘጋጅ፣ ዩናይትድ ደግሞ የቀድሞውን የፎረስት አማካይ ዳኒሎን ከብራዚል ለመመለስ አይኑን ጥሏል።
+
+---
+id: 10023
+status: published
+published_at: 2026-05-02T20:41:27+00:00
+source: BBC Sport Football
+original_title: Three red cards for hair pulling in 2026 - is it time to change law?
+translated_title_am: የፀጉር መጎተት አወዛጋቢው ቀይ ካርድ
+translated_story_am:
+በዘንድሮው የውድድር ዘመን የሰንደርላንዱ ዳን ባላርድ በፀጉር መሳብ ምክንያት ቀይ ካርድ የተመለከተ ሶስተኛው ተጫዋች ሆኗል። ህጉ ይህንን ድርጊት እንደ "አስከፊ ጠባይ" (Violent Conduct) ቢፈርጀውም፣ እንደ ዌይን ሩኒ ያሉ ስፖርተኞች ግን "ህጉ ሊቀየር ይገባል" በማለት ድርጊቱ ድንገተኛ ሊሆን እንደሚችል በመጥቀስ እየተቃወሙ ይገኛሉ።
+
+---
+id: 9771
+status: published
+published_at: 2026-05-02T19:35:11+00:00
+source: BBC Sport Football
+original_title: Osula project pays off to help ease pressure on Howe
+translated_title_am: የዊሊያም ኦሱላ ድንቅ ብቃት ለኤዲ ሃው እፎይታን ሰጠ! 
+translated_story_am:
+ኤዲ ሃው በወጣቱ ኦሱላ ላይ የጣሉት እምነት ፍሬ አፍርቷል። ኒውካስል ብራይተንን በማሸነፍ የሽንፈት ጉዞውን ሲገታ፣ ኦሱላ ለተጨነቁት ሃው ወሳኝ ድልን አስገኝቷል። አሰልጣኙ ከጨዋታው በፊት በጭንቀት እንቅልፍ አጥተው ቢያድሩም፣ አሁን ግን ትንፋሽ መውሰድ ችለዋል! ⚽🔥
+
+---
+id: 9912
+status: published
+published_at: 2026-05-02T16:00:00+00:00
+source: Brighton
+original_title: Newcastle 3 Albion 1: Unbeaten run ended at St James' Park
+translated_title_am: ማግፓዮቹ የአልቢዮንን ግስጋሴ ገቱት
+translated_story_am:
+ኒውካስትል ዩናይትድ ብራይተንን 3-1 በማሸነፍ ካለፉት ስድስት ጨዋታዎች የመጀመሪያ ድሉን ተቀዳጅቷል። ዊል ኦሱላ እና የቀድሞው የብራይተን ተከላካይ ዳን በርን ማግፓዮቹን መሪ ሲያደርጉ፣ ጃክ ሂንሼልዉድ ለአልቢዮን አንዲት ግብ አስቆጥሯል። በመጨረሻም ሀርቪ ባርነስ በጭማሪ ሰዓት ሶስተኛ ግብ አክሎ የኒውካስትልን ድል አረጋግጧል። ብራይተን ለስድስት ጨዋታዎች ያስቆጠረው ያለመሸነፍ ጉዞም በዚህ ተቋርጧል።
+
+---
+id: 9036
+status: published
+published_at: 2026-05-02T10:55:44+00:00
+source: BBC Sport Football
+original_title: PSG and Bayern in 'different world' to Premier League teams - Arteta
+translated_title_am: አርቴታ፦ "ፒኤስጂ እና ባየርን ከእኛ የተለየ ዓለም ውስጥ ናቸው"
+translated_story_am:
+የአርሰናሉ አሰልጣኝ ሚኬል አርቴታ ፒኤስጂ እና ባየርን ሙኒክ በሻምፒዮንስ ሊጉ ካሳዩት ድንቅ ብቃት በኋላ የሊጎቹን የፉክክር ደረጃ ልዩነት ተችተዋል። ፒኤስጂ ባየርንን 5-4 በሆነ ውጤት በረታበት ጨዋታ የታየው ጥራት፣ ተጫዋቾቻቸው በፈረንሳይ እና ጀርመን ሊግ ካላቸው "የመታደስ ዕድል" (freshness) የመነጨ መሆኑን እና ከእንግሊዝ ፕሪሚየር ሊግ አድካሚ ፉክክር ጋር እንደ ሌሊትና ቀን እንደሚራራቅ ገልጸዋል።
+
+---
+id: 7383
+status: published
+published_at: 2026-05-01T23:15:00+00:00
+source: Sky Sports Premier League
+original_title: Papers: Liverpool weighing up summer swoop for Barcola
+translated_title_am: ሊቨርፑል ባርኮላን ለማምጣት አይኑን ጥሏል!
+translated_story_am:
+አርኔ ስሎት በክረምቱ የዝውውር መስኮት የፒኤስጂውን ኮከብ ብራድሌይ ባርኮላን ወደ አንፊልድ ለማምጣት ጥያቄ ለማቅረብ እያሰቡ መሆኑ ተሰምቷል። የ21 አመቱ ፈረንሳዊ አጥቂ በፓርክ ደ ፕሪንስ እያሳየ ያለው ድንቅ ብቃት የቀይዎቹን ቦርድ ትኩረት ስቧል። ሊቨርፑል ለፈጣኑ የፊት መስመር ተጫዋች ትልቅ ሂሳብ ለማውጣት ዝግጁ ይመስላል።
+
+---
+id: 7054
+status: published
+published_at: 2026-05-01T17:46:00+00:00
+source: Sky Sports Premier League
+original_title: How to watch Chelsea vs Nott'm Forest at 3pm on Monday
+translated_title_am: የሰሜን ለንደን ደርቢ፡ መድፈኞቹ ወደ ቶተንሃም ያመራሉ!
+translated_story_am:
+የለንደን ባላንጣዎቹ አርሰናል እና ቶተንሃም በወሳኝ የፕሪምየር ሊግ ጨዋታ ዛሬ ይገናኛሉ። ሁለቱም ቡድኖች ለቻምፒዮንስ ሊግ ማጣሪያ እና ለክብር በሚያደርጉት ፍልሚያ፣ የቡድን ዜናዎች እና የታክቲክ ዝግጅቶች ከፍተኛ ትኩረት አግኝተዋል። የሁለቱ ቡድኖች ግጭት ሁልጊዜም እንደታሰበው በጎሎች እና በካርዶች የታጀበ ትኩስ ጨዋታ እንደሚሆን ይጠበቃል።
+
+---
+id: 6901
+status: published
+published_at: 2026-05-01T15:27:56+00:00
+source: The Guardian Premier League
+original_title: Premier League team news: predicted lineups for the weekend action
+translated_title_am: የታላቁ ፍልሚያ አሰላለፍና የጉዳት ዜና
+translated_story_am:
+ዛሬ በኦልድ ትራፎርድ ለሚደረገው የሰሜን-ምዕራብ ደርቢ፣ ሁለቱም ቡድኖች በጉዳትና በቅጣት ምክንያት አንዳንድ ቁልፍ ተጫዋቾቻቸውን አያሰልፉም። በተለይ ሊቨርፑል በዋና ዋና ተጫዋቾቹ ጉዳት ክፉኛ ተመትቷል።
+
+የማንችስተር ዩናይትድ ሁኔታ፦
+
+የማይሰለፉ፦ ሊሳንድሮ ማርቲኔዝ በቅጣት፣ ማትያስ ደ ሊኽት ደግሞ በጉዳት አይሰለፉም።
+
+አጠራጣሪ፦ ሌኒ የሮ እና ማቲየስ ኩኛ ላይ መጠነኛ የጉዳት ስጋት ቢኖርም በተቀያሪ ወንበር ላይ ተካተዋል።
+
+ቁልፍ ሰው፦ ቤንጃሚን ሴስኮ በ10 ግቦች የቡድኑ ኮከብ ግብ አጥቂ ሆኖ ይመራል።
+
+የሊቨርፑል ሁኔታ፦
+
+ትልቅ ኪሳራ፦ መሀመድ ሳላህ፣ አሊሰን ቤከር (አጠራጣሪ)፣ ማክ አሊስተር እና ሌሎች 7 ተጫዋቾች በጉዳት ምክንያት ለዛሬው ጨዋታ ዝግጁ አይደሉም።
+
+ዳኛ፦ ዳረን ኢንግላንድ ጨዋታውን የሚመሩ ሲሆን፣ በአማካይ በጨዋታ 4.52 ካርዶችን የመምዘዝ ታሪክ አላቸው።
+
+ግምት፦ ማንችስተር ዩናይትድ የተዳከመውን ሊቨርፑልን የማሸነፍ ሰፊ ዕድል አለው
+
+---
+id: 6928
+status: published
+published_at: 2026-05-01T14:00:19+00:00
+source: BBC Sport Football
+original_title: 'We got police escort to Vardy's party' - Leicester's 5,000-1 title win 10 years on
+translated_title_am: የሌስተር ሲቲ ተዓምር 10ኛ ዓመት - "ፖሊስ ታጅበን ወደ ቫርዲ ቤት!"
+translated_story_am:
+ከአስር አመታት በፊት በ5,000 ለ 1 ግምት የፕሪሚየር ሊጉን ዋንጫ ያነሳው ሌስተር ሲቲ ትውስታ ሲቀሰቀስ፣ የቀድሞዎቹ ኮከቦች ዌስ ሞርጋን እና ማርክ አልብራይተን የሚገርም ገጠመኝ አጋርተዋል። የሊጉ ድል እንደተረጋገጠ ደጋፊው በጄሚ ቫርዲ ቤት ዙሪያ በመጨናነቁ፣ ተጫዋቾቹ ወደ ፓርቲው ለመግባት በፖሊስ ታጅበው በሰላም መጠበቂያ ክፍል ለማለፍ ተገደው ነበር!
+
+---
+id: 6926
+status: published
+published_at: 2026-05-01T14:00:12+00:00
+source: BBC Sport Football
+original_title: Illegal streaming gang ordered to repay £3.75m
+translated_title_am: የኳስ ሌቦች ሲጋለጡ - የ3.7 ሚሊዮን ፓውንድ ቅጣት!
+translated_story_am:
+የፕሪሚየር ሊግ ጨዋታዎችን በህገ-ወጥ መንገድ ሲያስተላልፉ የነበሩ የ"Flawless TV" ቡድን አባላት ያጋበሱትን 3.75 ሚሊዮን ፓውንድ እንዲመልሱ ተወሰነባቸው። የቡድኑ መሪ ማርክ ጉልድ ብቻውን 2.35 ሚሊዮን ፓውንድ እንዲከፍል የታዘዘ ሲሆን፣ ባይከፍል ግን ተጨማሪ 10 ዓመት እስር ይጠብቀዋል። በኳስ ስርቆት የከበሩት እነዚህ ግለሰቦች መጨረሻቸው የካቴና ድምፅ ሆኗል!
+
+---
+id: 6992
+status: published
+published_at: 2026-05-01T13:19:03+00:00
+source: Crystal Palace
+original_title: Palace in Europe: How the semi-finals stand in the Conference League
+translated_title_am: ኮንፈረንስ ሊግ የግማሽ ፍፃሜ ፉክክር
+translated_story_am:
+የኮንፈረንስ ሊግ የመጀመሪያ ዙር የግማሽ ፍፃሜ ጨዋታዎች ተጠናቀው ወደ ፍፃሜው ለማለፍ የሚደረገው ትግል ተፋፍሟል። ክሪስታል ፓላስ ታሪካዊ ድል ለመቀዳጀት በቀጣይ ሳምንት በሚደረገው የመልስ ጨዋታ ወሳኝ ምዕራፍ ላይ ይገኛል።
+
+---
+id: 6751
+status: published
+published_at: 2026-05-01T13:18:00+00:00
+source: Sky Sports Premier League
+original_title: Howe confident PIF remain committed to Newcastle after 'challenging conversations'
+translated_title_am: የኒውካስል ባለቤቶች ቁርጠኝነት
+translated_story_am:
+ኤዲ ሃው የክለቡ ሳውዲ አረቢያውያን ባለቤቶች (PIF) ለኒውካስል ያላቸው ፍላጎት አልቀነሰም ሲሉ በልበ ሙሉነት ተናግረዋል። "ባለቤቶቻችን አሁንም ክለቡን ትልቅ ደረጃ ለማድረስ ከፍተኛ ጉጉት አላቸው" ያሉት አሰልጣኙ፣ ስለ ኢንቨስትመንቱ የወጡ ወሬዎችን ውድቅ አድርገዋል። መግፒዎቹ ወደ አውሮፓ መድረክ ለመመለስ በትልቅ ተስፋ ላይ ናቸው!
+
+---
+id: 6929
+status: published
+published_at: 2026-05-01T12:33:01+00:00
+source: BBC Sport Football
+original_title: All your FPL stats and Premier League team news in one place
+translated_title_am: የፕሪምየር ሊግና የFPL ትኩስ መረጃዎች!
+translated_story_am:
+ሊድስ ዩናይትድ ቃጠሎ የሆነውን የሳምንቱን መክፈቻ ጨዋታ ከበርንሌይ ጋር ያደርጋሉ። ለሊድስ ደጋፊዎች ግን መጥፎ ዜና ተሰምቷል፤ ጋብሪኤል ጉድመንድሰን በከባድ ጉዳት ከሜዳ ሲርቅ፣ ኖህ ኦካፎርም የመሰለፉ ነገር አጠራጣሪ ሆኗል። በርንሌይ በበኩሉ አሰልጣኝ ስኮት ፓርከርን ካሰናበተ በኋላ በዝግጅት ላይ ነው። ለአሰልጣኞች፦ ጉድመንድሰንን ቀይሩት!
+
+---
+id: 6895
+status: published
+published_at: 2026-05-01T12:30:00+00:00
+source: Sky Sports Premier League
+original_title: Carrick vs Solskjaer: Whose audition went better after 13 PL games?
+translated_title_am: ካሪክ ወይስ ሶልሻየር፡ በ13 የሊግ ጨዋታዎች የትኛው የተሻለ ውጤት አለው?
+translated_story_am:
+ማንቸስተር ዩናይትድ ማይክል ካሪክን በቋሚነት ለመሾም እያሰበ ባለበት በአሁኑ ወቅት፣ የካሪክ እና የቀድሞው አሰልጣኝ ኦሌ ጉናር ሶልሻየር የ13 ጨዋታዎች የሙከራ ጊዜ (Audition) ውጤት ከፍተኛ ንጽጽር እየተደረገበት ይገኛል።
+
+---
+id: 7003
+status: published
+published_at: 2026-05-01T12:30:00+00:00
+source: Manchester United
+original_title: Team news for Sunday's Liverpool showdown
+translated_title_am: የደርቢው የቡድን ዜና!
+translated_story_am:
+ለነገው የአንፊልድ ፍልሚያ ማንችስተር ዩናይትድ ወሳኝ ተጫዋቾቹን ሊያጣ ይችላል። ብሩኖ ፈርናንዴዝ እና ማርከስ ራሽፎርድ በልምምድ ላይ ባለመታየታቸው መሰለፋቸው አጠራጣሪ ሲሆን፣ ሊሳንድሮ ማርቲኔዝ ግን ወደ ስብስቡ ተመልሷል። ሊቨርፑል በበኩሉ ሙሉ ጥንካሬው ላይ ይገኛል። ካሪክ በአንፊልድ ታምር ለመስራት በእነዚህ ኮከቦች ጤንነት ላይ ተንጠልጥሏል!
+
+---
+id: 6661
+status: published
+published_at: 2026-05-01T12:13:00+00:00
+source: Crystal Palace
+original_title: Your Player of the Match from our win in Krakow – revealed!
+translated_title_am: የጨዋታው ኮከብ፡ ሻክታር ዶኔትስክ ከ ክሪስታል ፓላስ
+translated_story_am:
+ክሪስታል ፓላስ በኤፕሪል 2026 ከሻክታር ዶኔትስክ ጋር ባደረገው የፈተና ጨዋታ ደጋፊዎች ዳንኤል ሙኞዝን የጨዋታው ኮከብ አድርገው መርጠውታል። ተከላካዩ በመስመር ላይ ባሳየው እጅግ አስደናቂ ፍጥነት እና ጥንካሬ የደጋፊዎችን ቀልብ መሳብ ችሏል።
+
+---
+id: 6748
+status: published
+published_at: 2026-05-01T12:00:00+00:00
+source: Sky Sports Premier League
+original_title: Kinsky reflects on CL nightmare and explains Spurs' positivity in relegation battle
+translated_title_am: ኪንስኪ፡ ከሻምፒዮንስ ሊግ ቅዠት እስከ ድንቅ ብቃቱ
+translated_story_am:
+የስፐርሱ ግብ ጠባቂ አንቶኒን ኪንስኪ በቅርቡ ባጋጠመው የሻምፒዮንስ ሊግ ስህተት ሳይረበሽ በሊጉ እያሳየ ስላለው ብቃት ተናገረ። በተለይ በዎልቭስ ላይ ያዳናት ኳስ አስደናቂ እንደነበረች የገለፀው ኪንስኪ፣ ቡድኑ ከወራጅ ቀጠናው ርቆ ወደ አሸናፊነት እንዲመለስ ቁልፍ ሚና እንደሚጫወት ዛተ። ቶተንሃሞች አሁንም በፅናት እየተዋጉ ነው!
+
+---
+id: 6794
+status: published
+published_at: 2026-05-01T11:10:40+00:00
+source: Aston Villa
+original_title: Villans fall behind in first leg
+translated_title_am: ቪላዎች በመጀመሪያው ጨዋታ ተረቱ!
+translated_story_am:
+አስቶን ቪላ በዩሮፓ ሊግ የግማሽ ፍፃሜ የመጀመሪያ ጨዋታ በሜዳው በኖቲንግሃም ፎረስት 1-0 ተሸንፏል። ፎረስት በሁለተኛው አጋማሽ ባስቆጠራት ብቸኛ ግብ ድል ሲቀናው፣ ቪላዎች በሁለተኛው ጨዋታ ውጤቱን ለመቀልበስ ከፍተኛ ጫና ውስጥ ወድቀዋል።
+
+---
+id: 6976
+status: published
+published_at: 2026-05-01T09:44:08+00:00
+source: Everton
+original_title: Beto Update & Everton Team News For Man City Clash
+translated_title_am: ቤቶ ተመለሰ፤ ሲቲ በጉዳት ታምሷል!
+translated_story_am:
+ኤቨርተን ሰኞ ምሽት በሂል ዲኪንሰን ስታዲየም ማንችስተር ሲቲን ሲያስተናግድ አጥቂው ቤቶ ከጉዳት ተመልሶ ለጨዋታው ዝግጁ መሆኑን ዴቪድ ሞይስ አረጋግጠዋል። በሌላ በኩል ሲቲዎች ወደ አዲሱ ስታዲየም ለሚያደርጉት የመጀመሪያ ጉዞ ተከላካዮቹን ግቫርዲዮልን እና ዲያስን በጉዳት ያጣሉ ተብሎ ይጠበቃል። ሮድሪም ለጨዋታው መድረሱ አጠራጣሪ ነው።
+
+---
+id: 6761
+status: published
+published_at: 2026-05-01T09:16:04+00:00
+source: BBC Sport Football
+original_title: Time for Isak & Wirtz to prove they are the future for Liverpool
+translated_title_am: ኢሳክ እና ቪርትዝ ለሊቨርፑል መድረስ አለባቸው!
+translated_story_am:
+መሐመድ ሳላህ በጉዳት ምክንያት ከሜዳ መራቁን ተከትሎ፣ ሊቨርፑል በአሌክሳንደር ኢሳክ እና ፍሎሪያን ቪርትዝ ላይ ትልቅ እምነት ጥሏል። በተለይ በማንችስተር ዩናይትድ ላይ ከፍተኛ ግብ የማስቆጠር ሪከርድ ያለው ሳላህ በሌለበት፣ እነዚህ ወጣት ኮከቦች ለቡድኑ ወሳኝነታቸውን የሚያረጋግጡበት ጊዜ አሁን ነው።
+
+---
+id: 6618
+status: published
+published_at: 2026-05-01T08:43:46+00:00
+source: BBC Sport Football
+original_title: 'Where are you? Wow. It is so, so bad' - Emery's impassioned VAR rant
+translated_title_am: ኤምሬ በቫር (VAR) ተቆጥተዋል!
+translated_story_am:
+አስቶን ቪላ በዩሮፓ ሊግ ግማሽ ፍጻሜ በመጀመሪያው ዙር በኖቲንግሃም ፎረስት 1 ለ 0 ሲሸነፍ፣ ኡናይ ኤምሬ በዳኝነት ውሳኔ ተቆጥተዋል። ኤሊዮት አንደርሰን በኦሊ ዋትኪንስ ላይ ለፈጸመው ጥፋት ቀይ ካርድ አለመሰጠቱ "የቫር ስራ በጣም ደካማ ነው" ሲሉ ኮንነዋል። ፎረስት ያሸነፈው በቫር በተገኘ ፍጹም ቅጣት ምት ነው።
+
+---
+id: 6763
+status: published
+published_at: 2026-05-01T08:08:52+00:00
+source: BBC Sport Football
+original_title: Why was Mudryk given ban in secret and what happens now?
+translated_title_am: ሙድሪክ በዕገዳ ላይ!
+translated_story_am:
+የቼልሲው የመስመር ተጫዋች ሚካይሎ ሙድሪክ ለአራት ዓመታት የተጣለበትን የዶፒንግ ዕገዳ ለመቃወም ለይግባኝ ሰሚ ፍርድ ቤት (Cas) አቤቱታ አቀረበ። ተጫዋቹ በጥር ወር በእንግሊዝ እግር ኳስ ማኅበር ዕገዳ ተጥሎበት የነበረ ቢሆንም፣ ጉዳዩ በሚስጥር ተይዞ ቆይቶ አሁን ይግባኝ ማለቱ ሲሰማ ነው በይፋ የታወቀው። ቼልሲም ጥቂት ሰዎች ብቻ ጉዳዩን ያውቁ እንደነበር ተገልጿል።
+
+---
+id: 6622
+status: published
+published_at: 2026-05-01T05:23:54+00:00
+source: BBC Sport Football
+original_title: Hardest thing is knowing you're no longer at your best - Rooney
+translated_title_am: ሮኒ እና የከዋክብት ፈተና!
+translated_story_am:
+የማንችስተር ዩናይትድ የምንግዜም ከፍተኛ ግብ አስቆጣሪ ዋይን ሮኒ፣ ለአንድ ተጫዋች ከባዱ ነገር እንደቀድሞው መሆን አለመቻሉን አምኖ መቀበል እንደሆነ ተናገረ። በዩናይትድ 253 ግቦችን ያስቆጠረውና 5 የፕሪምየር ሊግ ዋንጫዎችን ያነሳው ሮኒ፣ በ31 ዓመቱ ወደ ኤቨርተን የተመለሰው ብቃቱ እንደቀነሰ በመረዳቱ እንደነበር ገልጿል።
+
+---
+id: 6619
+status: published
+published_at: 2026-04-30T22:50:24+00:00
+source: BBC Sport Football
+original_title: Penalty king Wood 'last piece of puzzle' for Forest
+translated_title_am: ክሪስ ዉድ ፎረስትን ወደ ድል መራ!
+translated_story_am:
+ክሪስ ዉድ ከስድስት ወራት ጉዳት በኋላ ተመልሶ ባስቆጠራት የፍጹም ቅጣት ምት ኖቲንግሃም ፎረስት በአስቶን ቪላ ላይ የ1 ለ 0 መሪነትን እንዲይዝ አድርጓል። አሸናፊው ሜይ 20 በኢስታንቡል ለሚደረገው የዩሮፓ ሊግ ፍጻሜ የሚቀርብ ሲሆን፣ ተጋጣሚውም ብራጋ ወይም ፍራይቡርግ ይሆናል። ፎረስት ባለፈው ዓመት ያመለጠውን የቻምፒዮንስ ሊግ ተሳትፎ በዚህ ዋንጫ በኩል ለማግኘት አልሟል።
+
+---
+id: 6659
+status: published
+published_at: 2026-04-30T22:35:38+00:00
+source: Crystal Palace
+original_title: Wharton highlights key difference from the weekend
+translated_title_am: የዋርተን እና የፓላስ ትንሳኤ!
+translated_story_am:
+የክሪስታል ፓላሱ አማካይ አደም ዋርተን ቡድኑ ካለፈው ሳምንት መጨረሻ ጨዋታ በኋላ ያሳየውን መሻሻል አድናቆታል። ዋርተን እንደገለጸው በሜዳ ላይ የነበረው የጥረት ደረጃ እና የኳስ ቁጥጥር ብልጫ ለውጤቱ መገኘት ቁልፍ ሚና ተጫውተዋል። "ዋናው ልዩነት ትኩረታችን እና የማሸነፍ ፍላጎታችን ነው" ሲል ለክለቡ ሚዲያ በሰጠው ቃለ መጠይቅ ገልጿል።
+
+---
+id: 6620
+status: published
+published_at: 2026-04-30T22:29:08+00:00
+source: BBC Sport Football
+original_title: 'If Kane scored that we'd be saying wow' - Strand Larsen shows Palace worth
+translated_title_am: ላርሰን ውድነቱን በግብ አረጋገጠ!
+translated_story_am:
+በ48 ሚሊዮን ፓውንድ ክሪስታል ፓላስን የተቀላቀለው ዮርገን ስትራንድ ላርሰን፣ በኮንፈረንስ ሊግ ግማሽ ፍጻሜ በሻክታር ዶኔትስክ ላይ ያስቆጠራት ግብ ወሳኝ ሆናለች። በሊጉ ደካማ አጀማመር የነበረው ኖርዌያዊው አጥቂ፣ በ84ኛው ደቂቃ ድንቅ ብቃቱን አሳይቶ ፓላስን 3 ለ 1 መሪ እንዲሆን ረድቷል። ይህች ግብ ለፓላስ የፍጻሜ ጉዞ ትልቅ ተስፋ ሆናለች።
+
+---
+id: 6660
+status: published
+published_at: 2026-04-30T21:48:26+00:00
+source: Crystal Palace
+original_title: Glasner: We’ll have to perform even better at home to get over the line
+translated_title_am: ፓላስ ለታሪክ ቀርቧል!
+translated_story_am:
+ክሪስታል ፓላስ በዩሮፓ ሊግ ግማሽ ፍጻሜ ሻክታር ዶኔትስክን አሸንፎ ለፍጻሜ ለመድረስ መቃረቡን ተከትሎ አሰልጣኝ ኦሊቨር ግላስነር በቡድናቸው ብቃት መኩራታቸውን ገልጸዋል። "የተጫዋቾቼ ትኩረት እና ፍላጎት የሚደነቅ ነው" ያሉት ግላስነር፣ ለደጋፊዎቻቸው ታሪካዊ ምሽት ለመፍጠር ዝግጁ መሆናቸውን ተናግረዋል።
+
+---
+id: 3955
+status: published
+published_at: 2026-04-30T19:01:00+00:00
+source: Sky Sports Premier League
+original_title: Man City latest: Date revealed for opening of new stand
+translated_title_am: የማን ሲቲ የዝውውር ገበያ ትኩስ መረጃዎች!
+translated_story_am:
+የአውሮፓው ኃያል ማንቸስተር ሲቲ ስብስቡን ለማጠናከር እያደረገ ያለው እንቅስቃሴ ቀጥሏል። በኢትሃድ ስታዲየም አዳዲስ ተጫዋቾችን ለማስፈረም፣ ኮንትራት ለማደስና በውሰት ስለሚወጡ ተጫዋቾች የሚወጡ ትኩስ አሉባልታዎችና ይፋዊ መረጃዎች የክለቡን ቀጣይ አቅጣጫ አመላካች ሆነዋል።
+
+---
+id: 4021
+status: published
+published_at: 2026-04-30T18:00:00+00:00
+source: Burnley
+original_title: MATCH PREVIEW: LEEDS UNITED V BURNLEY
+translated_title_am: ሊድስ ከ በርንሌይ፡ የኤላንድ ሮድ ፍልሚያ!
+translated_story_am:
+በርንሌይ በፈታኙ የኤላንድ ሮድ ስታዲየም ከሊድስ ዩናይትድ ጋር ለሚያደርጉት ወሳኝ ፍልሚያ ዝግጅታቸውን አጠናቀዋል። የሁለቱ ክለቦች የጥንካሬ ትንተና፣ የተጫዋቾች ዜና እና የጨዋታው ቅድመ-ዝግጅት መረጃዎች እንደሚያሳዩት በሜዳው ላይ ከፍተኛ ፉክክር የሚታይበት የደርቢ ምሽት ይጠበቃል።
+
+---
+id: 4144
+status: published
+published_at: 2026-04-30T16:29:00+00:00
+source: BBC Sport Football
+original_title: Football Daily
+translated_title_am: የጆዜ ሞሪንሆ አዲስ ጀብዱ በቱርክ!
+translated_story_am:
+ታዋቂው አሰልጣኝ ጆዜ ሞሪንሆ በቱርኩ ፌነርባቼ ስላላቸው ቆይታና ስለ ቀጣይ እቅዳቸው በሰፊው ተንትነዋል። ሞሪንሆ በቱርክ እግር ኳስ ያለውን ከፍተኛ ፍላጎትና ፉክክር በማድነቅ፣ ክለባቸውን ወደ ስኬት ለመምራትና የአውሮፓ መድረክ ተሳትፎአቸውን ለማጠናከር ቆርጠው መነሳታቸውን በልዩ ቃለ-መጠይቅ አብራርተዋል።
+
+---
+id: 3951
+status: published
+published_at: 2026-04-30T12:45:00+00:00
+source: Sky Sports Premier League
+original_title: Brighton latest: Coventry interested in permanent deal for Rushworth
+translated_title_am: የብራይተን የዝውውር እንቅስቃሴ ተፋፍሟል!
+translated_story_am:
+ብራይተኖች አዳዲስ ተሰጥኦዎችን ለማደንና ስብስባቸውን ለማጠናከር በዝውውር ገበያው ላይ በንቃት እየተሳተፉ ነው። ክለቡ የወደፊት ተስፋ ያላቸውን ተጫዋቾች ለማስፈረም ድርድር ላይ መሆኑ ሲሰማ፣ ጥቂት ቁልፍ ተጫዋቾችም በሌሎች ትላልቅ ክለቦች አይን ውስጥ ገብተዋል። ሲጋሎች የአውሮፓ ተሳትፎን ለማረጋገጥ ስብስባቸውን በጥራት ለመገንባት ቆርጠው ተነስተዋል።
+
+---
+id: 4180
+status: published
+published_at: 2026-04-30T11:37:52+00:00
+source: Crystal Palace
+original_title: View from the opposition: Turan on his semi-final mission to give hope
+translated_title_am: የቱራን ተልዕኮ፡ ለተስፋ እና ለታሪካዊ ድል!
+translated_story_am:
+የአትሌቲኮ ማድሪዱ አሰልጣኝ አርዳ ቱራን ከክሪስታል ፓላስ ጋር ለሚደረገው የግማሽ ፍፃሜ ጨዋታ ያላቸውን ዝግጁነት ገለጹ። ይህ ግጥሚያ ከእግር ኳስ ባለፈ ለደጋፊዎቻቸው ትልቅ ተስፋን የሚሰጥ መሆኑን የጠቀሱት ቱራን፣ በሴልኸርስት ፓርክ የሚጠብቃቸውን ፈተና በድል ለመወጣትና ወደ ፍፃሜው ለመድረስ ቆርጠው መነሳታቸውን በቁልጭታ ተናግረዋል።
+
+---
+id: 4006
+status: published
+published_at: 2026-04-30T11:00:00+00:00
+source: Brighton
+original_title: Fabian Hurzeler up for Premier League Manager of the Month for April
+translated_title_am: ሁርዝለር የነሐሴ ወር ምርጥ አሰልጣኝ ዕጩ!
+translated_story_am:
+ብራይተን (Albion) በኤፕሪል ወር ባደረጋቸው ጨዋታዎች ሳይሸነፍ ሁለት ድል እና አንድ አቻ በመውጣቱ፣ አሰልጣኝ ፋቢያን ሁርዝለር ለወሩ ምርጥ አሰልጣኝ ሽልማት ታጭተዋል። ቡድኑን በደረጃ ሰንጠረዡ 6ኛ ደረጃ ላይ ያደረሱት ሁርዝለር፣ ከነ ፔፕ ጋርዲዮላ እና አርነ ስሎት ጋር ለሽልማቱ ይፎካከራሉ። ድምፅ መስጫው ዛሬ ሰኞ ይዘጋል።
+
+---
+id: 1270
+status: published
+published_at: 2026-04-30T10:55:00+00:00
+source: Sky Sports Premier League
+original_title: Chelsea latest - Poch: 'Chelsea have a plan... they need to explain it!'
+translated_title_am: የቼልሲ የዝውውር ውዝግብና የቅርብ መረጃዎች!
+translated_story_am:
+በምዕራብ ለንደኑ ክለብ ቼልሲ ቤት የተጫዋቾች ዝውውር ዙሪያ አዳዲስ ወሬዎችና ግምቶች እየተሰሙ ይገኛሉ። ክለቡ አዳዲስ ተሰጥኦዎችን ለማስፈረም እንዲሁም አንዳንድ ተጫዋቾችን በውሰትና በቋሚነት ለመሸኘት ጥረቶችን እያደረገ ሲሆን፣ የውል ማራዘሚያ ንግግሮችም ትኩረት ስበዋል። የዝውውር መስኮቱ ከመዘጋቱ በፊት ሰማያዊዎቹ የአጥቂ መስመራቸውን ለማጠናከር ያላቸው ዕቅድ በጉጉት እየተጠበቀ ነው።
+
+---
+id: 3957
+status: published
+published_at: 2026-04-30T10:19:00+00:00
+source: Sky Sports Premier League
+original_title: Burnley latest: Jackson takes over on interim basis following Parker departure
+translated_title_am: በርንሌይ በዝውውር መስኮቱ ትኩረት ላይ!
+translated_story_am:
+በርንሌይ በዝውውር ገበያው ላይ በንቃት እየተሳተፈ ሲሆን፣ አዳዲስ ተጫዋቾችን ለማስፈረም እና ስብስቡን ለማጠናከር ጥረት እያደረገ ነው። በክለቡ ዙሪያ የውሰት ውሎችን ጨምሮ በርካታ የስም ዝርዝሮች እየተነሱ ይገኛሉ። የክላሬትሶቹ ደጋፊዎች ቡድኑን ወደ ተሻለ ደረጃ የሚያሸጋግሩ ፈራሚዎችን በጉጉት እየጠበቁ ነው።
+
+---
+id: 4116
+status: published
+published_at: 2026-04-30T09:34:10+00:00
+source: BBC Sport Football
+original_title: Former England defender Young to retire aged 40
+translated_title_am: አሽሊ ያንግ ጫማውን ሊሰቅል ነው!
+translated_story_am:
+በ40 ዓመቱ የሚገኘው የቀድሞው የእንግሊዝ ብሔራዊ ቡድን ኮከብ አሽሊ ያንግ፣ በዚህ የውድድር ዓመት መጨረሻ ከእግር ኳስ እንደሚሰናበት አስታውቋል። በዋትፎርድ፣ አስቶን ቪላ፣ ማንችስተር ዩናይትድ፣ ኢንተር ሚላን እና ኤቨርተን ድንቅ ጊዜያትን ያሳለፈው ያንግ፣ በኢፕስዊች ታውን የ23 ዓመታት የስፖርት ጉዞውን በክብር ያበቃል።
+
+---
+id: 914
+status: published
+published_at: 2026-04-29T22:53:34+00:00
+source: BBC Sport Football
+original_title: Were Arsenal right to be 'fuming' with refereeing after Atletico draw?
+translated_title_am: አርሰናል ከማድሪድ በነጥብ ተከፋፈለ!
+translated_story_am:
+አርሰናል በቻምፒዮንስ ሊግ ግማሽ ፍጻሜ የመጀመሪያ ዙር ከአትሌቲኮ ማድሪድ ጋር 1 ለ 1 በሆነ አቻ ውጤት ተለያይቷል። ቪክቶር ጂዮከሬስ በመጀመሪያው አጋማሽ በፍጹም ቅጣት ምት አርሰናልን መሪ ቢያደርግም፣ ጨዋታው በዳኝነት ውሳኔዎች ውዝግብ ታጅቦ በአቻ ውጤት ተጠናቋል። የመልሱ ጨዋታ በኤምሬትስ ይወሰናል።
+
+---
+id: 921
+status: published
+published_at: 2026-04-29T22:03:44+00:00
+source: BBC Sport Football
+original_title: Man Utd consider Leao move - Thursday's gossip
+translated_title_am: ዩናይትድ ሊያዎን ሊያስፈርም ነው!
+translated_story_am:
+ማንቸስተር ዩናይትድ ፖርቱጋላዊውን የኤሲ ሚላን ኮከብ ራፋኤል ሊያዎን ለማስፈረም እያሰበ ሲሆን፣ ለዝውውሩ ማርከስ ራሽፎርድን ወይም ጆሹዋ ዚርክዚን በልውውጥ ሊያካትት ይችላል። በሌላ በኩል ኒውካስል የአዲስ ግብ ጠባቂ ፍለጋ ላይ ሲሆን፣ አርሰናል አሁንም የጁሊያን አልቫሬዝ ፍላጎት አለው። ፓላስም ለግላስነር ምትክ ፍራንክ ላምፓርድን እያጤነ ነው።
+
+---
+id: 1387
+status: published
+published_at: 2026-04-29T22:01:18+00:00
+source: Crystal Palace
+original_title: Glasner on Guessand injury status, semi-final mentality & Shakhtar Donetsk
+translated_title_am: የግላስነር እና የፓላስ የአውሮፓ ህልም!
+translated_story_am:
+ክሪስታል ፓላስ በኮንፈረንስ ሊግ ግማሽ ፍጻሜ ሻክታር ዶኔትስክን ለመግጠም ሲዘጋጅ፣ አሰልጣኝ ኦሊቨር ግላስነር ይህ አጋጣሚ ማንኛውም ታዳጊ እግር ኳስ ተጫዋች የሚያልመው ታላቅ መድረክ መሆኑን ገልጸዋል። በሊፕዚግ ለሚደረገው የፍጻሜ ጨዋታ ለመድረስ ፓላስ ይህን ልምድ በደስታ እንደሚቀበለውና ለድል እንደሚጫወት አሰልጣኙ አረጋግጠዋል።
+
+---
+id: 1235
+status: published
+published_at: 2026-04-29T20:00:03+00:00
+source: The Guardian Premier League
+original_title: PSG and Bayern’s box-fresh talents or Premier League title tussle: you can only have one | Barney Ronay
+translated_title_am: የፒኤስጂ እና ባየር ሙኒክ የግብ ናዳ ትምህርት!
+translated_story_am:
+የፒኤስጂ እና ባየር ሙኒክ 5 ለ 4 በሆነ ውጤት መጠናቀቅ እግር ኳስን እጅግ አዝናኝ ቢያደርገውም፣ በሊጉ ውጤታማ ለመሆን ግን ጥብቅ መከላከልና ቁጥጥር ወሳኝ መሆናቸውን ዘገባው አመልክቷል። እንደ ክላረንስ ሲዶርፍ ገለጻ፣ ብዙ ግቦችን ማየት ለደጋፊዎች ቢመችም ስነስርዓት ያለው ቡድን ግን እንደዚህ አይነት ክፍተት አይተውም። አርሰናል እና አትሌቲኮ ማድሪድም ከዚህ ጨዋታ ትልቅ ትምህርት እንደሚወስዱ ተጠቁሟል።
+
+---
+id: 834
+status: published
+published_at: 2026-04-29T17:57:25+00:00
+source: BBC Sport Football
+original_title: Liverpool expect Salah return before end of season
+translated_title_am: የሳላህ የመጨረሻ ዳንስ በአንፊልድ!
+translated_story_am:
+መሐመድ ሳላህ ባለፈው ጨዋታ በጉዳት መውጣቱን ተከትሎ በሊቨርፑል የመጨረሻ ጨዋታውን አድርጓል ተብሎ ቢሰጋም፣ ጉዳቱ ቀላል መሆኑ ተረጋግጧል። በ9 ዓመታት ቆይታው 257 ግቦችን ያስቆጠረው ግብፃዊው ኮከብ፣ በሜይ 24 ከብሬንትፎርድ ጋር በሚደረገው የክለቡ የመጨረሻ ጨዋታ ተሰናባብቶ እንደሚወጣ ይጠበቃል። ማንነቱን ያስመሰከረበት የአንፊልድ ጉዞ በክብር ሊጠናቀቅ ነው።
+
+---
+id: 1257
+status: published
+published_at: 2026-04-29T16:22:00+00:00
+source: Sky Sports Premier League
+original_title: Mudryk to appeal against four-year doping ban
+translated_title_am: የሙድሪክ የዶፒንግ ክስ እና ይግባኝ!
+translated_story_am:
+ሚካይሎ ሙድሪክ "ሜልዶኒየም" የተባለ የተከለከለ ንጥረ ነገር በመጠቀሙ የተጣለበትን የ4 ዓመት ዕገዳ ለመቃወም ለCas ይግባኝ አለ። ተጫዋቹ ምርመራውን የወደቀው በዩክሬን ብሔራዊ ቡድን በነበረበት ወቅት እንደሆነና ናሙናውም ተበክሎ ሊሆን እንደሚችል ተሟግቷል። በ88 ሚሊዮን ፓውንድ ቼልሲን የተቀላቀለው ሙድሪክ፣ እስከ 2024 መጨረሻ ድረስ ከእግር ኳስ ታግዶ ቆይቷል።
+
+---
+id: 898
+status: published
+published_at: 2026-04-29T15:43:39+00:00
+source: BBC Sport Football
+original_title: McKenna keen to reward Clarke loyalty at World Cup
+translated_title_am: የማኬና የታማኝነት ካሳ!
+translated_story_am:
+የ29 ዓመቱ ተከላካይ ስኮት ማኬና በክሮኤሺያ ከዲናሞ ዛግሬብ ጋር የሊግ ዋንጫን ካነሳ በኋላ፣ ትኩረቱን ወደ ዓለም ዋንጫው አድርጓል። ለስኮትላንድ ብሔራዊ ቡድን 50ኛ ጨዋታውን ለማድረግ የተቃረበው ማኬና፣ ላሳዩት እምነት አሰልጣኝ ስቲቭ ክላርክን በታሪካዊ ውጤት ለመካስ አልሟል። ስኮትላንድ ለመጀመሪያ ጊዜ ከምድብ ለማለፍ በምታደርገው ጥረት ላይ የማኬና ተሳትፎ ትልቅ ተስፋ ተጥሎበታል።
+
+---
+id: 1263
+status: published
+published_at: 2026-04-29T13:00:00+00:00
+source: Sky Sports Premier League
+original_title: Where would PSG and Bayern finish in the Premier League?
+translated_title_am: የፒኤስጂ እና ባየር የፕሪምየር ሊግ ፈተና!
+translated_story_am:
+ፒኤስጂ እና ባየር ሙኒክ በቻምፒዮንስ ሊግ ያሳዩት የ9 ግቦች ድግስ "እነዚህ ቡድኖች በፕሪምየር ሊግ ቢሳተፉ የት ያበቁ ነበር?" የሚል ክርክር ቀስቅሷል። ጥቃታቸው አስፈሪ ቢሆንም፣ የታየው የተከላካይ ክፍል ድክመት ግን በሳምንቱ ሁለት ጊዜ በሚካሄደው የፕሪምየር ሊግ ፉክክር ዋጋ ሊያስከፍላቸው እንደሚችል ተተንትኗል። ሁለቱም ለዋንጫ ባይፎካከሩ እንኳ ከታላላቆቹ አራት ውስጥ መግባታቸው እንደማይቀር ተገምቷል።
+
+---
+id: 1720
+status: published
+published_at: 2026-04-29T08:00:00+00:00
+source: Wolves
+original_title: Long read | Adam Armstrong verges on Premier League century
+translated_title_am: አርምስትሮንግ ወደ መቶው ግብ ተቃረበ!
+translated_story_am:
+ዎልቭስን በድንቅ ብቃት እየመራ የሚገኘው አዳም አርምስትሮንግ፣ በፕሪምየር ሊግ ታሪኩ 100ኛ ግቡን ለማስቆጠር ጥቂት ቀርተውታል። የ29 ዓመቱ አጥቂ በተለይ በዚህ የውድድር ዘመን እያሳየ ያለው ድንቅ አጨራረስ ለቡድኑ ስኬት ትልቅ አስተዋጽኦ አድርጓል። የአጥቂው ወጥነት እና ጎል የማሽተት ብቃት ዎልቭስን በደረጃ ሰንጠረዡ አናት እንዲቆይ ረድቶታል።
+
+---
+id: 1396
+status: published
+published_at: 2026-04-29T07:00:00+00:00
+source: Crystal Palace
+original_title: Henderson names his Palace European highlight – so far
+translated_title_am: የሄንደርሰን የድል መልዕክት!
+translated_story_am:
+ክሪስታል ፓላስ ለታሪካዊው የኮንፈረንስ ሊግ ግማሽ ፍጻሜ ሲዘጋጅ፣ ግብ ጠባቂው ዲን ሄንደርሰን የአለባበስ ክፍል ውስጥ ያለውን መነቃቃት ይፋ አድርጓል። ቡድኑ ለፍጻሜ ለመድረስና ታሪክ ለመስራት ቁርጠኛ መሆኑን የገለጸው ሄንደርሰን፣ እያንዳንዱ ተጫዋች ለክለቡ እና ለደጋፊው ያለውን ሀላፊነት እንዲወጣ አሳስቧል። ፓላስ ይህንን ወርቃማ አጋጣሚ ለመጠቀም በአንድነት እንደሚቆምም ተናግሯል።
+
+---
+id: 71
+status: published
+published_at: 2026-04-28T20:53:19+00:00
+source: BBC Sport Football
+original_title: Tottenham target Rashford - Wednesday's gossip
+translated_title_am: የዝውውር ወሬዎች ፡ ራሽፎርድ የቶተንሃም ኢላማ ሆኗል 
+translated_story_am:
+የቢቢሲ የዕለቱ የዝውውር ወሬ ዝርዝር ቶተንሃም ማርከስ ራሽፎርድን እየፈለገ መሆኑን እና አንቶኒ ጎርደን ከኒውካስል ሊለይ እንደሚችል ይጠቁማል። በተጨማሪም አርሰናል ቪክቶር ኦሲምሄንን እየተከታተለች መሆኗ ተጠቅሷል።
+
+---
+id: 81
+status: published
+published_at: 2026-04-28T15:26:50+00:00
+source: BBC Sport Football
+original_title: Man City left frustrated by fixture pile-up
+translated_title_am: የፔፕ ጋርዲዮላ የጨዋታ መደራረብ ስጋት!
+translated_story_am:
+ማንቸስተር ሲቲ በ11 ቀናት ውስጥ አራት ወሳኝ ጨዋታዎችን እንዲያደርግ መገደዱ ክለቡን አስቆጥቷል። ሲቲ ከክሪስታል ፓላስ እና ቦርንማውዝ ጋር የነበሩት ጨዋታዎች ተራዝመው በግንቦት ወር እንዲካሄዱ መወሰኑ፣ በኤፍ ኤ ካፕ ፍጻሜ መሃል ከፍተኛ ጫና ፈጥሯል። በተመሳሳይ መሪው አርሰናል በሰባት ቀናት ውስጥ ሦስት ጨዋታዎችን የሚያደርግ ሲሆን፣ ይህም የዋንጫ ፉክክሩን እጅግ መሳጭ አድርጎታል።
+
+---
+id: 1400
+status: published
+published_at: 2026-04-28T14:00:00+00:00
+source: Crystal Palace
+original_title: New date confirmed for rearranged match with Manchester City
+translated_title_am: የፓላስ እና ሲቲ ጨዋታ አዲስ ቀን ተቆረጠለት!
+translated_story_am:
+በካራባኦ ካፕ ፍጻሜ ምክንያት ተራዝሞ የነበረው የክሪስታል ፓላስ እና ማንቸስተር ሲቲ ጨዋታ ረቡዕ ግንቦት 5 (May 13, 2026) እንዲካሄድ ተወስኗል። ይህ ውሳኔ ማንቸስተር ሲቲ በ11 ቀናት ውስጥ አራት ጨዋታዎችን እንዲያደርግ የሚያስገድደው ሲሆን፣ በሊጉ የዋንጫ ፉክክር ላይ ትልቅ ተጽዕኖ ይኖረዋል። ለፓላስም ቢሆን ከአውሮፓ የግማሽ ፍጻሜ ጨዋታዎች ጋር ተደራርቦባቸዋል።
+
+---
+id: 1260
+status: published
+published_at: 2026-04-28T13:37:00+00:00
+source: Sky Sports Premier League
+original_title: Man Utd in no rush to make managerial decision
+translated_title_am: የካሪክ ቆይታ እና የዩናይትድ ጥንቃቄ!
+translated_story_am:
+ማንቸስተር ዩናይትድ የቻምፒዮንስ ሊግ ተሳትፎውን ማረጋገጥ ቢቃረብም፣ የክለቡ የበላይ አካላት በቋሚ አሰልጣኝ ሹመት ላይ እንደማይቸኩሉ ተገልጿል። ማይክል ካሪክ ቡድኑን በጊዜያዊነት እየመራ ውጤታማ ጉዞ እያደረገ ቢሆንም፣ አስተዳደሩ የረጅም ጊዜ እቅዱን ለማሳካት ሁሉንም አማራጮች በጥንቃቄ እየመረመረ ይገኛል። ካሪክም እስከ የውድድር ዘመኑ መጨረሻ በትኩረት እንደሚቀጥል ይጠበቃል።
+
+---
+id: 87
+status: published
+published_at: 2026-04-28T13:15:08+00:00
+source: BBC Sport Football
+original_title: 'I lived all my dreams' - Stones to leave Man City
+translated_title_am: ጆን ስቶንስ በወቅቱ መጨረሻ ማን ሲቲን እንደሚለቅ አረጋገጠ
+translated_story_am:
+እንግሊዛዊው ተከላካይ ጆን ስቶንስ በወቅቱ መጨረሻ ማንቸስተር ሲቲን እንደሚለቅ አረጋግጧል። ከ2016 ጀምሮ ከክለቡ ጋር ብዙ ዋንጫዎችን ያነሳው ስቶንስ ሲቲ ቤቱ እንደሆነ ገልጾ ስንብቱን በስሜት ተናግሯል።
+
+---
+id: 1639
+status: published
+published_at: 2026-04-28T11:12:00+00:00
+source: Manchester United
+original_title: Who was our Man of the Match v Brentford?
+translated_title_am: የዩናይትድ የድል ኮከብ ታወቀ!
+translated_story_am:
+ማንቸስተር ዩናይትድ ብሬንትፎርድን ባሸነፈበት ጨዋታ ማርከስ ራሽፎርድ የጨዋታው ኮከብ (Man of the Match) ተብሎ ተመርጧል። በጨዋታው ላይ ያሳየው ድንቅ እንቅስቃሴ እና ያስቆጠረው ወሳኝ ግብ ለደጋፊዎች ምርጫ ቀዳሚ እንዲሆን አድርጎታል። ዩናይትድ ለቻምፒዮንስ ሊግ የሚያደርገውን ጉዞ ለማጠናከር ይህ ውጤት እጅግ ወሳኝ ነበር።
+
+---
+id: 1406
+status: published
+published_at: 2026-04-28T07:00:00+00:00
+source: Crystal Palace
+original_title: 100 up for Dani: 10 of our favourite Muñoz moments
+translated_title_am: የዳንኤል ሙኞዝ 100ኛ ጨዋታ እና ደማቅ ታሪክ!
+translated_story_am:
+ዳንኤል ሙኞዝ ለክሪስታል ፓላስ 100ኛ ጨዋታውን ማድረጉን ተከትሎ ክለቡ ድንቅ ስራዎቹን ዘክሯል። ኮሎምቢያዊው الظهይር (full-back) ወደ ሴልኸርስት ፓርክ ከመጣ ጀምሮ በአጥቂ መስመር ተሳትፎው እና በጠንካራ መከላከል ብቃቱ የደጋፊዎች ተወዳጅ መሆን ችሏል። ክለቡም በቆይታው ካሳያቸው 10 ምርጥ አፍታዎች መካከል ወሳኝ ግቦቹን እና የማይረሱ የድል አጋጣሚዎቹን ለደጋፊዎች አጋርቷል።
+
+---
+id: 1643
+status: published
+published_at: 2026-04-27T23:03:00+00:00
+source: Manchester United
+original_title: Carrick: Casemiro is giving everything
+translated_title_am: የካሪክ ቁርጠኝነት እና የዩናይትድ መነቃቃት!
+translated_story_am:
+ማይክል ካሪክ ብሬንትፎርድን ካሸነፉ በኋላ በሰጠው መግለጫ፣ የቡድኑ ስነ-ልቦናዊ ጥንካሬ ለውጤቱ ቁልፍ እንደነበረ ገልጿል። ተጫዋቾቹ እስከ መጨረሻው ደቂቃ ድረስ የታገሉበት መንገድ የሚደነቅ መሆኑንና የቻምፒዮንስ ሊግ ተሳትፎን ለማረጋገጥ ቀሪ ጨዋታዎች ላይ ትኩረት እንደሚያደርጉ ተናግሯል። የካሪክ አመራር በክለቡ ውስጥ አዲስ ተስፋን መዝራቱ በግልጽ ታይቷል።
+
+---
+id: 1240
+status: published
+published_at: 2026-04-27T22:29:05+00:00
+source: The Guardian Premier League
+original_title: Casemiro’s decision to leave Manchester United is final, insists Michael Carrick
+translated_title_am: የካሴሚሮ ስንብትና የካሪክ ግልጽ አቋም!
+translated_story_am:
+ብራዚላዊው አማካይ ካሴሚሮ በብሬንትፎርድ ላይ ግብ ቢያስቆጥርም፣ በክረምቱ ማንቸስተር ዩናይትድን የመልቀቁ ውሳኔ የማይቀየር መሆኑን ማይክል ካሪክ አረጋግጧል። በክለቡ አራት ዓመታትን ያሳለፈው ካሴሚሮ፣ በዘንድሮው የውድድር ዘመን ዘጠኝ የሊግ ግቦችን በማስቆጠር ድንቅ ብቃት እያሳየ ቢሆንም፣ ከሁለቱም ወገን ያለው ስምምነት "ግልጽ" እንደሆነ ተገልጿል። ስንብቱ በክብር እንዲጠናቀቅም ታቅዷል።
+
+---
+id: 1262
+status: published
+published_at: 2026-04-27T22:00:00+00:00
+source: Sky Sports Premier League
+original_title: Man Utd edge closer to Champions League return after Brentford win
+translated_title_am: የዩናይትድ የቻምፒዮንስ ሊግ ጉዞ ቀጥሏል!
+translated_story_am:
+ማንቸስተር ዩናይትድ ብሬንትፎርድን 2 ለ 1 በማሸነፍ የአውሮፓ ቻምፒዮንስ ሊግ ተሳትፎውን ለማረጋገጥ ተቃርቧል። ካሴሚሮ እና ቤንጃሚን ሴስኮ ያስቆጠሯቸው ግቦች ቀያይ ሰይጣኖቹን ለድል ያበቁ ሲሆን፣ ተጋጣሚያቸው ብሬንትፎርድ ከፍተኛ ፉክክር ቢያደርግም ነጥብ ይዞ መውጣት አልቻለም። የካሪክ ስብስብ በሜዳው ኦልድትራፎርድ ደማቅ ድል በማስመዝገብ በደረጃ ሰንጠረዡ አናት የመቆየት ተስፋውን አድሷል።
+
+---
+id: 110
+status: published
+published_at: 2026-04-27T17:05:46+00:00
+source: BBC Sport Football
+original_title: Arsenal expect Havertz to play in title run-in
+translated_title_am: አርሰናል ሃቨርትዝ አገግሞ ለመመለስ ተስፋ አለው
+translated_story_am:
+አርሰናል ካይ ሃቨርትዝ ከኒውካስል ጨዋታ በኋላ የጡንቻ ጉዳት ቢያጋጥመውም በቀሪዎቹ የፕሪሚየር ሊግ ጨዋታዎች አንድ ሚና እንደሚኖረው ያምናል። ክለቡ የትክክለኛ መመለሻ ጊዜ አላስቀመጠም።
+
+---
+id: 109
+status: published
+published_at: 2026-04-27T10:00:53+00:00
+source: BBC Sport Football
+original_title: Could a Premier League club lose their European place once again?
+translated_title_am: የፕሪሚየር ሊግ ክለብ የአውሮፓ ቦታውን ዳግም ሊያጣ ይችላል?
+translated_story_am:
+ከክሪስታል ፓላስ ያለፈው ዓመት ጉዳይ በኋላ የብዙ ክለቦች ባለቤትነት ህጎች እንደገና ትኩረት አግኝተዋል። አውሮፓ ለመግባት የሚታገሉ ቡድኖች ከሜዳ በስተቀር በወረቀት ላይም እየተፋለሙ ናቸው።

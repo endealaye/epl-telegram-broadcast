@@ -1,9 +1,16 @@
 import sqlite3
 from supabase import create_client, Client
 
-from bot_config import SUPABASE_KEY, SUPABASE_URL
+from bot_config import CURRENT_EPL_SEASON, SUPABASE_KEY, SUPABASE_URL
 
 LOCAL_DB_FILE = 'epl_2025.db'
+
+
+def infer_fixture_season(row):
+    matchgroup = (row.get("matchgroup") or "").strip()
+    if matchgroup == "Premier League" or not matchgroup:
+        return CURRENT_EPL_SEASON
+    return CURRENT_EPL_SEASON
 
 def migrate():
     # Initialize Supabase
@@ -34,6 +41,7 @@ def migrate():
         for row in rows:
             # Convert SQLite CamelCase keys to Supabase lowercase keys
             lowered_row = {k.lower(): row[k] for k in row.keys()}
+            lowered_row.setdefault("season", infer_fixture_season(lowered_row))
             data_to_push.append(lowered_row)
             
         # Push to Supabase in chunks to avoid payload size limits

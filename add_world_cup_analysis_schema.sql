@@ -7,6 +7,7 @@ ALTER TABLE fixtures ADD COLUMN IF NOT EXISTS winner_team TEXT;
 ALTER TABLE fixtures ADD COLUMN IF NOT EXISTS source_status TEXT NOT NULL DEFAULT 'unverified'
     CHECK (source_status IN ('unverified', 'confirmed', 'mismatch', 'single_source'));
 ALTER TABLE fixtures ADD COLUMN IF NOT EXISTS source_notes TEXT;
+ALTER TABLE fixtures ADD COLUMN IF NOT EXISTS season TEXT;
 
 CREATE TABLE IF NOT EXISTS world_cup_fixture_source_checks (
     matchnumber BIGINT PRIMARY KEY,
@@ -24,6 +25,10 @@ CREATE TABLE IF NOT EXISTS world_cup_teams (
     group_name TEXT,
     name_am TEXT,
     short_name_am TEXT,
+    coach_name TEXT,
+    coach_source_name TEXT,
+    coach_source_url TEXT,
+    coach_verified_at TIMESTAMPTZ,
     flag_path TEXT,
     source_status TEXT NOT NULL DEFAULT 'unverified'
         CHECK (source_status IN ('unverified', 'confirmed', 'mismatch', 'single_source')),
@@ -106,10 +111,31 @@ CREATE TABLE IF NOT EXISTS match_analysis (
     UNIQUE (matchnumber, analysis_type, language)
 );
 
+CREATE TABLE IF NOT EXISTS match_predictions (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    matchnumber BIGINT NOT NULL REFERENCES fixtures(matchnumber) ON DELETE CASCADE,
+    language TEXT NOT NULL DEFAULT 'am',
+    predicted_home_score INTEGER NOT NULL CHECK (predicted_home_score >= 0),
+    predicted_away_score INTEGER NOT NULL CHECK (predicted_away_score >= 0),
+    prediction_text TEXT NOT NULL,
+    confidence TEXT NOT NULL DEFAULT 'medium'
+        CHECK (confidence IN ('low', 'medium', 'high')),
+    source_context JSONB NOT NULL DEFAULT '{}'::jsonb,
+    review_status TEXT NOT NULL DEFAULT 'draft'
+        CHECK (review_status IN ('draft', 'published', 'rejected')),
+    published_message_id BIGINT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (matchnumber, language)
+);
+
 CREATE INDEX IF NOT EXISTS world_cup_teams_group_idx ON world_cup_teams (group_name);
 CREATE INDEX IF NOT EXISTS world_cup_players_team_idx ON world_cup_players (team_name);
 CREATE INDEX IF NOT EXISTS world_cup_recent_matches_team_date_idx ON world_cup_recent_matches (team_name, match_date DESC);
 CREATE INDEX IF NOT EXISTS world_cup_availability_team_status_idx ON world_cup_player_availability (team_name, status);
 CREATE INDEX IF NOT EXISTS world_cup_group_standings_group_idx ON world_cup_group_standings (group_name, points DESC, goal_difference DESC);
 CREATE INDEX IF NOT EXISTS match_analysis_matchnumber_idx ON match_analysis (matchnumber);
+CREATE INDEX IF NOT EXISTS match_predictions_matchnumber_idx ON match_predictions (matchnumber);
+CREATE INDEX IF NOT EXISTS match_predictions_review_status_idx ON match_predictions (review_status);
 CREATE INDEX IF NOT EXISTS fixtures_source_status_idx ON fixtures (source_status);
+CREATE INDEX IF NOT EXISTS fixtures_season_matchgroup_idx ON fixtures (season, matchgroup);

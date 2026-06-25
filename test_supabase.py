@@ -1,11 +1,10 @@
+from bot_config import SUPABASE_KEY, SUPABASE_URL
 from supabase import create_client, Client
-
-# Configuration
-SUPABASE_URL = "https://urqgbjtgrilgaltrmrmk.supabase.co"
-SUPABASE_KEY = "sb_publishable_iVSr4QF92Ox-PRSaIUaLVA_c7j_xbOt"
 
 def test_connection():
     try:
+        if not SUPABASE_URL or not SUPABASE_KEY:
+            raise RuntimeError("Missing SUPABASE_URL or SUPABASE_KEY")
         supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
         # Try to fetch a count of the fixtures table
         res = supabase.table('fixtures').select('*', count='exact').execute()

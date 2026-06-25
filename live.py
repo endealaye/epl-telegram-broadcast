@@ -15,10 +15,13 @@ from bot_config import (
     parse_eat_datetime,
 )
 from commands import send_admin_alert, send_telegram_message
+from world_cup_analysis import broadcast_post_match_analysis_for_fixtures
 from sync import sky_result_overrides_for_date
+from world_cup_standings import broadcast_world_cup_standings_card_for_fixture
 from store import (
     fetch_fixtures_for_dates,
     fixture_competition_name,
+    fixture_live_window_minutes,
     get_bot_state_value,
     has_live_window_matches,
     is_in_live_polling_window,
@@ -37,6 +40,18 @@ LIVE_COMPETITIONS = {
     "FIFA World Cup",
     "World Cup",
 }
+FIFA_WORLD_CUP_CALENDAR_URL = "https://api.fifa.com/api/v3/calendar/matches"
+FIFA_WORLD_CUP_COMPETITION_ID = "17"
+FIFA_WORLD_CUP_SEASON_ID = "285023"
+FIFA_WORLD_CUP_STAGE_ID = "289273"
+FIFA_WORLD_CUP_HEADERS = {
+    "Accept": "application/json",
+    "User-Agent": "Mozilla/5.0 football-broadcaster/1.0",
+}
+
+
+def _is_supported_live_competition(competition_name):
+    return competition_name in LIVE_COMPETITIONS or competition_name.startswith("FIFA World Cup")
 
 
 class ScoreProvider:
@@ -76,6 +91,118 @@ class BBCProvider(ScoreProvider):
         return []
 
 
+def _localized_description(values):
+    for value in values or []:
+        if value.get("Locale") == "en-GB" and value.get("Description"):
+            return value["Description"].strip()
+    for value in values or []:
+        if value.get("Description"):
+            return value["Description"].strip()
+    return ""
+
+
+def _fifa_team_name(team):
+    return _localized_description((team or {}).get("TeamName")) or (team or {}).get("ShortClubName") or ""
+
+
+def _fifa_score(match, side):
+    score = match.get(f"{side}TeamScore")
+    if score is not None:
+        return score
+    team = match.get(side) or {}
+    return team.get("Score")
+
+
+def _fetch_fifa_calendar(params):
+    response = requests.get(
+        FIFA_WORLD_CUP_CALENDAR_URL,
+        params=params,
+        headers=FIFA_WORLD_CUP_HEADERS,
+        timeout=10,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def fetch_fifa_world_cup_group_stage_matches():
+    stage_payload = _fetch_fifa_calendar(
+        {
+            "idCompetition": FIFA_WORLD_CUP_COMPETITION_ID,
+            "idSeason": FIFA_WORLD_CUP_SEASON_ID,
+            "idStage": FIFA_WORLD_CUP_STAGE_ID,
+            "language": "en",
+        }
+    )
+    group_ids = []
+    seen_groups = set()
+    for match in stage_payload.get("Results") or []:
+        group = match.get("IdGroup")
+        if group and group not in seen_groups:
+            seen_groups.add(group)
+            group_ids.append(group)
+
+    matches = []
+    seen_matches = set()
+    for group_id in group_ids:
+        group_payload = _fetch_fifa_calendar(
+            {
+                "idCompetition": FIFA_WORLD_CUP_COMPETITION_ID,
+                "idSeason": FIFA_WORLD_CUP_SEASON_ID,
+                "idStage": FIFA_WORLD_CUP_STAGE_ID,
+                "idGroup": group_id,
+                "language": "en",
+            }
+        )
+        for match in group_payload.get("Results") or []:
+            match_id = match.get("IdMatch")
+            if match_id and match_id not in seen_matches:
+                seen_matches.add(match_id)
+                matches.append(match)
+    return matches
+
+
+class FIFAWorldCupProvider(ScoreProvider):
+    def get_scores(self):
+        try:
+            payload_matches = fetch_fifa_world_cup_group_stage_matches()
+            if payload_matches:
+                # Debug: print the first match payload to see if goal details are present
+                print(f"DEBUG: Sample match payload: {payload_matches[0]}")
+            
+            scores = []
+            for match in payload_matches:
+                home_name = _fifa_team_name(match.get("Home"))
+                away_name = _fifa_team_name(match.get("Away"))
+                h_score = _fifa_score(match, "Home")
+                a_score = _fifa_score(match, "Away")
+                if not home_name or not away_name:
+                    continue
+                if h_score is None or a_score is None:
+                    continue
+
+                match_status = match.get("MatchStatus")
+                result_type = match.get("ResultType")
+                if match_status == 0 or result_type == 1:
+                    status = "FT"
+                elif match_status == 3:
+                    status = "LIVE"
+                else:
+                    continue
+
+                scores.append({
+                    "home": home_name,
+                    "h_score": str(h_score),
+                    "away": away_name,
+                    "a_score": str(a_score),
+                    "text": f"{home_name} {h_score}-{a_score} {away_name} {status}",
+                    "competition": "FIFA World Cup",
+                })
+            return scores
+        except Exception as e:
+            print(f"FIFAWorldCupProvider error: {e}")
+            return []
+
+
 class SkySportsProvider(ScoreProvider):
     def get_scores(self):
         try:
@@ -86,7 +213,7 @@ class SkySportsProvider(ScoreProvider):
             for item in payload:
                 match = item.get('match') or {}
                 competition = (((match.get('competition') or {}).get('name') or {}).get('full') or "").strip()
-                if competition not in LIVE_COMPETITIONS:
+                if not _is_supported_live_competition(competition):
                     continue
 
                 teams = match.get('teams') or {}
@@ -230,11 +357,11 @@ def _find_db_match(home_team, away_team, competition_name, now):
 def _send_full_time_message(db_match, h_score, a_score):
     competition_title, home_am, away_am = _format_match_title(db_match)
     msg = (
-        f"🏁 *የመጨረሻ ውጤት*\n\n"
+        f"🏁 የመጨረሻ ውጤት\n\n"
         f"🏆 {competition_title}\n"
         f"{home_am} {h_score} - {a_score} {away_am}"
     )
-    send_telegram_message(msg)
+    send_telegram_message(msg, parse_mode=None)
 
 
 def _finalize_match(db_match, h_score, a_score, send_message=True):
@@ -246,7 +373,29 @@ def _finalize_match(db_match, h_score, a_score, send_message=True):
         hometeamscore=int(h_score),
         awayteamscore=int(a_score),
         last_broadcast_score=f"{h_score}-{a_score}",
+        live_final_sent=True,
     )
+    
+    try:
+        broadcast_world_cup_standings_card_for_fixture(db_match)
+    except Exception as e:
+        print(f"Failed to auto-broadcast standing card for match {db_match.get('matchnumber')}: {e}")
+    try:
+        dateeat = db_match.get("dateeat") or ""
+        if dateeat:
+            broadcast_post_match_analysis_for_fixtures(date_strings=[dateeat[:10]])
+    except Exception as e:
+        print(f"Failed to auto-broadcast post-match analysis for match {db_match.get('matchnumber')}: {e}")
+
+
+def _score_entry_for_match(score_map, db_match, competition_name):
+    key = (db_match.get('hometeam'), db_match.get('awayteam'), competition_name)
+    score_entry = score_map.get(key)
+    if score_entry:
+        return score_entry
+    if competition_name.startswith("FIFA World Cup"):
+        return score_map.get((db_match.get('hometeam'), db_match.get('awayteam'), "FIFA World Cup"))
+    return None
 
 
 def _should_send_standings_after_results(today_fixtures):
@@ -287,43 +436,58 @@ def _reconcile_overdue_matches(score_map, now):
         except Exception as exc:
             print(f"Sky dated result fallback failed for {date_string}: {exc}")
 
-    for db_match in supabase.table('fixtures').select('*').in_('matchgroup', list(LIVE_COMPETITIONS)).execute().data or []:
+    for db_match in fetch_fixtures_for_dates(date_strings):
         kickoff = parse_eat_datetime(db_match.get('dateeat'))
         if not kickoff or kickoff.strftime("%Y-%m-%d") not in date_strings:
+            continue
+        competition_name = fixture_competition_name(db_match)
+        if not _is_supported_live_competition(competition_name):
             continue
         if db_match.get('result_sent'):
             continue
         if db_match.get('hometeamscore') is not None or db_match.get('awayteamscore') is not None:
             continue
-        if kickoff > now - timedelta(hours=2):
+        overdue_minutes = fixture_live_window_minutes(db_match) + 15
+        if kickoff > now - timedelta(minutes=overdue_minutes):
             continue
 
-        competition_name = fixture_competition_name(db_match)
-        dated_override = dated_result_overrides.get(
-            (db_match.get('hometeam'), db_match.get('awayteam'), competition_name)
+        dated_override = (
+            dated_result_overrides.get((db_match.get('hometeam'), db_match.get('awayteam'), competition_name))
+            or (
+                competition_name.startswith("FIFA World Cup")
+                and dated_result_overrides.get((db_match.get('hometeam'), db_match.get('awayteam'), "FIFA World Cup"))
+            )
         )
         if dated_override:
             h_score, a_score = dated_override
-            _finalize_match(db_match, h_score, a_score, send_message=not db_match.get('result_sent'))
+            _finalize_match(
+                db_match,
+                h_score,
+                a_score,
+                send_message=not db_match.get('live_final_sent') and not db_match.get('result_sent'),
+            )
             continue
 
-        score_entry = score_map.get((db_match.get('hometeam'), db_match.get('awayteam'), competition_name))
+        score_entry = _score_entry_for_match(score_map, db_match, competition_name)
         if score_entry:
             is_full_time, _ = _parse_status(score_entry.get('text', ''))
             if is_full_time or kickoff <= now - timedelta(hours=4):
-                _finalize_match(db_match, score_entry['h_score'], score_entry['a_score'], send_message=not db_match.get('result_sent'))
+                _finalize_match(
+                    db_match,
+                    score_entry['h_score'],
+                    score_entry['a_score'],
+                    send_message=not db_match.get('live_final_sent') and not db_match.get('result_sent'),
+                )
                 continue
 
-        fallback_score = db_match.get('last_broadcast_score') or ""
-        if kickoff <= now - timedelta(hours=4) and re.fullmatch(r"\d+-\d+", fallback_score):
-            h_score, a_score = fallback_score.split("-", 1)
-            _finalize_match(db_match, h_score, a_score, send_message=not db_match.get('result_sent'))
+        # Do not turn the last live/HT score into a final without a provider-confirmed FT.
+        # World Cup stoppage-time goals would otherwise be lost if the official feed times out.
 
 
 def process_live_updates():
     if not supabase:
         return
-    providers = [SkySportsProvider(), BBCProvider()]
+    providers = [FIFAWorldCupProvider(), SkySportsProvider(), BBCProvider()]
     now = get_eat_now().replace(tzinfo=None)
     all_scores = _merged_scores(providers)
     score_map = {
@@ -332,12 +496,13 @@ def process_live_updates():
     }
     _reconcile_overdue_matches(score_map, now)
 
-    if not has_live_window_matches():
-        print("Skip live: no fixtures in the active live window.")
+    if not all_scores:
+        if not has_live_window_matches():
+            print("Skip live: no fixtures in the active live window and no fetched scores.")
         return
 
-    if not all_scores:
-        return
+    if not has_live_window_matches():
+        print("Processing fetched live scores even though no fixture is currently in the active window.")
 
     try:
         for match_data in all_scores:
@@ -360,23 +525,23 @@ def process_live_updates():
 
             if not is_full_time and current_score_str != last_score and score_total > 0:
                 msg = (
-                    f"⚽ *ጎል ተቆጠረ!*\n\n"
+                    f"⚽ ጎል ተቆጠረ!\n\n"
                     f"🏆 {competition_title}\n"
                     f"{home_am} {h_score} - {a_score} {away_am}"
                 )
-                send_telegram_message(msg)
+                send_telegram_message(msg, parse_mode=None)
                 mark_match_state(db_match['matchnumber'], last_broadcast_score=current_score_str)
 
             if is_half_time and not db_match.get('half_time_sent'):
                 msg = (
-                    f"⏸️ *የእረፍት ጊዜ ውጤት*\n\n"
+                    f"⏸️ የእረፍት ጊዜ ውጤት\n\n"
                     f"🏆 {competition_title}\n"
                     f"{home_am} {h_score} - {a_score} {away_am}"
                 )
-                send_telegram_message(msg)
+                send_telegram_message(msg, parse_mode=None)
                 mark_match_state(db_match['matchnumber'], half_time_sent=True)
 
-            if is_full_time and not db_match.get('result_sent'):
+            if is_full_time and not db_match.get('live_final_sent') and not db_match.get('result_sent'):
                 _finalize_match(db_match, h_score, a_score)
     except Exception as e:
         error_msg = f"Live update processing error: {e}"

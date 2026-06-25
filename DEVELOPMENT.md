@@ -58,6 +58,7 @@ The runtime expects the `fixtures` table to include at least these fields:
 - `half_time_sent`
 - `daily_sent`
 - `reminder_sent`
+- `live_final_sent`
 - `result_sent`
 
 The repository includes [add_broadcast_state_columns.sql](/Users/nebiyou.yirga/Downloads/ft_dd/add_broadcast_state_columns.sql) for the new broadcast-state columns.
@@ -73,7 +74,8 @@ Expected semantics:
 - `half_time_sent` prevents duplicate half-time alerts.
 - `daily_sent` prevents duplicate daily schedule posts.
 - `reminder_sent` prevents duplicate reminder posts.
-- `result_sent` prevents duplicate result posts and duplicate final-score sends.
+- `live_final_sent` prevents duplicate live final-score sends.
+- `result_sent` prevents duplicate result roundup posts.
 
 ### Table: `bot_state`
 
@@ -110,6 +112,11 @@ It also creates dedicated analysis tables:
 - `world_cup_group_standings`
 - `match_analysis`
 - `match_predictions`
+
+`match_analysis` supports both pre-match previews and post-match recaps:
+
+- `preview` is the pre-match analysis flow
+- `recap` is the post-match analysis flow
 
 For only score-prediction storage, run [add_match_predictions_table.sql](/Users/nebiyou.yirga/Downloads/ft_dd/add_match_predictions_table.sql)
 in Supabase SQL Editor.
@@ -178,6 +185,7 @@ Each invocation runs only the mode requested on the CLI:
 - `reminders`
 - `results`
 - `standings`
+- `world-cup-recap`
 - `heartbeat`
 - `event` for structured agent/orchestrator input
 - `news-fetch`
@@ -289,8 +297,8 @@ The current scheduled workflows are `.github/workflows/broadcast.yml` and `.gith
 
 Configured schedules:
 
-- `0 5 * * *`
-  - Runs at `05:00 UTC`, which is `08:00 EAT`
+- `0 3 * * *`
+  - Runs at `03:00 UTC`, which is `06:00 EAT`
 - `0 17 * * *`
   - Runs at `17:00 UTC`, which is `20:00 EAT`
 - `0 15 * * *`
@@ -308,14 +316,14 @@ Current workflow behavior:
 - `world-cup-analysis` runs before the World Cup evening and overnight kickoff blocks and on manual dispatch.
 - `world-cup-analysis-review-reminder` runs after analysis generation and sends the admin pending drafts for the next 8 hours.
 - `world-cup-analysis-publish` runs on the 10-minute schedule and posts approved previews whose kickoff is within 90 minutes.
-- `world-cup-fact` runs on the `05:00 UTC` schedule and on manual dispatch, stores a fact queue in `bot_state`, and sends one fact per EAT day.
+- `world-cup-fact` runs on the `03:00 UTC` schedule and on manual dispatch, stores a fact queue in `bot_state`, and sends one fact per EAT day.
 - `commands` runs on the 10-minute schedule and on manual dispatch.
 - `live` runs on the 5-minute live polling workflow and on manual dispatch.
-- The daily step runs on the `05:00 UTC`, 10-minute schedule, and on manual dispatch; policy blocks broadcasts once the first kickoff has been reached.
+- The daily step runs on the `03:00 UTC`, 10-minute schedule, and on manual dispatch; policy blocks broadcasts once the first kickoff has been reached.
 - The reminders step runs on the 10-minute schedule and on manual dispatch.
 - The results step runs on the 10-minute schedule and on manual dispatch.
 
-This means the 05:00 UTC run executes:
+This means the 03:00 UTC run executes:
 
 - `refresh`
 - `daily`
@@ -365,7 +373,7 @@ After deployment or manual runs, verify:
 
 - The GitHub Actions job completes successfully
 - Telegram receives the expected message
-- Supabase rows update as expected for `broadcaststatus`, `last_broadcast_score`, `half_time_sent`, `daily_sent`, `reminder_sent`, and `result_sent`
+- Supabase rows update as expected for `broadcaststatus`, `last_broadcast_score`, `half_time_sent`, `daily_sent`, `reminder_sent`, `live_final_sent`, and `result_sent`
 - The `bot_state` table contains a valid `last_update_id` after command polling
 
 ## Failure Handling

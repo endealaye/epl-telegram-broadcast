@@ -9,7 +9,7 @@ from pathlib import Path
 import requests
 from PIL import Image, ImageDraw, ImageFont
 
-from bot_config import AMHARIC_TEAMS, TEAM_MAPPING
+from bot_config import AMHARIC_TEAMS, CURRENT_EPL_SEASON, TEAM_MAPPING
 from commands import send_admin_alert, send_telegram_message, send_telegram_photo_file
 from store import supabase
 
@@ -187,18 +187,27 @@ def parse_official_standings(payload):
 def fetch_completed_fixtures():
     if not supabase:
         return []
-    query = supabase.table("fixtures").select(
-        "hometeam,awayteam,hometeamscore,awayteamscore,dateeat,matchgroup"
-    )
+    select_fields = "hometeam,awayteam,hometeamscore,awayteamscore,dateeat,matchgroup"
+    query = supabase.table("fixtures").select(select_fields).eq("season", CURRENT_EPL_SEASON)
+    use_date_fallback = False
     try:
-        season_start_year = int(OFFICIAL_SEASON_ID)
-        season_start = f"{season_start_year}-08-01 00:00:00"
-        season_end = f"{season_start_year + 1}-08-01 00:00:00"
-        query = query.gte("dateeat", season_start).lt("dateeat", season_end)
-    except (TypeError, ValueError):
-        pass
+        res = query.execute()
+    except Exception as exc:
+        if "season" not in str(exc).lower() or "column" not in str(exc).lower():
+            raise
+        use_date_fallback = True
 
-    res = query.execute()
+    if use_date_fallback:
+        query = supabase.table("fixtures").select(select_fields)
+        try:
+            season_start_year = int(OFFICIAL_SEASON_ID)
+            season_start = f"{season_start_year}-08-01 00:00:00"
+            season_end = f"{season_start_year + 1}-08-01 00:00:00"
+            query = query.gte("dateeat", season_start).lt("dateeat", season_end)
+        except (TypeError, ValueError):
+            pass
+        res = query.execute()
+
     completed = []
     for row in res.data or []:
         if (row.get("matchgroup") or "Premier League") != "Premier League":

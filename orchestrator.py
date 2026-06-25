@@ -14,6 +14,7 @@ from worker_services import (
 from worker_services import (
     publish_world_cup_fact_service,
     publish_world_cup_analysis_service,
+    publish_world_cup_recap_service,
     publish_world_cup_prediction_service,
     process_admin_commands_service,
     remind_world_cup_analysis_review_service,
@@ -56,6 +57,9 @@ INTENT_HANDLERS = {
     "world_cup_analysis": lambda payload: generate_world_cup_analysis_service(),
     "world_cup_analysis_review_reminder": lambda payload: remind_world_cup_analysis_review_service(),
     "world_cup_analysis_publish": lambda payload: publish_world_cup_analysis_service(),
+    "world_cup_recap": lambda payload: publish_world_cup_recap_service(
+        date_strings=payload.get("date_strings"),
+    ),
     "world_cup_facts_seed": lambda payload: seed_world_cup_facts_service(),
     "world_cup_fact": lambda payload: publish_world_cup_fact_service(),
     "world_cup_analysis_queue": lambda payload: list_world_cup_analysis_queue_service(

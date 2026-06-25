@@ -17,6 +17,7 @@ INSERT INTO fixtures (
     half_time_sent,
     daily_sent,
     reminder_sent,
+    live_final_sent,
     result_sent
 )
 VALUES

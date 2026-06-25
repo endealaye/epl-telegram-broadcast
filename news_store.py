@@ -5,6 +5,7 @@ import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from store import get_bot_state_value, set_bot_state_value, supabase
 
@@ -150,6 +151,11 @@ EXCLUDE_PATTERNS = [
     r"\bboxing greats?\b",
     r"\bticket office update\b",
     r"\bkeeping the faith\b",
+    r"\bvideo vault\b",
+    r"\binside the mind of\b",
+    r"\blitter picking\b",
+    r"\bi hope .* stays\b",
+    r"\blong beyond next season\b",
 ]
 
 ALLOWED_REVIEW_STATUSES = {
@@ -231,6 +237,33 @@ def build_source_title_key(source_name, title):
     return f"{source}|{title_key}"
 
 
+def canonical_article_url(article_url):
+    if not article_url:
+        return ""
+    parsed = urlparse((article_url or "").strip())
+    host = (parsed.netloc or "").lower()
+    path = parsed.path or ""
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+
+    for key in list(query):
+        if key.startswith("utm_") or key in {"at_medium", "at_campaign", "at_format", "at_link_id"}:
+            query.pop(key, None)
+
+    if "skysports.com" in host:
+        match = re.search(r"/news/\d+/(\d+)/(.+)$", path)
+        if match:
+            path = f"/football/news/article/{match.group(1)}/{match.group(2)}"
+
+    return urlunparse(
+        parsed._replace(
+            netloc=host,
+            path=path.rstrip("/"),
+            query=urlencode(sorted(query.items())),
+            fragment="",
+        )
+    )
+
+
 def parse_rss_datetime(value):
     if not value:
         return None
@@ -244,7 +277,8 @@ def parse_rss_datetime(value):
 
 
 def build_content_hash(source_key, article_url):
-    raw = f"{source_key}|{article_url}".encode("utf-8")
+    canonical_url = canonical_article_url(article_url)
+    raw = (canonical_url or f"{source_key}|{article_url}").encode("utf-8")
     return hashlib.sha256(raw).hexdigest()
 
 
@@ -599,7 +633,7 @@ def get_existing_news_items_for_sources(source_names, days_back=TITLE_DEDUPE_WIN
         batch = names[start:start + batch_size]
         res = _safe_execute(
             supabase.table("news_items").select(
-                "id,source_name,title,review_status,notes,fetched_at,published_at"
+                "id,source_name,title,article_url,review_status,notes,fetched_at,published_at"
             ).in_("source_name", batch).gte("fetched_at", cutoff),
             default=None,
             context="get_existing_news_items_for_sources",

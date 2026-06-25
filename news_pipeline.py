@@ -22,6 +22,7 @@ from news_collectors import (
 )
 from news_store import (
     build_source_title_key,
+    canonical_article_url,
     get_news_items_by_article_urls,
     get_news_items_by_content_hashes,
     get_existing_news_items_for_sources,
@@ -34,6 +35,7 @@ from news_store import (
     upsert_news_items,
     validate_status_transition,
 )
+from store import fetch_premier_league_clubs_for_season
 from telegram_limits import (
     TELEGRAM_CAPTION_LIMIT,
     TELEGRAM_NEWS_CAPTION_TARGET,
@@ -393,9 +395,8 @@ def format_news_broadcast(item):
     lines = []
     if title:
         lines.append(title)
+        lines.append("━━━━━━━━━━━━━━━━━━━━")
     if story:
-        if lines:
-            lines.append("")
         lines.append(story)
     if source_line:
         if lines:
@@ -461,7 +462,14 @@ def fetch_news_items():
         attempted_sources.append(source_name)
         jobs.append((source_name, collector))
 
-    for source_config in PREMIER_LEAGUE_CLUB_RSS_SOURCES:
+    active_clubs = fetch_premier_league_clubs_for_season()
+    club_sources = [
+        source_config
+        for source_config in PREMIER_LEAGUE_CLUB_RSS_SOURCES
+        if not active_clubs or source_config.get("source_name") in active_clubs
+    ]
+
+    for source_config in club_sources:
         source_key = source_config.get("source_key", "club_unknown")
         attempted_sources.append(source_key)
         jobs.append(
@@ -541,9 +549,16 @@ def fetch_news_items():
 
     deduped_items = {}
     for item in normalized_items:
-        deduped_items[item["content_hash"]] = item
+        canonical_url = canonical_article_url(item.get("article_url"))
+        item.setdefault("raw_payload", {})["canonical_article_url"] = canonical_url
+        dedupe_key = canonical_url or item["content_hash"]
+        existing_item = deduped_items.get(dedupe_key)
+        if not existing_item or item.get("relevance_score", 0) > existing_item.get("relevance_score", 0):
+            deduped_items[dedupe_key] = item
 
-    existing_items = get_news_items_by_content_hashes(deduped_items.keys())
+    existing_items = get_news_items_by_content_hashes(
+        {item.get("content_hash") for item in deduped_items.values()}
+    )
     existing_urls = get_news_items_by_article_urls(
         {item.get("article_url") for item in deduped_items.values()}
     )
@@ -552,7 +567,15 @@ def fetch_news_items():
     )
     recent_title_keys = set()
     hidden_title_keys = set()
+    existing_canonical_urls = {
+        canonical_article_url(url)
+        for url in existing_urls
+        if url
+    }
     for row in recent_items:
+        canonical_url = canonical_article_url(row.get("article_url"))
+        if canonical_url:
+            existing_canonical_urls.add(canonical_url)
         title_key = build_source_title_key(row.get("source_name"), row.get("title"))
         if not title_key:
             continue
@@ -561,11 +584,12 @@ def fetch_news_items():
             hidden_title_keys.add(title_key)
 
     deduped_items = {
-        content_hash: item
-        for content_hash, item in deduped_items.items()
-        if content_hash not in existing_items
+        dedupe_key: item
+        for dedupe_key, item in deduped_items.items()
+        if item.get("content_hash") not in existing_items
         and item.get("article_url") not in existing_urls
-        and not is_user_hidden((existing_items.get(content_hash) or {}).get("notes"))
+        and canonical_article_url(item.get("article_url")) not in existing_canonical_urls
+        and not is_user_hidden((existing_items.get(item.get("content_hash")) or {}).get("notes"))
         and not is_user_hidden((existing_urls.get(item.get("article_url")) or {}).get("notes"))
         and build_source_title_key(item.get("source_name"), item.get("title")) not in hidden_title_keys
         and build_source_title_key(item.get("source_name"), item.get("title")) not in recent_title_keys
