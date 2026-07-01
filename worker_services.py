@@ -80,21 +80,11 @@ def send_daily_broadcast_service():
 
 def send_reminders_service():
     try:
-        policy = classify_match_day()
-        if not should_send_reminders(policy):
-            return ServiceResult(
-                action="reminders",
-                success=True,
-                skipped=True,
-                message=f"Skip reminders: {build_policy_summary(policy)}",
-                data={"policy": policy},
-            )
         broadcast_reminders()
         return ServiceResult(
             action="reminders",
             success=True,
             message="Reminder broadcast processing completed.",
-            data={"policy": policy},
         )
     except Exception as e:
         return ServiceResult(
