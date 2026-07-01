@@ -373,6 +373,7 @@ def _finalize_match(db_match, h_score, a_score, send_message=True):
         awayteamscore=int(a_score),
         last_broadcast_score=f"{h_score}-{a_score}",
         live_final_sent=True,
+        result_sent=True,
     )
     
     try:
