@@ -1,4 +1,4 @@
-from broadcasts import broadcast_daily, broadcast_reminders, broadcast_results, maybe_send_auto_standings, reconcile_post_match_delivery
+from broadcasts import broadcast_daily, broadcast_reminders, broadcast_results
 from commands import broadcast_heartbeat, process_commands
 from live import process_live_updates
 
@@ -9,20 +9,6 @@ from standings import broadcast_standings
 from store import fetch_fixtures_for_dates, has_live_window_matches, has_matches_today, has_pending_results, has_upcoming_matches
 from bot_config import get_eat_today
 from sync import update_fixtures_from_json
-from world_cup_analysis import (
-    generate_group_stage_previews,
-    list_analysis_queue,
-    mark_analysis_preview,
-    publish_due_analysis,
-    publish_world_cup_recap_service,
-    send_analysis_review_reminder,
-)
-from world_cup_facts import publish_daily_world_cup_fact, seed_world_cup_facts
-from world_cup_form import refresh_world_cup_qualifier_form
-from world_cup_coaches import update_world_cup_coaches
-from world_cup_players import refresh_world_cup_players, refresh_world_cup_players_with_bbc
-from world_cup_squad_audit import audit_world_cup_squads
-from world_cup_standings import refresh_world_cup_group_standings
 
 
 def sync_fixtures_service():
@@ -120,40 +106,6 @@ def send_reminders_service():
 
 def send_results_service():
     try:
-        reconciliation = reconcile_post_match_delivery()
-        if reconciliation.get("results_sent_dates") or reconciliation.get("standings_sent_dates"):
-            recap = publish_world_cup_recap_service()
-            return ServiceResult(
-                action="results",
-                success=True,
-                message="Post-match reconciliation completed.",
-                data={**reconciliation, "recap": recap},
-            )
-
-        if not has_pending_results():
-            today = get_eat_today()
-            retry_result = maybe_send_auto_standings(fetch_fixtures_for_dates([today]), today=today)
-            recap = publish_world_cup_recap_service()
-            if retry_result.get("sent"):
-                return ServiceResult(
-                    action="results",
-                    success=True,
-                    message="No new results, but standings retry was sent.",
-                    data={"standings_retry": retry_result, "recap": recap},
-                )
-            if recap.get("published", 0):
-                return ServiceResult(
-                    action="results",
-                    success=True,
-                    message="No new results, but post-match recap was sent.",
-                    data={"recap": recap},
-                )
-            return ServiceResult(
-                action="results",
-                success=True,
-                skipped=True,
-                message="Skip results: no completed fixtures awaiting a results post.",
-            )
         broadcast_results()
         return ServiceResult(
             action="results",
@@ -196,45 +148,6 @@ def refresh_world_cup_standings_service():
             action="world_cup_standings",
             success=False,
             message=f"World Cup standings refresh failed: {e}",
-        )
-
-
-def seed_world_cup_facts_service():
-    try:
-        result = seed_world_cup_facts()
-        return ServiceResult(
-            action="world_cup_facts_seed",
-            success=True,
-            message=f"World Cup fact queue seeded with {result.get('total', 0)} facts.",
-            data=result,
-        )
-    except Exception as e:
-        return ServiceResult(
-            action="world_cup_facts_seed",
-            success=False,
-            message=f"World Cup fact seeding failed: {e}",
-        )
-
-
-def publish_world_cup_fact_service():
-    try:
-        result = publish_daily_world_cup_fact()
-        return ServiceResult(
-            action="world_cup_fact",
-            success=True,
-            skipped=result.get("skipped", False),
-            message=(
-                f"World Cup fact sent: {result.get('fact_id')}."
-                if result.get("sent")
-                else f"World Cup fact skipped: {result.get('reason', 'no_fact_sent')}."
-            ),
-            data=result,
-        )
-    except Exception as e:
-        return ServiceResult(
-            action="world_cup_fact",
-            success=False,
-            message=f"World Cup fact publish failed: {e}",
         )
 
 
@@ -341,128 +254,6 @@ def audit_world_cup_squads_service():
             success=False,
             message=f"World Cup squad audit failed: {e}",
         )
-
-
-def generate_world_cup_analysis_service():
-    try:
-        result = generate_group_stage_previews()
-        return ServiceResult(
-            action="world_cup_analysis",
-            success=True,
-            message=(
-                f"World Cup analysis generated {result.get('generated', 0)} draft previews "
-                f"from {result.get('fixtures', 0)} group fixtures."
-            ),
-            data=result,
-        )
-    except Exception as e:
-        return ServiceResult(
-            action="world_cup_analysis",
-            success=False,
-            message=f"World Cup analysis generation failed: {e}",
-        )
-
-
-def remind_world_cup_analysis_review_service():
-    try:
-        result = send_analysis_review_reminder()
-        return ServiceResult(
-            action="world_cup_analysis_review_reminder",
-            success=True,
-            skipped=result.get("skipped", False) or not result.get("sent", False),
-            message=(
-                f"World Cup analysis review reminder sent for {result.get('count', 0)} previews."
-                if result.get("sent")
-                else f"No new World Cup analysis review reminder sent; {result.get('count', 0)} previews pending."
-            ),
-            data=result,
-        )
-    except Exception as e:
-        return ServiceResult(
-            action="world_cup_analysis_review_reminder",
-            success=False,
-            message=f"World Cup analysis review reminder failed: {e}",
-        )
-
-
-def publish_world_cup_analysis_service():
-    try:
-        result = publish_due_analysis()
-        return ServiceResult(
-            action="world_cup_analysis_publish",
-            success=True,
-            skipped=result.get("published", 0) == 0,
-            message=f"World Cup analysis published {result.get('published', 0)} approved previews.",
-            data=result,
-        )
-    except Exception as e:
-        return ServiceResult(
-            action="world_cup_analysis_publish",
-            success=False,
-            message=f"World Cup analysis publish failed: {e}",
-        )
-
-
-def publish_world_cup_recap_service(date_strings=None):
-    try:
-        result = broadcast_post_match_analysis_for_fixtures(date_strings=date_strings)
-        return ServiceResult(
-            action="world_cup_recap",
-            success=True,
-            skipped=result.get("published", 0) == 0,
-            message=f"World Cup post-match recap published {result.get('published', 0)} fixtures.",
-            data=result,
-        )
-    except Exception as e:
-        return ServiceResult(
-            action="world_cup_recap",
-            success=False,
-            message=f"World Cup post-match recap failed: {e}",
-        )
-
-
-def list_world_cup_analysis_queue_service(limit=20, status="draft"):
-    try:
-        items = list_analysis_queue(limit=limit, status=status)
-        return ServiceResult(
-            action="world_cup_analysis_queue",
-            success=True,
-            message=f"Loaded {len(items)} {status} World Cup previews.",
-            data={"items": items, "count": len(items), "status": status},
-        )
-    except Exception as e:
-        return ServiceResult(
-            action="world_cup_analysis_queue",
-            success=False,
-            message=f"World Cup analysis queue failed: {e}",
-        )
-
-
-def mark_world_cup_analysis_service(matchnumber, status):
-    try:
-        updated = mark_analysis_preview(matchnumber, status)
-        return ServiceResult(
-            action="world_cup_analysis_mark",
-            success=updated is not None,
-            message=(
-                f"Preview {matchnumber} marked {status}."
-                if updated
-                else f"Preview {matchnumber} not found."
-            ),
-            data={"item": updated} if updated else {},
-        )
-    except Exception as e:
-        return ServiceResult(
-            action="world_cup_analysis_mark",
-            success=False,
-            message=f"World Cup analysis mark failed: {e}",
-        )
-
-
-
-
-
-
 
 
 def send_heartbeat_service(chat_id=None):

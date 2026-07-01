@@ -14,22 +14,6 @@ SUPABASE_REQUIRED_MODES = {
     "reminders",
     "results",
     "standings",
-    "world-cup-analysis",
-    "world-cup-analysis-review-reminder",
-    "world-cup-analysis-publish",
-    "world-cup-recap",
-    "world-cup-analysis-queue",
-    "world-cup-analysis-mark",
-    "world-cup-prediction-save",
-    "world-cup-prediction-publish",
-    "world-cup-facts-seed",
-    "world-cup-fact",
-    "world-cup-squad-audit",
-    "world-cup-coaches",
-    "world-cup-form",
-    "world-cup-players",
-    "world-cup-bbc-squads",
-    "world-cup-standings",
     "news-fetch",
     "news-queue",
     "news-mark",
@@ -46,7 +30,7 @@ def json_serial(obj):
 def print_usage():
     print(
         "Usage: python3 telegram_broadcast.py "
-        "[refresh|commands|live|daily|reminders|results|standings [short|full]|world-cup-analysis|world-cup-analysis-review-reminder|world-cup-analysis-publish|world-cup-recap|world-cup-analysis-queue|world-cup-analysis-mark|world-cup-prediction-save|world-cup-prediction-publish|world-cup-facts-seed|world-cup-fact|world-cup-squad-audit|world-cup-coaches|world-cup-form|world-cup-players|world-cup-bbc-squads|world-cup-standings|heartbeat|news-fetch|news-queue|news-mark|event]"
+        "[refresh|commands|live|daily|reminders|results|standings [short|full]|heartbeat|news-fetch|news-queue|news-mark|event]"
     )
 
 
@@ -102,83 +86,6 @@ if __name__ == '__main__':
             if len(sys.argv) > 2:
                 payload["format"] = sys.argv[2]
             result = route_event_dict({"intent": "standings", "payload": payload})
-        elif mode == 'world-cup-analysis':
-            result = route_event_dict({"intent": "world_cup_analysis"})
-        elif mode == 'world-cup-analysis-review-reminder':
-            result = route_event_dict({"intent": "world_cup_analysis_review_reminder"})
-        elif mode == 'world-cup-analysis-publish':
-            result = route_event_dict({"intent": "world_cup_analysis_publish"})
-        elif mode == 'world-cup-recap':
-            payload = {}
-            if len(sys.argv) > 2:
-                payload["date_strings"] = [part.strip() for part in sys.argv[2].split(",") if part.strip()]
-            result = route_event_dict({"intent": "world_cup_recap", "payload": payload})
-        elif mode == 'world-cup-facts-seed':
-            result = route_event_dict({"intent": "world_cup_facts_seed"})
-        elif mode == 'world-cup-fact':
-            result = route_event_dict({"intent": "world_cup_fact"})
-        elif mode == 'world-cup-analysis-queue':
-            payload = {}
-            if len(sys.argv) > 2:
-                payload["limit"] = int(sys.argv[2])
-            if len(sys.argv) > 3:
-                payload["status"] = sys.argv[3]
-            result = route_event_dict({"intent": "world_cup_analysis_queue", "payload": payload})
-        elif mode == 'world-cup-analysis-mark':
-            if len(sys.argv) < 4:
-                print(json.dumps({
-                    "action": "world_cup_analysis_mark",
-                    "success": False,
-                    "message": "Usage: python3 telegram_broadcast.py world-cup-analysis-mark <matchnumber> <draft|approved|published|rejected>",
-                }, ensure_ascii=False, default=json_serial))
-                raise SystemExit(1)
-            result = route_event_dict({
-                "intent": "world_cup_analysis_mark",
-                "payload": {"matchnumber": int(sys.argv[2]), "status": sys.argv[3]},
-            })
-        elif mode == 'world-cup-prediction-save':
-            if len(sys.argv) < 6:
-                print(json.dumps({
-                    "action": "world_cup_prediction_save",
-                    "success": False,
-                    "message": "Usage: python3 telegram_broadcast.py world-cup-prediction-save <matchnumber> <home_score> <away_score> <prediction_text> [low|medium|high]",
-                }, ensure_ascii=False, default=json_serial))
-                raise SystemExit(1)
-            confidence = sys.argv[6] if len(sys.argv) > 6 else "medium"
-            result = route_event_dict({
-                "intent": "world_cup_prediction_save",
-                "payload": {
-                    "matchnumber": int(sys.argv[2]),
-                    "predicted_home_score": int(sys.argv[3]),
-                    "predicted_away_score": int(sys.argv[4]),
-                    "prediction_text": sys.argv[5],
-                    "confidence": confidence,
-                },
-            })
-        elif mode == 'world-cup-prediction-publish':
-            if len(sys.argv) < 3:
-                print(json.dumps({
-                    "action": "world_cup_prediction_publish",
-                    "success": False,
-                    "message": "Usage: python3 telegram_broadcast.py world-cup-prediction-publish <matchnumber>",
-                }, ensure_ascii=False, default=json_serial))
-                raise SystemExit(1)
-            result = route_event_dict({
-                "intent": "world_cup_prediction_publish",
-                "payload": {"matchnumber": int(sys.argv[2])},
-            })
-        elif mode == 'world-cup-players':
-            result = route_event_dict({"intent": "world_cup_players"})
-        elif mode == 'world-cup-bbc-squads':
-            result = route_event_dict({"intent": "world_cup_bbc_squads"})
-        elif mode == 'world-cup-form':
-            result = route_event_dict({"intent": "world_cup_form"})
-        elif mode == 'world-cup-squad-audit':
-            result = route_event_dict({"intent": "world_cup_squad_audit"})
-        elif mode == 'world-cup-coaches':
-            result = route_event_dict({"intent": "world_cup_coaches"})
-        elif mode == 'world-cup-standings':
-            result = route_event_dict({"intent": "world_cup_standings"})
         else:
             result = route_event_dict({"intent": mode})
         print(json.dumps(result.to_dict(), ensure_ascii=False, default=json_serial))

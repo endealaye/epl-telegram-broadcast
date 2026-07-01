@@ -27,7 +27,6 @@ from standings import (
     _resolve_logo_path,
     broadcast_standings,
 )
-from world_cup_analysis import broadcast_post_match_analysis_for_fixtures
 from world_cup_standings import broadcast_world_cup_standings_card_for_fixture, world_cup_group_name_for_fixture
 from store import (
     acquire_bot_lock,
@@ -681,38 +680,6 @@ def maybe_send_auto_standings(today_fixtures, today=None):
     }
 
 
-def reconcile_post_match_delivery(date_strings=None):
-    scope = date_strings or _results_date_scope()
-    activity = {
-        "results_sent_dates": [],
-        "standings_sent_dates": [],
-        "checked_dates": [],
-    }
-
-    for date_string in scope:
-        fixtures = fetch_fixtures_for_dates([date_string])
-        activity["checked_dates"].append(date_string)
-        if not fixtures:
-            continue
-
-        pending_results = [
-            fixture for fixture in fixtures
-            if fixture.get("hometeamscore") is not None
-            and fixture.get("awayteamscore") is not None
-            and not fixture.get("result_sent")
-        ]
-        if pending_results:
-            broadcast_results(date_strings=[date_string])
-            activity["results_sent_dates"].append(date_string)
-            fixtures = fetch_fixtures_for_dates([date_string])
-
-        standings_result = maybe_send_auto_standings(fixtures, today=date_string)
-        if standings_result.get("sent"):
-            activity["standings_sent_dates"].append(date_string)
-
-    return activity
-
-
 def broadcast_daily():
     try:
         if not supabase:
@@ -862,7 +829,6 @@ def broadcast_results(date_strings=None):
 
         refreshed_target_day = fetch_fixtures_for_dates([target_date])
         maybe_send_auto_standings(refreshed_target_day, today=target_date)
-        broadcast_post_match_analysis_for_fixtures(date_strings=normalized_dates)
     except Exception as e:
         error_msg = f"Results broadcast error: {e}"
         print(error_msg)

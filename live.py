@@ -15,7 +15,6 @@ from bot_config import (
     parse_eat_datetime,
 )
 from commands import send_admin_alert, send_telegram_message
-from world_cup_analysis import broadcast_post_match_analysis_for_fixtures
 from sync import sky_result_overrides_for_date
 from world_cup_standings import broadcast_world_cup_standings_card_for_fixture
 from store import (
@@ -380,12 +379,6 @@ def _finalize_match(db_match, h_score, a_score, send_message=True):
         broadcast_world_cup_standings_card_for_fixture(db_match)
     except Exception as e:
         print(f"Failed to auto-broadcast standing card for match {db_match.get('matchnumber')}: {e}")
-    try:
-        dateeat = db_match.get("dateeat") or ""
-        if dateeat:
-            broadcast_post_match_analysis_for_fixtures(date_strings=[dateeat[:10]])
-    except Exception as e:
-        print(f"Failed to auto-broadcast post-match analysis for match {db_match.get('matchnumber')}: {e}")
 
 
 def _score_entry_for_match(score_map, db_match, competition_name):
@@ -484,11 +477,37 @@ def _reconcile_overdue_matches(score_map, now):
         # World Cup stoppage-time goals would otherwise be lost if the official feed times out.
 
 
+def _needs_live_processing(now):
+    if has_live_window_matches():
+        return True
+
+    today = get_eat_today()
+    yesterday = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+    for db_match in fetch_fixtures_for_dates([today, yesterday]):
+        competition_name = fixture_competition_name(db_match)
+        if not _is_supported_live_competition(competition_name):
+            continue
+        if db_match.get('live_final_sent') or db_match.get('result_sent'):
+            continue
+        kickoff = parse_eat_datetime(db_match.get('dateeat'))
+        if not kickoff:
+            continue
+        overdue_minutes = fixture_live_window_minutes(db_match) + 15
+        if kickoff <= now - timedelta(minutes=overdue_minutes):
+            return True
+    return False
+
+
 def process_live_updates():
     if not supabase:
         return
-    providers = [FIFAWorldCupProvider(), SkySportsProvider(), BBCProvider()]
     now = get_eat_now().replace(tzinfo=None)
+
+    if not _needs_live_processing(now):
+        print("Skip live: no fixtures in active window or awaiting finalization.")
+        return
+
+    providers = [FIFAWorldCupProvider(), SkySportsProvider(), BBCProvider()]
     all_scores = _merged_scores(providers)
     score_map = {
         (item["mapped_home"], item["mapped_away"], (item.get("competition") or "").strip()): item
