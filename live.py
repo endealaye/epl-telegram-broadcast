@@ -1,3 +1,4 @@
+from world_cup_standings import broadcast_world_cup_standings_card_for_fixture
 import re
 from datetime import timedelta
 
@@ -15,9 +16,7 @@ from bot_config import (
     parse_eat_datetime,
 )
 from commands import send_admin_alert, send_telegram_message
-from world_cup_analysis import broadcast_post_match_analysis_for_fixtures
 from sync import sky_result_overrides_for_date
-from world_cup_standings import broadcast_world_cup_standings_card_for_fixture
 from store import (
     fetch_fixtures_for_dates,
     fixture_competition_name,
@@ -375,17 +374,6 @@ def _finalize_match(db_match, h_score, a_score, send_message=True):
         last_broadcast_score=f"{h_score}-{a_score}",
         live_final_sent=True,
     )
-    
-    try:
-        broadcast_world_cup_standings_card_for_fixture(db_match)
-    except Exception as e:
-        print(f"Failed to auto-broadcast standing card for match {db_match.get('matchnumber')}: {e}")
-    try:
-        dateeat = db_match.get("dateeat") or ""
-        if dateeat:
-            broadcast_post_match_analysis_for_fixtures(date_strings=[dateeat[:10]])
-    except Exception as e:
-        print(f"Failed to auto-broadcast post-match analysis for match {db_match.get('matchnumber')}: {e}")
 
 
 def _score_entry_for_match(score_map, db_match, competition_name):

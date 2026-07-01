@@ -27,8 +27,7 @@ from standings import (
     _resolve_logo_path,
     broadcast_standings,
 )
-from world_cup_analysis import broadcast_post_match_analysis_for_fixtures
-from world_cup_standings import broadcast_world_cup_standings_card_for_fixture, world_cup_group_name_for_fixture
+
 from store import (
     acquire_bot_lock,
     fetch_fixtures_for_dates,
@@ -849,20 +848,8 @@ def broadcast_results(date_strings=None):
             "result_sent": True,
             "broadcaststatus": 'result_sent',
         }).in_('matchnumber', sent_ids).execute()
-
-        broadcasted_groups = set()
-        for result in results:
-            try:
-                group_name = world_cup_group_name_for_fixture(result)
-                if group_name and group_name not in broadcasted_groups:
-                    broadcasted_groups.add(group_name)
-                    broadcast_world_cup_standings_card_for_fixture(result)
-            except Exception as e:
-                print(f"Failed to auto-broadcast standing card for match {result.get('matchnumber')}: {e}")
-
         refreshed_target_day = fetch_fixtures_for_dates([target_date])
         maybe_send_auto_standings(refreshed_target_day, today=target_date)
-        broadcast_post_match_analysis_for_fixtures(date_strings=normalized_dates)
     except Exception as e:
         error_msg = f"Results broadcast error: {e}"
         print(error_msg)

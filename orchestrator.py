@@ -4,34 +4,17 @@ from datetime import datetime
 from service_models import AgentEvent, ServiceResult
 from worker_services import (
     fetch_news_service,
-    generate_world_cup_analysis_service,
     list_news_queue_service,
-    list_world_cup_analysis_queue_service,
     mark_news_item_service,
-    mark_world_cup_analysis_service,
 )
 
 from worker_services import (
-    publish_world_cup_fact_service,
-    publish_world_cup_analysis_service,
-    publish_world_cup_recap_service,
-    publish_world_cup_prediction_service,
-    process_admin_commands_service,
-    remind_world_cup_analysis_review_service,
     process_live_window_service,
     send_daily_broadcast_service,
     send_heartbeat_service,
     send_reminders_service,
     send_results_service,
     send_standings_service,
-    save_world_cup_prediction_service,
-    seed_world_cup_facts_service,
-    audit_world_cup_squads_service,
-    refresh_world_cup_coaches_service,
-    refresh_world_cup_form_service,
-    refresh_world_cup_bbc_squads_service,
-    refresh_world_cup_players_service,
-    refresh_world_cup_standings_service,
     sync_fixtures_service,
 )
 
@@ -48,47 +31,11 @@ def convert_datetimes_to_iso(data):
 
 INTENT_HANDLERS = {
     "refresh": lambda payload: sync_fixtures_service(),
-    "commands": lambda payload: process_admin_commands_service(),
     "live": lambda payload: process_live_window_service(),
     "daily": lambda payload: send_daily_broadcast_service(),
     "reminders": lambda payload: send_reminders_service(),
     "results": lambda payload: send_results_service(),
     "standings": lambda payload: send_standings_service(format_name=payload.get("format")),
-    "world_cup_analysis": lambda payload: generate_world_cup_analysis_service(),
-    "world_cup_analysis_review_reminder": lambda payload: remind_world_cup_analysis_review_service(),
-    "world_cup_analysis_publish": lambda payload: publish_world_cup_analysis_service(),
-    "world_cup_recap": lambda payload: publish_world_cup_recap_service(
-        date_strings=payload.get("date_strings"),
-    ),
-    "world_cup_facts_seed": lambda payload: seed_world_cup_facts_service(),
-    "world_cup_fact": lambda payload: publish_world_cup_fact_service(),
-    "world_cup_analysis_queue": lambda payload: list_world_cup_analysis_queue_service(
-        limit=payload.get("limit", 20),
-        status=payload.get("status", "draft"),
-    ),
-    "world_cup_analysis_mark": lambda payload: mark_world_cup_analysis_service(
-        matchnumber=payload.get("matchnumber"),
-        status=payload.get("status", ""),
-    ),
-    "world_cup_prediction_save": lambda payload: save_world_cup_prediction_service(
-        matchnumber=payload.get("matchnumber"),
-        predicted_home_score=payload.get("predicted_home_score"),
-        predicted_away_score=payload.get("predicted_away_score"),
-        prediction_text=payload.get("prediction_text", ""),
-        confidence=payload.get("confidence", "medium"),
-        source_context=payload.get("source_context"),
-        language=payload.get("language", "am"),
-    ),
-    "world_cup_prediction_publish": lambda payload: publish_world_cup_prediction_service(
-        matchnumber=payload.get("matchnumber"),
-        language=payload.get("language", "am"),
-    ),
-    "world_cup_squad_audit": lambda payload: audit_world_cup_squads_service(),
-    "world_cup_coaches": lambda payload: refresh_world_cup_coaches_service(),
-    "world_cup_form": lambda payload: refresh_world_cup_form_service(),
-    "world_cup_players": lambda payload: refresh_world_cup_players_service(),
-    "world_cup_bbc_squads": lambda payload: refresh_world_cup_bbc_squads_service(),
-    "world_cup_standings": lambda payload: refresh_world_cup_standings_service(),
     "heartbeat": lambda payload: send_heartbeat_service(chat_id=payload.get("chat_id")),
     "news_fetch": lambda payload: fetch_news_service(),
     "news_queue": lambda payload: list_news_queue_service(limit=payload.get("limit", 20)),
