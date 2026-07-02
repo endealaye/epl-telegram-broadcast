@@ -17,6 +17,7 @@ SUPABASE_REQUIRED_MODES = {
     "news-fetch",
     "news-queue",
     "news-mark",
+    "automated-news",
 }
 
 
@@ -30,7 +31,7 @@ def json_serial(obj):
 def print_usage():
     print(
         "Usage: python3 telegram_broadcast.py "
-        "[refresh|commands|live|daily|reminders|results|standings [short|full]|heartbeat|news-fetch|news-queue|news-mark|event]"
+        "[refresh|commands|live|daily|reminders|results|standings [short|full]|heartbeat|news-fetch|news-queue|news-mark|automated-news|event]"
     )
 
 

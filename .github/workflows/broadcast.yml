@@ -32,6 +32,7 @@ on:
           - 'world-cup-fact'
           - 'reminders'
           - 'news-fetch'
+          - 'automated-news'
 
 jobs:
   broadcast:
@@ -218,6 +219,16 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python3 telegram_broadcast.py news-fetch
+
+      - name: Automated News Pipeline
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'automated-news' || github.event_name == 'schedule' && github.event.schedule == '*/10 * * * *'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_ADMIN_ID: ${{ secrets.TELEGRAM_ADMIN_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 telegram_broadcast.py automated-news
 
       - name: Publish Approved World Cup Analysis
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'world-cup-analysis-publish' || github.event_name == 'schedule' && github.event.schedule == '*/10 * * * *'
