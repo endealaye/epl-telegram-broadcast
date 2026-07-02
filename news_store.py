@@ -328,10 +328,10 @@ def match_follow_up_requests(title, summary, story=None, followups=None):
 
 
 def get_intelligent_news_analysis(title, summary, story=None):
-    \"\"\"
+    """
     Analyzes news using an LLM to provide accurate categories and a relevance score.
     In production, this calls an LLM API.
-    \"\"\"
+    """
     # Mock LLM analysis
     # In reality, this would be: 
     # analysis = llm.analyze(f"Title: {title}, Story: {story}")

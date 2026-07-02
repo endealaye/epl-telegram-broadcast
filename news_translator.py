@@ -3,10 +3,10 @@ import json
 from orchestrator import route_event_dict
 
 def translate_to_amharic(text, context="news"):
-    \"\"\"
+    """
     Placeholder for translation logic.
     In a real production environment, this would call an LLM API (e.g., OpenAI, Gemini).
-    \"\"\"
+    """
     # This is a mock translation. In reality, this function should call an LLM API.
     return f"[TRANSLATED TO AMHARIC]: {text}"
 
