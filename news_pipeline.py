@@ -727,13 +727,13 @@ def mark_review_item(
 
 
 def translate_news_item(item):
-    \"\"\"
+    """
     Translates news title and story to Amharic following strict guidelines:
     - Bold title, short paragraph, <250 chars.
     - Natural sports phrasing.
     - Special handling for gossip/paper talk.
     - Returns: (title, story, highlight)
-    \"\"\"
+    """
     topic_tags = item.get("topic_tags") or []
     is_gossip = "topic:gossip" in topic_tags
 
@@ -755,9 +755,9 @@ def translate_news_item(item):
 
 
 def process_and_publish_news():
-    \"\"\"
+    """
     End-to-end pipeline: Fetch -> Dedup (inside fetch) -> Translate -> Publish.
-    \"\"\"
+    """
     fetch_result = fetch_news_items()
     queue = get_review_queue(limit=10)
     if not queue:
