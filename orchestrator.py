@@ -17,6 +17,7 @@ from worker_services import (
     send_results_service,
     send_standings_service,
     sync_fixtures_service,
+    automated_news_pipeline_service,
 )
 
 
@@ -48,6 +49,7 @@ INTENT_HANDLERS = {
         translated_story_am=payload.get("translated_story_am"),
         notes=payload.get("notes"),
     ),
+    "automated_news": lambda payload: automated_news_pipeline_service(),
 }
 
 

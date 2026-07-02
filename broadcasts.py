@@ -473,27 +473,33 @@ def _format_kickoff_time_ethiopian(match):
     kickoff = parse_eat_datetime(dateeat)
     if kickoff:
         hour, period = _ethiopian_clock_label(kickoff.hour)
-        return f"{hour}:{kickoff.strftime('%M')} {period}"
-
+        minute = kickoff.minute
+        time_str = f"{hour}" if minute == 0 else f"{hour}:{minute:02d}"
+        return f"{period} {time_str} ሰዓት"
+    
     dateutc = match.get("dateutc")
     if dateutc:
         try:
             dt_utc = datetime.strptime(dateutc, "%Y-%m-%d %H:%M:%SZ").replace(tzinfo=timezone.utc)
             kickoff = dt_utc + timedelta(hours=3)
             hour, period = _ethiopian_clock_label(kickoff.hour)
-            return f"{hour}:{kickoff.strftime('%M')} {period}"
+            minute = kickoff.minute
+            time_str = f"{hour}" if minute == 0 else f"{hour}:{minute:02d}"
+            return f"{period} {time_str} ሰዓት"
         except ValueError:
             pass
-
+    
     if dateeat and " " in dateeat:
         time_part = dateeat.split(" ")[1][:5]
         try:
             hour_24, minute = [int(part) for part in time_part.split(":", 1)]
             hour, period = _ethiopian_clock_label(hour_24)
-            return f"{hour}:{minute:02d} {period}"
+            time_str = f"{hour}" if minute == 0 else f"{hour}:{minute:02d}"
+            return f"{period} {time_str} ሰዓት"
         except ValueError:
             return time_part
     return "??:??"
+
 
 
 def _has_final_score(fixture):
@@ -751,7 +757,7 @@ def broadcast_reminders():
             home_am = _team_amharic_name(match['hometeam'])
             away_am = _team_amharic_name(match['awayteam'])
             competition = fixture_competition_name(match)
-            msg = f"🔔 *የጨዋታ ማሳሰቢያ!*\n\n🏆 {competition}\n⏰ {time} | {home_am} vs {away_am}\nተዘጋጁ! ⚽"
+            msg = f"🔔 *የጨዋታ ማሳሰቢያ!*\n\n🏆 {competition}\n⏰ {home_am} vs {away_am}\n⚽ {time}"
             send_telegram_message(msg, parse_mode=None)
             mark_match_state(match['matchnumber'], reminder_sent=True, broadcaststatus='reminded')
     except Exception as e:

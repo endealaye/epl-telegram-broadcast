@@ -2,7 +2,7 @@ from broadcasts import broadcast_daily, broadcast_reminders, broadcast_results
 from commands import broadcast_heartbeat, process_commands
 from live import process_live_updates
 
-from news_pipeline import fetch_news_items, get_review_queue, mark_review_item
+from news_pipeline import fetch_news_items, get_review_queue, mark_review_item, process_and_publish_news
 from posting_policy import build_policy_summary, classify_match_day, should_run_live, should_send_daily, should_send_reminders
 from service_models import ServiceResult
 from standings import broadcast_standings
@@ -318,3 +318,106 @@ def mark_news_item_service(
             success=False,
             message=f"News item update failed: {e}",
         )
+
+
+def automated_news_pipeline_service():
+    try:
+        result = process_and_publish_news()
+        return ServiceResult(
+            action="automated_news",
+            success=result["success"],
+            message=result["message"],
+            data={"processed": result["processed"]},
+        )
+    except Exception as e:
+        return ServiceResult(
+            action="automated_news",
+            success=False,
+            message=f"Automated news pipeline failed: {e}",
+        )
+
+
+def broadcast_service():
+    results = {
+        "policy": classify_match_day(),
+        "preconditions_met": False,
+        "fixtures_broadcast": None,
+        "reminders_broadcast": None,
+        "results_broadcast": None,
+        "standings_broadcast": None,
+        "news_published": [],
+        "errors": [],
+    }
+    policy = results["policy"]
+    if not policy:
+        results["message"] = "Broadcast skipped: no policy state available."
+        return ServiceResult(action="broadcast", success=True, skipped=True, message=results["message"], data=results)
+
+    fixtures_available = bool(policy.get("fixture_count"))
+    results_available = has_pending_results()
+    news_available = bool(list_news_queue_service(limit=50).data.get("count"))
+    results["preconditions_met"] = fixtures_available or results_available or news_available
+
+    if not results["preconditions_met"]:
+        results["message"] = "Broadcast skipped: no fixtures, pending results, or news items available."
+        return ServiceResult(action="broadcast", success=True, skipped=True, message=results["message"], data=results)
+
+    if should_send_daily(policy):
+        try:
+            broadcast_daily()
+            results["fixtures_broadcast"] = {"success": True}
+        except Exception as exc:
+            results["fixtures_broadcast"] = {"success": False, "error": str(exc)}
+            results["errors"].append(f"daily: {exc}")
+
+    if should_send_reminders(policy):
+        try:
+            broadcast_reminders()
+            results["reminders_broadcast"] = {"success": True}
+        except Exception as exc:
+            results["reminders_broadcast"] = {"success": False, "error": str(exc)}
+            results["errors"].append(f"reminders: {exc}")
+
+    if results_available:
+        try:
+            broadcast_results()
+            results["results_broadcast"] = {"success": True}
+        except Exception as exc:
+            results["results_broadcast"] = {"success": False, "error": str(exc)}
+            results["errors"].append(f"results: {exc}")
+
+    try:
+        standings_result = broadcast_standings()
+        results["standings_broadcast"] = {
+            "success": standings_result.get("success", False),
+            "skipped": standings_result.get("skipped", False),
+            "message": standings_result.get("message", ""),
+        }
+    except Exception as exc:
+        results["standings_broadcast"] = {"success": False, "error": str(exc)}
+        results["errors"].append(f"standings: {exc}")
+
+    translated_items = list_news_queue_service(limit=50).data.get("items") or []
+    for item in translated_items:
+        review_status = (item.get("review_status") or "").lower()
+        translated_title = (item.get("translated_title_am") or "").strip()
+        translated_story = (item.get("translated_story_am") or "").strip()
+        if review_status not in {"translated", "approved"}:
+            continue
+        if not translated_title or not translated_story:
+            continue
+        try:
+            mark_news_item_service(
+                item_id=item.get("id"),
+                status="published",
+                translated_title_am=translated_title,
+                translated_story_am=translated_story,
+            )
+            results["news_published"].append({"id": item.get("id"), "success": True})
+        except Exception as exc:
+            results["news_published"].append({"id": item.get("id"), "success": False, "error": str(exc)})
+            results["errors"].append(f"news {item.get('id')}: {exc}")
+
+    success = not results["errors"]
+    message = "Broadcast processing completed." if success else f"Broadcast completed with {len(results['errors'])} error(s)."
+    return ServiceResult(action="broadcast", success=success, message=message, data=results)
