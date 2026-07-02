@@ -135,3 +135,73 @@ def render_world_cup_group_card(group_name, rows):
     temp_file.close()
     image.convert("RGB").save(temp_path, format="PNG", optimize=True)
     return temp_path
+
+
+def render_match_score_card(home_team, away_team, home_score, away_score, competition_title, status="FULL TIME"):
+    width = 700
+    padding = 50
+    title_height = 90
+    score_area_height = 220
+    status_height = 70
+    total_height = title_height + score_area_height + status_height + padding
+
+    bg_color = (255, 255, 255, 255)
+    text_color = (0, 0, 0, 255)
+    accent_color = (0, 102, 204, 255)
+    score_bg = (245, 245, 247, 255)
+
+    image = Image.new("RGBA", (width, total_height), bg_color)
+    draw = ImageDraw.Draw(image)
+
+    title_font = standings._load_font(36, bold=True)
+    team_font = standings._load_font(34, bold=True)
+    score_font = standings._load_latin_font(64, bold=True)
+    status_font = standings._load_font(28, bold=True)
+
+    title_bbox = draw.textbbox((0, 0), competition_title or "Match Result", font=title_font)
+    title_w = title_bbox[2] - title_bbox[0]
+    draw.text(((width - title_w) // 2, 25), competition_title or "Match Result", font=title_font, fill=accent_color)
+
+    center_y = title_height + (score_area_height // 2)
+    home_logo = _resolve_logo_path(home_team)
+    away_logo = _resolve_logo_path(away_team)
+
+    home_x = padding + 60
+    away_x = width - padding - 60
+    score_x_home = home_x + 70
+    score_x_away = away_x - 70
+
+    if home_logo:
+        logo = standings._fit_logo(standings._load_logo(home_logo), 80)
+        logo_y = int(round(center_y - 40))
+        image.alpha_composite(logo, (home_x, logo_y))
+
+    if away_logo:
+        logo = standings._fit_logo(standings._load_logo(away_logo), 80)
+        logo_y = int(round(center_y - 40))
+        image.alpha_composite(logo, (away_x - 80, logo_y))
+
+    home_name = standings.AMHARIC_TEAMS.get(home_team, home_team)
+    away_name = standings.AMHARIC_TEAMS.get(away_team, away_team)
+
+    draw.text((home_x + 90, center_y - 10), home_name, font=team_font, fill=text_color)
+    draw.text((away_x - 90, center_y - 10), away_name, font=team_font, fill=text_color, anchor="rt")
+
+    score_text = f"{home_score} - {away_score}"
+    score_bbox = draw.textbbox((0, 0), score_text, font=score_font)
+    score_w = score_bbox[2] - score_bbox[0]
+    draw.text(((width - score_w) // 2, center_y - 40), score_text, font=score_font, fill=accent_color)
+
+    status_y = title_height + score_area_height + 20
+    status_bbox = draw.textbbox((0, 0), status, font=status_font)
+    status_w = status_bbox[2] - status_bbox[0]
+    draw.text(((width - status_w) // 2, status_y), status, font=status_font, fill=(100, 100, 100, 255))
+
+    overlay = standings._build_standings_watermark_overlay(width, total_height)
+    image = Image.alpha_composite(image, overlay)
+
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    temp_path = Path(temp_file.name)
+    temp_file.close()
+    image.convert("RGB").save(temp_path, format="PNG", optimize=True)
+    return temp_path

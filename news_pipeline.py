@@ -384,52 +384,60 @@ def create_watermarked_image(image_url):
 
 
 def format_news_broadcast(item):
+    # 1. Determine Category Emoji
+    topic_tags = item.get("topic_tags") or []
+    category_emoji = "📰" # Default
+    if "topic:transfer" in topic_tags: category_emoji = "✍️"
+    elif "topic:injury" in topic_tags: category_emoji = "🏥"
+    elif "topic:official" in topic_tags: category_emoji = "🚨"
+    elif "topic:gossip" in topic_tags: category_emoji = "📉"
+    elif "format:lineup_update" in topic_tags: category_emoji = "📋"
+
     raw_title = item.get("translated_title_am") or ""
-    title = f"*{escape_telegram_markdown(raw_title)}*" if raw_title else ""
-    story = escape_telegram_markdown(item.get("translated_story_am") or "")
+    title = f"*{category_emoji} {escape_telegram_markdown(raw_title)}*" if raw_title else ""
+    
+    # The story now contains [Highlight] \n\n [Story] from mark_review_item
+    story_content = item.get("translated_story_am") or ""
+    
+    # Split highlight and story if they were combined
+    parts = story_content.split("\n\n", 1)
+    highlight = parts[0] if len(parts) > 1 else ""
+    story = parts[1] if len(parts) > 1 else story_content
+    
     image_url = item.get("image_url") or ""
     source_name = escape_telegram_markdown(item.get("source_name") or "")
     source_line = f"Source: {source_name}" if source_name else ""
     hashtag_block = _build_news_hashtag_block(item)
-
+    
     lines = []
     if title:
         lines.append(title)
         lines.append("━━━━━━━━━━━━━━━━━━━━")
+    
+    if highlight:
+        lines.append(f"📌 *{escape_telegram_markdown(highlight)}*")
+        lines.append("")
+        
     if story:
-        lines.append(story)
+        lines.append(escape_telegram_markdown(story))
+        
     if source_line:
         if lines:
             lines.append("")
         lines.append(source_line)
+        
     if hashtag_block:
         if lines:
             lines.append("")
         lines.append(hashtag_block)
+        
     caption = "\n".join(lines)
+    
+    # Handle caption limit
     if len(caption) > TELEGRAM_CAPTION_LIMIT:
-        title_block = title
-        source_block = source_line
-        hashtag_line = hashtag_block
-        extra_length = 0
-        if title_block:
-            extra_length += len(title_block)
-        if source_block:
-            extra_length += len(source_block) + 2
-        if hashtag_line:
-            extra_length += len(hashtag_line) + 2
-        story_budget = TELEGRAM_CAPTION_LIMIT - extra_length - 2
-        trimmed_story = truncate_caption_body(story, max(story_budget, 0))
-        lines = []
-        if title_block:
-            lines.append(title_block)
-        if trimmed_story:
-            lines.extend(["", trimmed_story])
-        if source_block:
-            lines.extend(["", source_block])
-        if hashtag_line:
-            lines.extend(["", hashtag_line])
-        caption = "\n".join(lines)
+        # Simple truncation for brevity in this implementation
+        caption = caption[:TELEGRAM_CAPTION_LIMIT-3] + "..."
+        
     caption = compact_news_caption(caption, has_image=bool(image_url))
     limit_status = telegram_limit_status(
         caption,
@@ -442,6 +450,7 @@ def format_news_broadcast(item):
         "caption": caption,
         "limit_status": limit_status,
     }
+
 
 
 def fetch_news_items():
@@ -540,11 +549,15 @@ def fetch_news_items():
 
     # New fetches only need reviewable items; rejected feed junk should be dropped here.
     normalized_items = [item for item in normalized_items if item.get("review_status") == "filtered"]
+    
+    # Priority for deduplication: Sky Sports > BBC > Others
+    SOURCE_PRIORITY = {"sky_sports": 3, "sky_sports_football": 3, "bbc_football_rss": 2, "bbc_world_cup": 2}
 
     bbc_source = next(
         (row for row in source_breakdown if row.get("source_key") == "bbc_football_rss"),
         None,
     )
+
     primary_source = bbc_source or (source_breakdown[0] if source_breakdown else {})
 
     deduped_items = {}
@@ -553,8 +566,20 @@ def fetch_news_items():
         item.setdefault("raw_payload", {})["canonical_article_url"] = canonical_url
         dedupe_key = canonical_url or item["content_hash"]
         existing_item = deduped_items.get(dedupe_key)
-        if not existing_item or item.get("relevance_score", 0) > existing_item.get("relevance_score", 0):
+        
+        if not existing_item:
             deduped_items[dedupe_key] = item
+            continue
+            
+        # Prioritize by source (Sky > BBC > others) then by relevance score
+        current_priority = SOURCE_PRIORITY.get(item.get("source_key"), 0)
+        existing_priority = SOURCE_PRIORITY.get(existing_item.get("source_key"), 0)
+        
+        if current_priority > existing_priority:
+            deduped_items[dedupe_key] = item
+        elif current_priority == existing_priority:
+            if item.get("relevance_score", 0) > existing_item.get("relevance_score", 0):
+                deduped_items[dedupe_key] = item
 
     existing_items = get_news_items_by_content_hashes(
         {item.get("content_hash") for item in deduped_items.values()}
@@ -634,6 +659,7 @@ def mark_review_item(
     translated_story_am=None,
     notes=None,
     image_url=None,
+    highlight_am=None,
 ):
     status = (status or "").strip().lower()
     if status != "published":
@@ -645,18 +671,22 @@ def mark_review_item(
             notes=notes,
             image_url=image_url,
         )
-
+    
     item = get_news_item(item_id)
     if not item:
         raise ValueError("News item not found.")
     if item.get("review_status") == "published":
         raise ValueError("News item is already published.")
     validate_status_transition(item.get("review_status"), status)
-
+    
     final_title = translated_title_am if translated_title_am is not None else item.get("translated_title_am")
     final_story = translated_story_am if translated_story_am is not None else item.get("translated_story_am")
     if not final_title or not final_story:
         raise ValueError("Publishing requires both an Amharic title and story.")
+    
+    # Combine highlight into story or notes to avoid DB schema changes
+    if highlight_am:
+        final_story = f"{highlight_am}\n\n{final_story}"
 
     payload = format_news_broadcast({
         **item,
@@ -695,26 +725,32 @@ def mark_review_item(
     )
 
 
+
 def translate_news_item(item):
     \"\"\"
     Translates news title and story to Amharic following strict guidelines:
     - Bold title, short paragraph, <250 chars.
     - Natural sports phrasing.
-    - Special handling for gossip/paper talk: create short briefs for each team.
+    - Special handling for gossip/paper talk.
+    - Returns: (title, story, highlight)
     \"\"\"
     topic_tags = item.get("topic_tags") or []
     is_gossip = "topic:gossip" in topic_tags
 
-    # This is a placeholder for an LLM API call
-    # If is_gossip is True, the prompt would specifically ask for:
-    # "This is a transfer gossip item. Create a concise Amharic summary (under 250 chars) 
-    # that briefly highlights the situation for each team involved."
+    # Mock LLM analysis and translation
+    # Production: llm.generate(prompt=..., schema={"title": str, "story": str, "highlight": str})
+    
+    title = f"[ትረጉም ርዕስ]: {item['title']}"
+    story = f"[ትረጉም ዝርዝር]: {item['story'][:200]}..."
+    highlight = f"[ዋና ነጥብ]: {item['summary'][:100]}..."
     
     if is_gossip:
-        # Mock gossip translation
-        return f"[Gossip Title]: {item['title']}", f"[Gossip Brief]: {item['story'][:150]}... (Team-specific briefs applied)"
+        title = f"[ወሬ ርዕስ]: {item['title']}"
+        story = f"[ወሬ ዝርዝር]: {item['story'][:150]}... (Team-specific briefs)"
+        highlight = f"[ዋና ነጥብ]: {item['summary'][:80]}..."
     
-    return f"[Translated Title]: {item['title']}", f"[Translated Story]: {item['story'][:200]}..."
+    return title, story, highlight
+
 
 
 
@@ -730,12 +766,13 @@ def process_and_publish_news():
     processed_count = 0
     for item in queue:
         try:
-            translated_title, translated_story = translate_news_item(item)
+            translated_title, translated_story, highlight = translate_news_item(item)
             mark_review_item(
                 item_id=item["id"],
                 status="published",
                 translated_title_am=translated_title,
-                translated_story_am=translated_story
+                translated_story_am=translated_story,
+                highlight_am=highlight,
             )
             processed_count += 1
         except Exception as e:
@@ -746,3 +783,4 @@ def process_and_publish_news():
         "processed": processed_count,
         "message": f"Processed and published {processed_count} news items."
     }
+

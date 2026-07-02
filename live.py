@@ -363,9 +363,29 @@ def _send_full_time_message(db_match, h_score, a_score):
     send_telegram_message(msg, parse_mode=None)
 
 
+def _send_score_card(db_match, h_score, a_score):
+    try:
+        from render_standings import render_match_score_card
+        from commands import send_telegram_photo_file
+        competition_title, _, _ = _format_match_title(db_match)
+        image_path = render_match_score_card(
+            home_team=db_match.get('hometeam', ''),
+            away_team=db_match.get('awayteam', ''),
+            home_score=int(h_score),
+            away_score=int(a_score),
+            competition_title=competition_title,
+            status="FULL TIME",
+        )
+        caption = f"🏁 {competition_title}\n{db_match.get('hometeam', '')} {h_score} - {a_score} {db_match.get('awayteam', '')}"
+        send_telegram_photo_file(image_path, caption, parse_mode=None)
+    except Exception as e:
+        print(f"Score card broadcast failed for match {db_match.get('matchnumber')}: {e}")
+
+
 def _finalize_match(db_match, h_score, a_score, send_message=True):
     if send_message:
         _send_full_time_message(db_match, h_score, a_score)
+        _send_score_card(db_match, h_score, a_score)
     mark_match_state(
         db_match['matchnumber'],
         broadcaststatus='live_final_sent',
