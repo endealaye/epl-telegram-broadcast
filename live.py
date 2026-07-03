@@ -385,7 +385,6 @@ def _finalize_match(db_match, h_score, a_score, send_message=True):
         hometeamscore=int(h_score),
         awayteamscore=int(a_score),
         last_broadcast_score=f"{h_score}-{a_score}",
-        live_final_sent=True,
         result_sent=True,
     )
 
@@ -466,7 +465,10 @@ def _reconcile_overdue_matches(score_map, now):
                 db_match,
                 h_score,
                 a_score,
-                send_message=not db_match.get('live_final_sent') and not db_match.get('result_sent'),
+                send_message=not (
+                    db_match.get("broadcaststatus") == "live_final_sent"
+                    or db_match.get("result_sent")
+                ),
             )
             continue
 
@@ -474,12 +476,16 @@ def _reconcile_overdue_matches(score_map, now):
         if score_entry:
             is_full_time, _ = _parse_status(score_entry.get('text', ''))
             if is_full_time or kickoff <= now - timedelta(hours=4):
-                _finalize_match(
-                    db_match,
-                    score_entry['h_score'],
-                    score_entry['a_score'],
-                    send_message=not db_match.get('live_final_sent') and not db_match.get('result_sent'),
-                )
+            _finalize_match(
+                db_match,
+                score_entry['h_score'],
+                score_entry['a_score'],
+                send_message=not (
+                    db_match.get("broadcaststatus") == "live_final_sent"
+                    or db_match.get("result_sent")
+                ),
+            )
+
                 continue
 
         # Do not turn the last live/HT score into a final without a provider-confirmed FT.
@@ -496,7 +502,10 @@ def _needs_live_processing(now):
         competition_name = fixture_competition_name(db_match)
         if not _is_supported_live_competition(competition_name):
             continue
-        if db_match.get('live_final_sent') or db_match.get('result_sent'):
+        if (
+            db_match.get("broadcaststatus") == "live_final_sent"
+            or db_match.get("result_sent")
+        ):
             continue
         kickoff = parse_eat_datetime(db_match.get('dateeat'))
         if not kickoff:
@@ -569,7 +578,7 @@ def process_live_updates():
                 send_telegram_message(msg, parse_mode=None)
                 mark_match_state(db_match['matchnumber'], half_time_sent=True)
 
-            if is_full_time and not db_match.get('live_final_sent') and not db_match.get('result_sent'):
+            if is_full_time and db_match.get('broadcaststatus') != 'live_final_sent' and not db_match.get('result_sent'):
                 _finalize_match(db_match, h_score, a_score)
     except Exception as e:
         error_msg = f"Live update processing error: {e}"
