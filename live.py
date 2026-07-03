@@ -388,11 +388,6 @@ def _finalize_match(db_match, h_score, a_score, send_message=True):
         live_final_sent=True,
         result_sent=True,
     )
-    
-    try:
-        broadcast_world_cup_standings_card_for_fixture(db_match)
-    except Exception as e:
-        print(f"Failed to auto-broadcast standing card for match {db_match.get('matchnumber')}: {e}")
 
 
 def _score_entry_for_match(score_map, db_match, competition_name):
