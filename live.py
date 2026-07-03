@@ -476,16 +476,15 @@ def _reconcile_overdue_matches(score_map, now):
         if score_entry:
             is_full_time, _ = _parse_status(score_entry.get('text', ''))
             if is_full_time or kickoff <= now - timedelta(hours=4):
-            _finalize_match(
-                db_match,
-                score_entry['h_score'],
-                score_entry['a_score'],
-                send_message=not (
-                    db_match.get("broadcaststatus") == "live_final_sent"
-                    or db_match.get("result_sent")
-                ),
-            )
-
+                _finalize_match(
+                    db_match,
+                    score_entry['h_score'],
+                    score_entry['a_score'],
+                    send_message=not (
+                        db_match.get("broadcaststatus") == "live_final_sent"
+                        or db_match.get("result_sent")
+                    ),
+                )
                 continue
 
         # Do not turn the last live/HT score into a final without a provider-confirmed FT.
