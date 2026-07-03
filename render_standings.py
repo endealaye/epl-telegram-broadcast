@@ -145,10 +145,12 @@ def render_match_score_card(home_team, away_team, home_score, away_score, compet
     status_height = 70
     total_height = title_height + score_area_height + status_height + padding
 
-    bg_color = (255, 255, 255, 255)
-    text_color = (0, 0, 0, 255)
-    accent_color = (0, 102, 204, 255)
-    score_bg = (245, 245, 247, 255)
+    # Improved professional color palette
+    bg_color = (250, 250, 252, 255)       # Very light grey/blue
+    text_color = (30, 30, 35, 255)       # Dark charcoal
+    accent_color = (0, 60, 150, 255)     # Deep professional blue
+    score_bg = (240, 240, 245, 255)      # Light contrast for score area
+    status_color = (100, 100, 110, 255)  # Muted grey for status
 
     image = Image.new("RGBA", (width, total_height), bg_color)
     draw = ImageDraw.Draw(image)
@@ -158,18 +160,31 @@ def render_match_score_card(home_team, away_team, home_score, away_score, compet
     score_font = standings._load_latin_font(64, bold=True)
     status_font = standings._load_font(28, bold=True)
 
-    title_bbox = draw.textbbox((0, 0), competition_title or "Match Result", font=title_font)
+    # 1. Title
+    title_text = competition_title or "Match Result"
+    title_bbox = draw.textbbox((0, 0), title_text, font=title_font)
     title_w = title_bbox[2] - title_bbox[0]
-    draw.text(((width - title_w) // 2, 25), competition_title or "Match Result", font=title_font, fill=accent_color)
+    draw.text(((width - title_w) // 2, 25), title_text, font=title_font, fill=accent_color)
 
+    # 2. Score Area
     center_y = title_height + (score_area_height // 2)
+    
+    # Draw a subtle background for the score area to avoid overlap feel
+    draw.rounded_rectangle(
+        [padding, title_height + 20, width - padding, title_height + score_area_height - 20], 
+        radius=20, fill=score_bg
+    )
+
     home_logo = _resolve_logo_path(home_team)
     away_logo = _resolve_logo_path(away_team)
 
     home_x = padding + 60
     away_x = width - padding - 60
-    score_x_home = home_x + 70
-    score_x_away = away_x - 70
+    
+    # Dynamic space for names to prevent overlap with center score
+    # Total width 700. Center score takes ~200. 
+    # Each side gets ~250.
+    max_name_w = 200 
 
     if home_logo:
         logo = standings._fit_logo(standings._load_logo(home_logo), 80)
@@ -184,6 +199,21 @@ def render_match_score_card(home_team, away_team, home_score, away_score, compet
     home_name = standings.AMHARIC_TEAMS.get(home_team, home_team)
     away_name = standings.AMHARIC_TEAMS.get(away_team, away_team)
 
+    # Truncate names if they are too long to prevent overlap
+    def truncate_text(text, font, max_w):
+        while len(text) > 0 and (draw.textbbox((0, 0), text, font=font)[2] > max_w):
+            text = text[:-1]
+        return text + "..." if len(text) < len(home_name) if 'home_name' in locals() else False else text
+
+    # Simplified truncation for Amharic
+    def fit_name(name, font, max_w):
+        if draw.textbbox((0, 0), name, font=font)[2] > max_w:
+            return name[:10] + "..." 
+        return name
+
+    home_name = fit_name(home_name, team_font, max_name_w)
+    away_name = fit_name(away_name, team_font, max_name_w)
+
     draw.text((home_x + 90, center_y - 10), home_name, font=team_font, fill=text_color)
     draw.text((away_x - 90, center_y - 10), away_name, font=team_font, fill=text_color, anchor="rt")
 
@@ -192,10 +222,11 @@ def render_match_score_card(home_team, away_team, home_score, away_score, compet
     score_w = score_bbox[2] - score_bbox[0]
     draw.text(((width - score_w) // 2, center_y - 40), score_text, font=score_font, fill=accent_color)
 
+    # 3. Status
     status_y = title_height + score_area_height + 20
     status_bbox = draw.textbbox((0, 0), status, font=status_font)
     status_w = status_bbox[2] - status_bbox[0]
-    draw.text(((width - status_w) // 2, status_y), status, font=status_font, fill=(100, 100, 100, 255))
+    draw.text(((width - status_w) // 2, status_y), status, font=status_font, fill=status_color)
 
     overlay = standings._build_standings_watermark_overlay(width, total_height)
     image = Image.alpha_composite(image, overlay)

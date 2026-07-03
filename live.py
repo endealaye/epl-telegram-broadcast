@@ -353,17 +353,7 @@ def _find_db_match(home_team, away_team, competition_name, now):
     return None
 
 
-def _send_full_time_message(db_match, h_score, a_score):
-    competition_title, home_am, away_am = _format_match_title(db_match)
-    msg = (
-        f"🏁 የመጨረሻ ውጤት\n\n"
-        f"🏆 {competition_title}\n"
-        f"{home_am} {h_score} - {a_score} {away_am}"
-    )
-    send_telegram_message(msg, parse_mode=None)
-
-
-def _send_score_card(db_match, h_score, a_score):
+def _send_score_card_with_caption(db_match, h_score, a_score, caption):
     try:
         from render_standings import render_match_score_card
         from commands import send_telegram_photo_file
@@ -376,16 +366,19 @@ def _send_score_card(db_match, h_score, a_score):
             competition_title=competition_title,
             status="FULL TIME",
         )
-        caption = f"🏁 {competition_title}\n{db_match.get('hometeam', '')} {h_score} - {a_score} {db_match.get('awayteam', '')}"
         send_telegram_photo_file(image_path, caption, parse_mode=None)
     except Exception as e:
         print(f"Score card broadcast failed for match {db_match.get('matchnumber')}: {e}")
 
-
 def _finalize_match(db_match, h_score, a_score, send_message=True):
     if send_message:
-        _send_full_time_message(db_match, h_score, a_score)
-        _send_score_card(db_match, h_score, a_score)
+        competition_title, home_am, away_am = _format_match_title(db_match)
+        caption = (
+            f"🏁 የመጨረሻ ውጤት\n\n"
+            f"🏆 {competition_title}\n"
+            f"{home_am} {h_score} - {a_score} {away_am}"
+        )
+        _send_score_card_with_caption(db_match, h_score, a_score, caption)
     mark_match_state(
         db_match['matchnumber'],
         broadcaststatus='live_final_sent',
