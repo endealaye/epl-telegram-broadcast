@@ -8,6 +8,9 @@ from pathlib import Path
 import requests
 from PIL import Image, ImageDraw
 
+from llm import llm
+from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file
+
 from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file
 from news_collectors import (
     PREMIER_LEAGUE_CLUB_RSS_SOURCES,
@@ -728,28 +731,38 @@ def mark_review_item(
 
 def translate_news_item(item):
     """
-    Translates news title and story to Amharic following strict guidelines:
-    - Bold title, short paragraph, <250 chars.
-    - Natural sports phrasing.
-    - Special handling for gossip/paper talk.
-    - Returns: (title, story, highlight)
+    Translates news title and story to Amharic using an LLM.
+    Returns: (translated_title, translated_story, highlight)
     """
-    topic_tags = item.get("topic_tags") or []
-    is_gossip = "topic:gossip" in topic_tags
-
-    # Mock LLM analysis and translation
-    # Production: llm.generate(prompt=..., schema={"title": str, "story": str, "highlight": str})
+    prompt = (
+        f"Translate the following sports news item into natural, punchy Amharic. "
+        f"The target audience is football fans on Telegram.\n\n"
+        f"Title: {item['title']}\n"
+        f"Summary: {item['summary']}\n"
+        f"Story: {item['story']}\n\n"
+        f"Guidelines:\n"
+        f"1. Title: Bold, engaging, and short.\n"
+        f"2. Story: A concise summary (<250 chars) in natural sports phrasing.\n"
+        f"3. Highlight: A single punchy 'Key Point' (📌) for the story.\n"
+        f"4. Special handling: If it's gossip/paper talk, make it sound like a rumor."
+    )
     
-    title = f"[ትረጉም ርዕስ]: {item['title']}"
-    story = f"[ትረጉም ዝርዝር]: {item['story'][:200]}..."
-    highlight = f"[ዋና ነጥብ]: {item['summary'][:100]}..."
+    schema = {
+        "title": "The translated title in Amharic",
+        "story": "The translated summary/story in Amharic",
+        "highlight": "The key point (📌) in Amharic"
+    }
     
-    if is_gossip:
-        title = f"[ወሬ ርዕስ]: {item['title']}"
-        story = f"[ወሬ ዝርዝር]: {item['story'][:150]}... (Team-specific briefs)"
-        highlight = f"[ዋና ነጥብ]: {item['summary'][:80]}..."
-    
-    return title, story, highlight
+    try:
+        result = llm.generate(prompt, schema=schema)
+        return (
+            result.get("title", item['title']), 
+            result.get("story", item['story']), 
+            result.get("highlight", item['summary'])
+        )
+    except Exception as e:
+        print(f"Translation failed for item {item.get('id')}: {e}")
+        return (item['title'], item['story'], item['summary'])
 
 
 
