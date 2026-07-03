@@ -200,13 +200,9 @@ def render_match_score_card(home_team, away_team, home_score, away_score, compet
     away_name = standings.AMHARIC_TEAMS.get(away_team, away_team)
 
     # Truncate names if they are too long to prevent overlap
-    def truncate_text(text, font, max_w):
-        while len(text) > 0 and (draw.textbbox((0, 0), text, font=font)[2] > max_w):
-            text = text[:-1]
-        return text + "..." if len(text) < len(home_name) if 'home_name' in locals() else False else text
-
-    # Simplified truncation for Amharic
     def fit_name(name, font, max_w):
+        if not name:
+            return ""
         if draw.textbbox((0, 0), name, font=font)[2] > max_w:
             return name[:10] + "..." 
         return name

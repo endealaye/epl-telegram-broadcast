@@ -7,8 +7,8 @@ from pathlib import Path
 
 import requests
 from PIL import Image, ImageDraw
+from deep_translator import GoogleTranslator
 
-from llm import llm
 from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file
 
 from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file
@@ -731,38 +731,22 @@ def mark_review_item(
 
 def translate_news_item(item):
     """
-    Translates news title and story to Amharic using an LLM.
+    Translates news title and story to Amharic using deep-translator.
     Returns: (translated_title, translated_story, highlight)
     """
-    prompt = (
-        f"Translate the following sports news item into natural, punchy Amharic. "
-        f"The target audience is football fans on Telegram.\n\n"
-        f"Title: {item['title']}\n"
-        f"Summary: {item['summary']}\n"
-        f"Story: {item['story']}\n\n"
-        f"Guidelines:\n"
-        f"1. Title: Bold, engaging, and short.\n"
-        f"2. Story: A concise summary (<250 chars) in natural sports phrasing.\n"
-        f"3. Highlight: A single punchy 'Key Point' (📌) for the story.\n"
-        f"4. Special handling: If it's gossip/paper talk, make it sound like a rumor."
-    )
-    
-    schema = {
-        "title": "The translated title in Amharic",
-        "story": "The translated summary/story in Amharic",
-        "highlight": "The key point (📌) in Amharic"
-    }
+    translator = GoogleTranslator(source='auto', target='am')
     
     try:
-        result = llm.generate(prompt, schema=schema)
-        return (
-            result.get("title", item['title']), 
-            result.get("story", item['story']), 
-            result.get("highlight", item['summary'])
-        )
+        title = translator.translate(item['title'])
+        story = translator.translate(item['story'])
+        summary = translator.translate(item['summary'])
+        
+        # Since deep-translator doesn't do "summarization" or "highlighting", 
+        # we use the translated summary as the highlight.
+        return title, story, summary
     except Exception as e:
         print(f"Translation failed for item {item.get('id')}: {e}")
-        return (item['title'], item['story'], item['summary'])
+        return item['title'], item['story'], item['summary']
 
 
 
