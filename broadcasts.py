@@ -313,7 +313,7 @@ def _render_results_news_style(title, subtitle, groups):
     inner_pad = 42
     title_font = _load_font(30, bold=True)
     date_font = _load_latin_font(18, bold=True)
-    team_font = _load_font(24, bold=True)
+    team_font = _load_font(30, bold=True)
     competition_font = _load_latin_font(16, bold=False)
     text_dark = (14, 14, 18)
     text_muted = (110, 110, 118)
