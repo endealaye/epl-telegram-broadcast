@@ -308,7 +308,7 @@ def _render_results_news_style(title, subtitle, groups):
         raise ValueError("No groups to render.")
 
     subtitle_text = format_display_date(subtitle)
-    width = 500
+    width = 400
     outer_pad = 0
     inner_pad = 42
     title_font = _load_font(30, bold=True)
@@ -319,7 +319,7 @@ def _render_results_news_style(title, subtitle, groups):
     text_muted = (110, 110, 118)
     outer_fill = (255, 255, 255, 255)
     inner_fill = (255, 255, 255, 255)
-    logo_size = 70
+    logo_size = 84
     row_gap = 32
     header_height = 150
     row_height = 300
@@ -385,8 +385,8 @@ def _render_results_news_style(title, subtitle, groups):
 
             home_am = _team_amharic_name(match["home"])
             away_am = _team_amharic_name(match["away"])
-            left_center_x = 100
-            right_center_x = 400
+            left_center_x = 80
+            right_center_x = 320
             names_y = y + 220
             logos_y = y + 60
 
