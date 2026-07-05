@@ -2,7 +2,7 @@ from broadcasts import broadcast_daily, broadcast_reminders, broadcast_results
 from commands import broadcast_heartbeat, process_commands
 from live import process_live_updates
 
-from news_pipeline import fetch_news_items, get_review_queue, mark_review_item, process_and_publish_news
+from news_pipeline import fetch_news_items, get_review_queue, mark_review_item, sync_and_publish_news
 from posting_policy import build_policy_summary, classify_match_day, should_run_live, should_send_daily, should_send_reminders
 from service_models import ServiceResult
 from standings import broadcast_standings
