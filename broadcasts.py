@@ -63,7 +63,7 @@ COMPETITION_HEADER_LOGOS = {
     "Premier League": None,
     "UEFA Champions League": "UEFA_Champions_League.svg",
     "UEFA Europa League": "UEFA_Europa_League_logo_(2024_version).svg",
-    "FIFA World Cup": "fifa-world-logo.svg",
+    "FIFA World Cup": "fifa-world-cup-2026-logo.png",
 }
 
 
