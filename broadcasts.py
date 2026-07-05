@@ -318,10 +318,10 @@ def _render_results_news_style(title, subtitle, groups):
     text_muted = (110, 110, 118)
     outer_fill = (255, 255, 255, 255)
     inner_fill = (255, 255, 255, 255)
-    logo_size = 180
+    logo_size = 140
     row_gap = 32
     header_height = 150
-    row_height = 360
+    row_height = 300
 
     total_matches = sum(len(matches) for _, matches in groups)
     height = (
@@ -379,14 +379,14 @@ def _render_results_news_style(title, subtitle, groups):
 
             home_am = _team_amharic_name(match["home"])
             away_am = _team_amharic_name(match["away"])
-            left_center_x = 150
-            right_center_x = 850
-            names_y = y + 18
-            logos_y = y + 70
+            left_center_x = 200
+            right_center_x = 800
+            names_y = y + 220
+            logos_y = y + 60
 
             competition_text_box = draw.textbbox((0, 0), competition, font=competition_font)
             competition_x = (width - (competition_text_box[2] - competition_text_box[0])) // 2
-            draw.text((competition_x, y + 16), competition, font=competition_font, fill=text_muted)
+            draw.text((competition_x, y + 20), competition, font=competition_font, fill=text_muted)
 
             for team_name, team_display, center_x in (
                 (match["home"], match.get("home_display") or match["home"], left_center_x),
@@ -423,7 +423,7 @@ def _render_results_news_style(title, subtitle, groups):
                 score_w = score_box[2] - score_box[0]
                 score_h = score_box[3] - score_box[1]
             score_x = ((width - score_w) // 2) - score_box[0]
-            score_y = y + 120
+            score_y = y + 110
             draw.text((score_x, score_y), score_text, font=score_font, fill=text_dark)
 
             y += row_height + row_gap
