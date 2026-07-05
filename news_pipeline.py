@@ -11,7 +11,6 @@ from deep_translator import GoogleTranslator
 
 from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file
 
-from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file
 from news_collectors import (
     PREMIER_LEAGUE_CLUB_RSS_SOURCES,
     RSS_MAX_ITEMS_CLUB,
@@ -61,11 +60,7 @@ NEWS_IMAGE_CHUNK_SIZE = 64 * 1024
 NEWS_FETCH_MAX_WORKERS = int(os.getenv("NEWS_FETCH_MAX_WORKERS", "2"))
 MIN_NEWS_COPY_LENGTH = int(os.getenv("NEWS_MIN_COPY_LENGTH", "40"))
 WATERMARK_ASSET_CANDIDATES = (
-    "gatanga_watermark_clean.png",
     "6a8.svg",
-    "6a8fac6a-36e3-4c29-a527-b216530317a6.png",
-    "gatanga_watermark.svg",
-    "gatanga_watermark.svg.svg.png",
 )
 
 TEAM_TAG_LABELS = {
