@@ -336,7 +336,7 @@ def _render_results_news_style(title, subtitle, groups):
 
     watermark_asset = resolve_watermark_asset()
     watermark = load_watermark_image(watermark_asset)
-    watermark_target_w = 130
+    watermark_target_w = 60
     watermark_scale = watermark_target_w / watermark.width
     watermark_h = max(1, int(watermark.height * watermark_scale))
     watermark = watermark.resize((watermark_target_w, watermark_h), Image.LANCZOS)
@@ -362,12 +362,12 @@ def _render_results_news_style(title, subtitle, groups):
     title_text = title.replace("🏁", "").strip()
     title_box = draw.textbbox((0, 0), title_text, font=title_font)
     title_x = (width - (title_box[2] - title_box[0])) // 2
-    draw.text((title_x, 22), title_text, font=title_font, fill=text_dark)
+    draw.text((title_x, 40), title_text, font=title_font, fill=text_dark)
 
     date_text = f"({subtitle_text})"
     date_box = draw.textbbox((0, 0), date_text, font=date_font)
     date_x = (width - (date_box[2] - date_box[0])) // 2
-    draw.text((date_x, 81), date_text, font=date_font, fill=text_dark)
+    draw.text((date_x, 100), date_text, font=date_font, fill=text_dark)
 
     if competition_logo:
         image.alpha_composite(competition_logo, (20, 20))
