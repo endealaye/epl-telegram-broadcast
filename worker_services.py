@@ -256,20 +256,20 @@ def send_heartbeat_service(chat_id=None):
     )
 
 
-def fetch_news_service():
+def sync_and_publish_news_service():
     try:
-        result = fetch_news_items()
+        result = sync_and_publish_news()
         return ServiceResult(
-            action="news_fetch",
-            success=True,
-            message="News fetch completed.",
-            data=result,
+            action="sync_and_publish_news",
+            success=result["success"],
+            message=result["message"],
+            data={"processed": result["processed"], "fetched": result.get("fetched", 0)},
         )
     except Exception as e:
         return ServiceResult(
-            action="news_fetch",
+            action="sync_and_publish_news",
             success=False,
-            message=f"News fetch failed: {e}",
+            message=f"News sync and publish failed: {e}",
         )
 
 
@@ -317,23 +317,6 @@ def mark_news_item_service(
             action="news_mark",
             success=False,
             message=f"News item update failed: {e}",
-        )
-
-
-def automated_news_pipeline_service():
-    try:
-        result = process_and_publish_news()
-        return ServiceResult(
-            action="automated_news",
-            success=result["success"],
-            message=result["message"],
-            data={"processed": result["processed"]},
-        )
-    except Exception as e:
-        return ServiceResult(
-            action="automated_news",
-            success=False,
-            message=f"Automated news pipeline failed: {e}",
         )
 
 

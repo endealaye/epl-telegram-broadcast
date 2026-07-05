@@ -749,14 +749,25 @@ def translate_news_item(item):
 
 
 
-def process_and_publish_news():
+def sync_and_publish_news():
     """
-    End-to-end pipeline: Fetch -> Dedup (inside fetch) -> Translate -> Publish.
+    Complete end-to-end news pipeline: 
+    1. Fetch new items from sources.
+    2. Deduplicate and store in Supabase.
+    3. Process the review queue (Translate -> Publish).
     """
+    # 1. Fetch and store new items
     fetch_result = fetch_news_items()
+    
+    # 2. Process and publish from the queue
     queue = get_review_queue(limit=50)
     if not queue:
-        return {"success": True, "processed": 0, "message": "No new news to process."}
+        return {
+            "success": True, 
+            "processed": 0, 
+            "fetched": fetch_result.get("stored_count", 0),
+            "message": "No new news to process."
+        }
 
     processed_count = 0
     for item in queue:
@@ -776,6 +787,7 @@ def process_and_publish_news():
     return {
         "success": True,
         "processed": processed_count,
-        "message": f"Processed and published {processed_count} news items."
+        "fetched": fetch_result.get("stored_count", 0),
+        "message": f"Fetched {fetch_result.get('stored_count', 0)} items and published {processed_count} news items."
     }
 

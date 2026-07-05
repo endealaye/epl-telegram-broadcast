@@ -40,7 +40,7 @@ INTENT_HANDLERS = {
     "results": lambda payload: send_results_service(),
     "standings": lambda payload: send_standings_service(format_name=payload.get("format")),
     "heartbeat": lambda payload: send_heartbeat_service(chat_id=payload.get("chat_id")),
-    "news_fetch": lambda payload: fetch_news_service(),
+    "news_fetch": lambda payload: sync_and_publish_news_service(),
     "news_queue": lambda payload: list_news_queue_service(limit=payload.get("limit", 20)),
     "news_mark": lambda payload: mark_news_item_service(
         item_id=payload.get("item_id"),
@@ -49,7 +49,7 @@ INTENT_HANDLERS = {
         translated_story_am=payload.get("translated_story_am"),
         notes=payload.get("notes"),
     ),
-    "automated-news": lambda payload: automated_news_pipeline_service(),
+    "automated-news": lambda payload: sync_and_publish_news_service(),
 }
 
 
