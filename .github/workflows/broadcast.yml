@@ -19,14 +19,14 @@ on:
         required: true
         type: choice
         default: 'refresh'
-      options:
-        - 'refresh'
-        - 'results'
-        - 'live'
-        - 'commands'
-        - 'daily'
-        - 'reminders'
-        - 'automated-news'
+        options:
+          - 'refresh'
+          - 'results'
+          - 'live'
+          - 'commands'
+          - 'daily'
+          - 'reminders'
+          - 'automated-news'
 
 jobs:
   broadcast:
