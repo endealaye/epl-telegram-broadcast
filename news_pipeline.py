@@ -61,10 +61,10 @@ NEWS_IMAGE_CHUNK_SIZE = 64 * 1024
 NEWS_FETCH_MAX_WORKERS = int(os.getenv("NEWS_FETCH_MAX_WORKERS", "2"))
 MIN_NEWS_COPY_LENGTH = int(os.getenv("NEWS_MIN_COPY_LENGTH", "40"))
 WATERMARK_ASSET_CANDIDATES = (
+    "gatanga_watermark_clean.png",
     "6a8.svg",
     "6a8fac6a-36e3-4c29-a527-b216530317a6.png",
     "gatanga_watermark.svg",
-    "gatanga_watermark_clean.png",
     "gatanga_watermark.svg.svg.png",
 )
 
@@ -331,12 +331,14 @@ def build_watermark_overlay(width, height):
     bg_x1 = x + target_width + WATERMARK_BG_PADDING
     bg_y1 = y + target_height + WATERMARK_BG_PADDING
     draw = ImageDraw.Draw(overlay)
+    # Draw the background rounded rectangle for the watermark
     draw.rounded_rectangle(
         (bg_x0, bg_y0, bg_x1, bg_y1),
         radius=WATERMARK_BG_RADIUS,
         fill=(0, 0, 0, max(0, min(255, WATERMARK_BG_ALPHA))),
     )
-    overlay.alpha_composite(watermark, (x, y))
+    # Use paste with the watermark itself as the mask to preserve transparency
+    overlay.paste(watermark, (x, y), watermark)
     return overlay
 
 
@@ -417,10 +419,6 @@ def format_news_broadcast(item):
         lines.append(title)
         lines.append("━━━━━━━━━━━━━━━━━━━━")
     
-    if highlight:
-        lines.append(f"📌 *{escape_telegram_markdown(highlight)}*")
-        lines.append("")
-        
     if story:
         lines.append(escape_telegram_markdown(story))
         
@@ -756,7 +754,7 @@ def process_and_publish_news():
     End-to-end pipeline: Fetch -> Dedup (inside fetch) -> Translate -> Publish.
     """
     fetch_result = fetch_news_items()
-    queue = get_review_queue(limit=10)
+    queue = get_review_queue(limit=50)
     if not queue:
         return {"success": True, "processed": 0, "message": "No new news to process."}
 

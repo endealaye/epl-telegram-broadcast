@@ -15,7 +15,7 @@ from bot_config import (
     parse_eat_datetime,
 )
 from commands import send_admin_alert, send_telegram_message
-from sync import sky_result_overrides_for_date
+from broadcasts import _render_results_news_style
 from world_cup_standings import broadcast_world_cup_standings_card_for_fixture
 from store import (
     fetch_fixtures_for_dates,
@@ -355,16 +355,27 @@ def _find_db_match(home_team, away_team, competition_name, now):
 
 def _send_score_card_with_caption(db_match, h_score, a_score, caption):
     try:
-        from render_standings import render_match_score_card
+        from broadcasts import _render_results_news_style
         from commands import send_telegram_photo_file
-        competition_title, _, _ = _format_match_title(db_match)
-        image_path = render_match_score_card(
-            home_team=db_match.get('hometeam', ''),
-            away_team=db_match.get('awayteam', ''),
-            home_score=int(h_score),
-            away_score=int(a_score),
-            competition_title=competition_title,
-            status="FULL TIME",
+        competition_title = fixture_competition_name(db_match)
+        
+        # Wrap single match in the group format required by _render_results_news_style
+        groups = [
+            (competition_title, [
+                {
+                    "home": db_match.get('hometeam', ''),
+                    "away": db_match.get('awayteam', ''),
+                    "home_score": h_score,
+                    "away_score": a_score,
+                    "result_note": "Match Result",
+                }
+            ])
+        ]
+        
+        image_path = _render_results_news_style(
+            title="🏁 የመጨረሻ ውጤት",
+            subtitle=get_eat_today(),
+            groups=groups
         )
         send_telegram_photo_file(image_path, caption, parse_mode=None)
     except Exception as e:

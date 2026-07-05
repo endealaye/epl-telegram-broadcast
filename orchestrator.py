@@ -49,7 +49,7 @@ INTENT_HANDLERS = {
         translated_story_am=payload.get("translated_story_am"),
         notes=payload.get("notes"),
     ),
-    "automated_news": lambda payload: automated_news_pipeline_service(),
+    "automated-news": lambda payload: automated_news_pipeline_service(),
 }
 
 

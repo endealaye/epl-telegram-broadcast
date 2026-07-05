@@ -368,7 +368,8 @@ def _render_results_news_style(title, subtitle, groups):
 
     wm_x = width - outer_pad - inner_pad - watermark.width
     wm_y = 20
-    image.alpha_composite(watermark, (wm_x, wm_y))
+    # Use paste with the watermark itself as the mask to preserve transparency
+    image.paste(watermark, (wm_x, wm_y), watermark)
 
     y = header_height
     for competition, matches in groups:
