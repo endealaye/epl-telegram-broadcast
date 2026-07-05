@@ -51,7 +51,7 @@ def format_display_date(value):
         return ""
     for date_format in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S"):
         try:
-            return datetime.strptime(value, date_format).strftime("%d:%m:%y")
+            return datetime.strptime(value, date_format).strftime("%d-%m-%y")
         except ValueError:
             continue
     return value
