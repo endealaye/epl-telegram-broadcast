@@ -63,6 +63,7 @@ COMPETITION_HEADER_LOGOS = {
     "Premier League": None,
     "UEFA Champions League": "UEFA_Champions_League.svg",
     "UEFA Europa League": "UEFA_Europa_League_logo_(2024_version).svg",
+    "FIFA World Cup": "fifa-world-logo.svg",
 }
 
 
@@ -341,7 +342,11 @@ def _render_results_news_style(title, subtitle, groups):
     watermark = watermark.resize((watermark_target_w, watermark_h), Image.LANCZOS)
 
     header_competition = groups[0][0] if groups else None
-    competition_logo_name = COMPETITION_HEADER_LOGOS.get(header_competition)
+    competition_logo_name = None
+    for comp_key, logo_file in COMPETITION_HEADER_LOGOS.items():
+        if header_competition and comp_key in header_competition:
+            competition_logo_name = logo_file
+            break
     competition_logo_path = Path(__file__).resolve().parent / competition_logo_name if competition_logo_name else None
     competition_logo = None
     if competition_logo_path and competition_logo_path.exists():
