@@ -3,7 +3,6 @@ from datetime import datetime
 
 from service_models import AgentEvent, ServiceResult
 from worker_services import (
-    fetch_news_service,
     list_news_queue_service,
     mark_news_item_service,
 )
@@ -17,7 +16,7 @@ from worker_services import (
     send_results_service,
     send_standings_service,
     sync_fixtures_service,
-    automated_news_pipeline_service,
+    sync_and_publish_news_service,
 )
 
 
