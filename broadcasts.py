@@ -336,7 +336,7 @@ def _render_results_news_style(title, subtitle, groups):
 
     watermark_asset = resolve_watermark_asset()
     watermark = load_watermark_image(watermark_asset)
-    watermark_target_w = 60
+    watermark_target_w = 72
     watermark_scale = watermark_target_w / watermark.width
     watermark_h = max(1, int(watermark.height * watermark_scale))
     watermark = watermark.resize((watermark_target_w, watermark_h), Image.LANCZOS)
@@ -351,7 +351,7 @@ def _render_results_news_style(title, subtitle, groups):
     competition_logo = None
     if competition_logo_path and competition_logo_path.exists():
         competition_logo = load_watermark_image(competition_logo_path)
-        competition_logo_target_w = 60
+        competition_logo_target_w = 72
         competition_scale = competition_logo_target_w / competition_logo.width
         competition_logo = competition_logo.resize(
             (competition_logo_target_w, max(1, int(competition_logo.height * competition_scale))),
