@@ -256,6 +256,10 @@ def send_heartbeat_service(chat_id=None):
     )
 
 
+def fetch_news_service():
+    return sync_and_publish_news_service()
+
+
 def sync_and_publish_news_service():
     try:
         result = sync_and_publish_news()
