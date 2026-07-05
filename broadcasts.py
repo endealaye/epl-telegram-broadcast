@@ -351,12 +351,13 @@ def _render_results_news_style(title, subtitle, groups):
     competition_logo = None
     if competition_logo_path and competition_logo_path.exists():
         competition_logo = load_watermark_image(competition_logo_path)
-        competition_logo_target_w = 100
+        competition_logo_target_w = 60
         competition_scale = competition_logo_target_w / competition_logo.width
         competition_logo = competition_logo.resize(
             (competition_logo_target_w, max(1, int(competition_logo.height * competition_scale))),
             Image.LANCZOS,
         )
+
 
     title_text = title.replace("🏁", "").strip()
     title_box = draw.textbbox((0, 0), title_text, font=title_font)
@@ -369,7 +370,7 @@ def _render_results_news_style(title, subtitle, groups):
     draw.text((date_x, 81), date_text, font=date_font, fill=text_dark)
 
     if competition_logo:
-        image.alpha_composite(competition_logo, (42, 30))
+        image.alpha_composite(competition_logo, (20, 20))
 
     wm_x = width - outer_pad - inner_pad - watermark.width
     wm_y = 20
