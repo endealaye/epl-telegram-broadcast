@@ -387,7 +387,7 @@ def _render_results_news_style(title, subtitle, groups):
             away_am = _team_amharic_name(match["away"])
             left_center_x = 150
             right_center_x = 450
-            names_y = y + 220
+            names_y = y + 160
             logos_y = y + 60
 
             competition_text_box = draw.textbbox((0, 0), competition, font=competition_font)
@@ -429,7 +429,7 @@ def _render_results_news_style(title, subtitle, groups):
                 score_w = score_box[2] - score_box[0]
                 score_h = score_box[3] - score_box[1]
             score_x = ((width - score_w) // 2) - score_box[0]
-            score_y = y + 110
+            score_y = y + 120
             draw.text((score_x, score_y), score_text, font=score_font, fill=text_dark)
 
             y += row_height + row_gap
