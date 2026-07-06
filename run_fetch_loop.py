@@ -21,6 +21,7 @@ from service_models import ServiceResult
 from worker_services import (
     fetch_news_service,
     process_live_window_service,
+    send_results_service,
     sync_fixtures_service,
 )
 
@@ -49,14 +50,23 @@ def run_scores():
         return {"action": "live", "success": False, "message": str(exc)}
 
 
+def run_results():
+    try:
+        result = send_results_service()
+        return result.to_dict() if hasattr(result, "to_dict") else result.__dict__
+    except Exception as exc:
+        return {"action": "results", "success": False, "message": str(exc)}
+
+
 def run_cycle():
     print(f"[cycle] Starting cycle at {datetime.now(timezone.utc).isoformat()}")
     results = {}
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         futures = {
             executor.submit(run_news): "news",
             executor.submit(run_fixtures): "fixtures",
             executor.submit(run_scores): "scores",
+            executor.submit(run_results): "results",
         }
         for future in as_completed(futures):
             key = futures[future]
