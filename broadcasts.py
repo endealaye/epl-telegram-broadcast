@@ -123,7 +123,7 @@ def _render_match_board(title, subtitle, groups, mode="fixtures"):
     draw.rounded_rectangle(panel, radius=24, fill=(23, 33, 43, 255))
 
     title_text = title.replace("📅", "").replace("🏁", "").strip()
-    title_font = _load_font(56, bold=True)
+    title_font = _load_font(48, bold=True)
     small_title_font = _load_latin_font(22, bold=False)
     chip_font = _load_latin_font(26, bold=True)
     team_font = _load_font(34, bold=True)
@@ -311,7 +311,7 @@ def _render_results_news_style(title, subtitle, groups):
     width = 600
     outer_pad = 0
     inner_pad = 42
-    title_font = _load_font(30, bold=True)
+    title_font = _load_font(48, bold=True)
     date_font = _load_latin_font(18, bold=True)
     team_font = _load_font(30, bold=True)
     competition_font = _load_latin_font(16, bold=False)
