@@ -116,11 +116,11 @@ def _render_match_board(title, subtitle, groups, mode="fixtures"):
         + 22
     )
 
-    image = Image.new("RGBA", (width, total_height), (246, 246, 250, 255))
+    image = Image.new("RGBA", (width, total_height), (14, 22, 33, 255))
     draw = ImageDraw.Draw(image)
 
     panel = (padding, padding, width - padding, total_height - padding)
-    draw.rounded_rectangle(panel, radius=24, fill=(244, 244, 248, 255))
+    draw.rounded_rectangle(panel, radius=24, fill=(23, 33, 43, 255))
 
     title_text = title.replace("📅", "").replace("🏁", "").strip()
     title_font = _load_font(56, bold=True)
@@ -130,8 +130,8 @@ def _render_match_board(title, subtitle, groups, mode="fixtures"):
     time_font = _load_latin_font(22, bold=False)
     score_font = _load_latin_font(70, bold=True)
     hero_label_font = _load_latin_font(20, bold=False)
-    text_dark = (40, 40, 46)
-    text_muted = (168, 168, 176)
+    text_dark = (255, 255, 255)
+    text_muted = (255, 255, 255)
     chip_active = (125, 53, 221)
     chip_idle = (230, 231, 238)
     chip_idle_text = (96, 96, 106)
@@ -315,10 +315,10 @@ def _render_results_news_style(title, subtitle, groups):
     date_font = _load_latin_font(18, bold=True)
     team_font = _load_font(30, bold=True)
     competition_font = _load_latin_font(16, bold=False)
-    text_dark = (14, 14, 18)
-    text_muted = (110, 110, 118)
-    outer_fill = (255, 255, 255, 255)
-    inner_fill = (255, 255, 255, 255)
+    text_dark = (255, 255, 255)
+    text_muted = (255, 255, 255)
+    outer_fill = (14, 22, 33, 255)
+    inner_fill = (23, 33, 43, 255)
     logo_size = 84
     row_gap = 32
     header_height = 150
