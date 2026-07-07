@@ -299,7 +299,7 @@ def _render_match_board(title, subtitle, groups, mode="fixtures"):
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     temp_path = Path(temp_file.name)
     temp_file.close()
-    image.convert("RGB").save(temp_path, format="PNG", optimize=True)
+    image.convert("RGB").save(temp_path, format="PNG", optimize=True, dpi=(300, 300))
     return temp_path
 
 
@@ -362,7 +362,10 @@ def _render_results_news_style(title, subtitle, groups):
     title_text = title.replace("🏁", "").strip()
     title_box = draw.textbbox((0, 0), title_text, font=title_font)
     title_x = (width - (title_box[2] - title_box[0])) // 2
-    draw.text((title_x, 40), title_text, font=title_font, fill=text_dark)
+    title_y = 40
+    draw.text((title_x, title_y), title_text, font=title_font, fill=text_dark)
+
+    title_center_y = title_y + (title_box[1] + title_box[3]) / 2
 
     date_text = f"({subtitle_text})"
     date_box = draw.textbbox((0, 0), date_text, font=date_font)
@@ -370,10 +373,11 @@ def _render_results_news_style(title, subtitle, groups):
     draw.text((date_x, 100), date_text, font=date_font, fill=text_dark)
 
     if competition_logo:
-        image.alpha_composite(competition_logo, (20, 20))
+        logo_y = int(title_center_y - competition_logo.height / 2)
+        image.alpha_composite(competition_logo, (20, logo_y))
 
     wm_x = width - outer_pad - inner_pad - watermark.width
-    wm_y = 20
+    wm_y = int(title_center_y - watermark.height / 2)
     # Use paste with the watermark itself as the mask to preserve transparency
     image.paste(watermark, (wm_x, wm_y), watermark)
 
@@ -385,8 +389,8 @@ def _render_results_news_style(title, subtitle, groups):
 
             home_am = _team_amharic_name(match["home"])
             away_am = _team_amharic_name(match["away"])
-            left_center_x = 150
-            right_center_x = 450
+            left_center_x = 120
+            right_center_x = 480
             names_y = y + 160
             logos_y = y + 60
 
@@ -414,7 +418,7 @@ def _render_results_news_style(title, subtitle, groups):
             away_x = int(right_center_x - ((away_box[2] - away_box[0]) / 2))
             draw.text((away_x, names_y), away_am, font=team_font, fill=text_dark)
 
-            score_text = f"{match['home_score']}-{match['away_score']}"
+            score_text = f"{match['home_score']} - {match['away_score']}"
             score_target_w = 222
             score_target_h = 120
             score_font_size = 104
@@ -437,7 +441,7 @@ def _render_results_news_style(title, subtitle, groups):
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     temp_path = Path(temp_file.name)
     temp_file.close()
-    image.convert("RGB").save(temp_path, format="PNG", optimize=True)
+    image.convert("RGB").save(temp_path, format="PNG", optimize=True, dpi=(300, 300))
     return temp_path
 
 

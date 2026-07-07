@@ -230,7 +230,6 @@ SKY_SPORTS_FOOTBALL_SOURCE = {
 
 PREMIER_LEAGUE_CLUB_RSS_SOURCES = [
     {"source_key": "club_arsenal_rss", "source_name": "Arsenal", "source_url": "https://www.arsenal.com/rss.xml"},
-    {"source_key": "club_aston_villa_rss", "source_name": "Aston Villa", "source_url": "https://www.avfc.co.uk/rss.xml"},
     {"source_key": "club_bournemouth_rss", "source_name": "Bournemouth", "source_url": "https://www.afcb.co.uk/rss.xml"},
     {"source_key": "club_brighton_rss", "source_name": "Brighton", "source_url": "https://www.brightonandhovealbion.com/rss"},
     {"source_key": "club_burnley_rss", "source_name": "Burnley", "source_url": "https://www.burnleyfootballclub.com/rss.xml"},
