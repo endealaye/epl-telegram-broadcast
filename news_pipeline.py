@@ -9,7 +9,8 @@ import requests
 from PIL import Image, ImageDraw
 from deep_translator import GoogleTranslator
 
-from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file
+from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file, send_telegram_audio_file
+from tts_service import synthesize_news_audio
 
 from news_collectors import (
     PREMIER_LEAGUE_CLUB_RSS_SOURCES,
@@ -711,6 +712,16 @@ def mark_review_item(
         sent_message = send_telegram_message(payload["caption"], return_message=True)
     if not sent_message:
         raise RuntimeError("Telegram delivery failed. Check bot configuration.")
+    
+    # Send audio version of the news
+    try:
+        audio_path = synthesize_news_audio(final_title, final_story)
+        if audio_path:
+            send_telegram_audio_file(audio_path, caption=f"🔊 {final_title}")
+            audio_path.unlink(missing_ok=True)
+    except Exception as audio_exc:
+        print(f"Audio broadcast failed for item {item_id}: {audio_exc}")
+
     return mark_news_item(
         item_id=item_id,
         status=status,

@@ -62,6 +62,40 @@ def send_telegram_photo_file(photo_path, caption, chat_id=None, return_message=F
     return result if return_message else True
 
 
+def send_telegram_audio_file(audio_path, caption=None, chat_id=None, return_message=False):
+    target_chat = chat_id or TELEGRAM_CHAT_ID
+    if not TELEGRAM_BOT_TOKEN or not target_chat:
+        print(caption or "Audio file")
+        return None if return_message else False
+    
+    data = {
+        "chat_id": target_chat,
+        "caption": caption,
+    }
+    
+    with Path(audio_path).open("rb") as audio_file:
+        result = _telegram_post("sendAudio", data=data, files={"audio": audio_file})
+    
+    return result if return_message else True
+
+
+def send_telegram_video_file(video_path, caption=None, chat_id=None, return_message=False):
+    target_chat = chat_id or TELEGRAM_CHAT_ID
+    if not TELEGRAM_BOT_TOKEN or not target_chat:
+        print(caption or "Video file")
+        return None if return_message else False
+    
+    data = {
+        "chat_id": target_chat,
+        "caption": caption,
+    }
+    
+    with Path(video_path).open("rb") as video_file:
+        result = _telegram_post("sendVideo", data=data, files={"video": video_file})
+    
+    return result if return_message else True
+
+
 def send_admin_alert(message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_ADMIN_ID:
         print(f"Admin Alert: {message}")

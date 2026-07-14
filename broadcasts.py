@@ -698,12 +698,20 @@ def maybe_send_auto_standings(today_fixtures, today=None):
 
 
 def broadcast_daily():
+    today = get_eat_today()
+    lock_key = f"lock:daily:{today}"
+    lock_owner = f"daily:{uuid.uuid4()}"
     try:
         if not supabase:
             return
-        
-        today = get_eat_today()
-        # Fetch all fixtures for today, regardless of daily_sent status
+        if not acquire_bot_lock(lock_key=lock_key, owner=lock_owner, ttl_seconds=600):
+            return
+
+        state_key = f"daily:sent:{today}"
+        if get_bot_state_value(state_key):
+            return
+
+        # Fetch all fixtures for today
         matches = fetch_fixtures_for_dates([today])
         
         if not matches:
@@ -711,6 +719,13 @@ def broadcast_daily():
                 f"📅 የዛሬ ጨዋታዎች ({format_display_date(today)}):\n\n ምንም የታቀዱ ጨዋታዎች የሉም።",
                 parse_mode=None,
             )
+            set_bot_state_value(state_key, datetime.now(timezone.utc).isoformat())
+            return
+
+        # Even if matches exist, we should not send if the bot_state says it was sent.
+        # The check 'all(match.get("daily_sent") for match in matches)' is a secondary safety.
+        if all(match.get("daily_sent") for match in matches):
+            set_bot_state_value(state_key, datetime.now(timezone.utc).isoformat())
             return
 
         matches.sort(key=_match_sort_key)
@@ -732,9 +747,12 @@ def broadcast_daily():
             (competition, competition_groups[competition])
             for competition in sorted(competition_groups.keys(), key=_competition_sort_key)
         ]
+        
+        # Set state BEFORE sending to prevent duplicates if send_telegram_message is slow or retried
+        set_bot_state_value(state_key, datetime.now(timezone.utc).isoformat())
+        
         send_telegram_message(_build_daily_fixtures_text(today, groups), parse_mode=None)
         
-        # Mark as sent
         supabase.table('fixtures').update({
             "daily_sent": True,
             "broadcaststatus": 'scheduled',
@@ -744,11 +762,19 @@ def broadcast_daily():
         error_msg = f"Daily broadcast error: {e}"
         print(error_msg)
         send_admin_alert(error_msg)
+    finally:
+        if supabase:
+            release_bot_lock(lock_key=lock_key, owner=lock_owner)
 
 
 def broadcast_reminders():
+    today = get_eat_today()
+    lock_key = f"lock:reminders:{today}"
+    lock_owner = f"reminders:{uuid.uuid4()}"
     try:
         if not supabase:
+            return
+        if not acquire_bot_lock(lock_key=lock_key, owner=lock_owner, ttl_seconds=600):
             return
         if not has_upcoming_matches():
             print("Skip reminders: no fixtures in the next 60 minutes.")
@@ -775,6 +801,9 @@ def broadcast_reminders():
         error_msg = f"Reminder broadcast error: {e}"
         print(error_msg)
         send_admin_alert(error_msg)
+    finally:
+        if supabase:
+            release_bot_lock(lock_key=lock_key, owner=lock_owner)
 
 
 def broadcast_results(date_strings=None):
