@@ -6,3 +6,5 @@ pillow==12.2.0
 cairosvg==2.9.0
 gunicorn==23.0.0
 deep-translator==1.11.4
+gTTS==2.5.2
+gtts==2.5.4
