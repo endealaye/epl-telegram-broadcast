@@ -9,7 +9,7 @@ import requests
 from PIL import Image, ImageDraw
 from deep_translator import GoogleTranslator
 
-from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file, send_telegram_audio_file
+from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file, send_telegram_audio_file, send_telegram_video_file
 from tts_service import synthesize_news_audio
 
 from news_collectors import (
@@ -693,11 +693,15 @@ def mark_review_item(
     })
     sent_message = None
     payload["caption"] = compact_news_caption(payload["caption"], has_image=bool(payload["image_url"]))
+    
+    local_image_path = None
+    watermarked_image_path = None
+    
     if payload["image_url"]:
-        temp_path = None
         try:
-            temp_path = create_watermarked_image(payload["image_url"])
-            sent_message = send_telegram_photo_file(temp_path, payload["caption"], return_message=True)
+            watermarked_image_path = create_watermarked_image(payload["image_url"])
+            local_image_path = watermarked_image_path
+            sent_message = send_telegram_photo_file(watermarked_image_path, payload["caption"], return_message=True)
         except Exception as exc:
             print(f"Watermark render/upload failed for item {item_id}: {exc}")
             try:
@@ -705,23 +709,63 @@ def mark_review_item(
             except Exception as photo_exc:
                 print(f"Direct photo send failed for item {item_id}: {photo_exc}")
                 sent_message = send_telegram_message(payload["caption"], return_message=True)
-        finally:
-            if temp_path is not None:
-                temp_path.unlink(missing_ok=True)
+            
+            try:
+                img_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+                response = requests.get(payload["image_url"], timeout=20)
+                response.raise_for_status()
+                img_temp.write(response.content)
+                img_temp.close()
+                local_image_path = Path(img_temp.name)
+            except Exception as download_exc:
+                print(f"Failed to download raw image for video: {download_exc}")
     else:
         sent_message = send_telegram_message(payload["caption"], return_message=True)
+        
     if not sent_message:
+        if watermarked_image_path and watermarked_image_path.exists():
+            watermarked_image_path.unlink(missing_ok=True)
+        if local_image_path and local_image_path != watermarked_image_path and local_image_path.exists():
+            local_image_path.unlink(missing_ok=True)
         raise RuntimeError("Telegram delivery failed. Check bot configuration.")
     
-    # Send audio version of the news
     try:
         audio_path = synthesize_news_audio(final_title, final_story)
         if audio_path:
-            send_telegram_audio_file(audio_path, caption=f"🔊 {final_title}")
+            if local_image_path and local_image_path.exists():
+                video_path = audio_path.with_suffix('.mp4')
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-loop", "1", "-i", str(local_image_path),
+                    "-i", str(audio_path),
+                    "-c:v", "libx264", "-tune", "stillimage",
+                    "-c:a", "aac", "-b:a", "128k",
+                    "-pix_fmt", "yuv420p",
+                    "-shortest",
+                    str(video_path)
+                ]
+                try:
+                    import subprocess
+                    subprocess.run(cmd, check=True, capture_output=True)
+                    send_telegram_video_file(video_path, caption=f"🔊 {final_title}")
+                except Exception as video_exc:
+                    print(f"Video generation/broadcast failed for item {item_id}: {video_exc}")
+                    send_telegram_audio_file(audio_path, caption=f"🔊 {final_title}")
+                finally:
+                    if 'video_path' in locals() and video_path.exists():
+                        video_path.unlink(missing_ok=True)
+            else:
+                send_telegram_audio_file(audio_path, caption=f"🔊 {final_title}")
+                
             audio_path.unlink(missing_ok=True)
     except Exception as audio_exc:
-        print(f"Audio broadcast failed for item {item_id}: {audio_exc}")
-
+        print(f"Audio/Video broadcast failed for item {item_id}: {audio_exc}")
+    finally:
+        if watermarked_image_path and watermarked_image_path.exists():
+            watermarked_image_path.unlink(missing_ok=True)
+        if local_image_path and local_image_path != watermarked_image_path and local_image_path.exists():
+            local_image_path.unlink(missing_ok=True)
+            
     return mark_news_item(
         item_id=item_id,
         status=status,
