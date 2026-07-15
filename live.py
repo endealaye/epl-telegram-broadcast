@@ -17,6 +17,7 @@ from bot_config import (
 from commands import send_admin_alert, send_telegram_message
 from broadcasts import _render_results_news_style
 from world_cup_standings import broadcast_world_cup_standings_card_for_fixture
+from sync import sky_result_overrides_for_date
 from store import (
     fetch_fixtures_for_dates,
     fixture_competition_name,

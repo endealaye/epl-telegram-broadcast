@@ -493,10 +493,11 @@ def update_fixtures_from_json():
         response = requests.get(JSON_URL)
         response.raise_for_status()
         data = response.json()
+        rows = []
         for match in data:
             utc_date = match.get('DateUtc')
             eat_date = _fixture_download_dateeat(utc_date)
-            _upsert_fixture_rows([{
+            rows.append({
                 "matchnumber": match.get('MatchNumber'),
                 "roundnumber": match.get('RoundNumber'),
                 "dateutc": utc_date,
@@ -508,7 +509,8 @@ def update_fixtures_from_json():
                 "awayteamscore": match.get('AwayTeamScore'),
                 "dateeat": eat_date,
                 "season": CURRENT_EPL_SEASON,
-            }])
+            })
+        _upsert_fixture_rows(rows)
         try:
             updated = upsert_world_cup_fixtures()
             if updated:

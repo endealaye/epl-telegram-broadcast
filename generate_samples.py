@@ -1,5 +1,4 @@
 from broadcasts import _render_results_news_style
-from render_standings import render_match_score_card
 import os
 
 # Sample data for Results Board
@@ -13,14 +12,3 @@ groups = [
 print("Generating results board sample...")
 results_path = _render_results_news_style("🏁 የጨዋታዎች ውጤት", "2026-07-03", groups)
 print(f"Results board saved to: {results_path}")
-
-print("Generating individual score card sample...")
-card_path = render_match_score_card(
-    home_team="Switzerland",
-    away_team="Algeria",
-    home_score=2,
-    away_score=0,
-    competition_title="FIFA World Cup",
-    status="FULL TIME"
-)
-print(f"Individual card saved to: {card_path}")
