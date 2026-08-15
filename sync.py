@@ -14,24 +14,20 @@ from bot_config import (
     CURRENT_EPL_SEASON,
     JSON_URL,
     TEAM_MAPPING,
-    WORLD_CUP_SEASON,
-    WORLD_CUP_JSON_URL,
+
     get_eat_now,
     get_eat_today,
 )
 from store import supabase
 
 
-WORLD_CUP_MATCHNUMBER_OFFSET = 2_026_000
-WORLD_CUP_COMPETITION_NAME = "FIFA World Cup"
 EUROPEAN_COMPETITIONS = {
     "UEFA Champions League",
     "UEFA Europa League",
     "UEFA Conference League",
 }
 
-WORLD_CUP_RESULT_COMPETITIONS = {"FIFA World Cup", "World Cup"}
-RESULT_COMPETITIONS = {"Premier League", *EUROPEAN_COMPETITIONS, *WORLD_CUP_RESULT_COMPETITIONS}
+RESULT_COMPETITIONS = {"Premier League", *EUROPEAN_COMPETITIONS}
 UEFA_UCL_FIXTURES_ARTICLE_URL = (
     "https://www.uefa.com/uefachampionsleague/news/"
     "029c-1e9a2f63fe2d-ebf9ad643892-1000--2025-26-champions-league-all-the-league-phase-fixtures/"
@@ -178,10 +174,7 @@ def _apply_sky_result_overrides(date_string):
             .eq("awayteam", away_team)
             .ilike("dateeat", f"{date_string}%")
         )
-        if competition_name in WORLD_CUP_RESULT_COMPETITIONS:
-            query = query.ilike("matchgroup", f"{WORLD_CUP_COMPETITION_NAME}%")
-        else:
-            query = query.eq("matchgroup", competition_name)
+        query = query.eq("matchgroup", competition_name)
         res = query.execute()
         rows = res.data or []
         updated += len(rows)
@@ -271,7 +264,7 @@ def _upsert_sky_competition_fixtures_for_date(date_string, competitions=None):
 
 
 def _season_year_for_date(month):
-    return 2025 if month >= 7 else 2026
+    return 2026 if month >= 7 else 2027
 
 
 def _parse_uefa_article_date(date_text):
@@ -436,56 +429,6 @@ def _fixture_download_dateeat(utc_date):
     return (dt + timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
 
 
-def _world_cup_round_label(match):
-    group = match.get("Group")
-    if group:
-        return f"{WORLD_CUP_COMPETITION_NAME} - {group}"
-
-    round_number = match.get("RoundNumber")
-    return {
-        4: f"{WORLD_CUP_COMPETITION_NAME} - Round of 32",
-        5: f"{WORLD_CUP_COMPETITION_NAME} - Round of 16",
-        6: f"{WORLD_CUP_COMPETITION_NAME} - Quarter-finals",
-        7: f"{WORLD_CUP_COMPETITION_NAME} - Semi-finals",
-        8: f"{WORLD_CUP_COMPETITION_NAME} - Finals",
-    }.get(round_number, WORLD_CUP_COMPETITION_NAME)
-
-
-def _world_cup_fixture_rows(data):
-    rows = []
-    for match in data:
-        match_number = match.get("MatchNumber")
-        if match_number is None:
-            continue
-        rows.append(
-            {
-                "matchnumber": WORLD_CUP_MATCHNUMBER_OFFSET + int(match_number),
-                "roundnumber": match.get("RoundNumber"),
-                "dateutc": match.get("DateUtc"),
-                "location": match.get("Location"),
-                "hometeam": match.get("HomeTeam"),
-                "awayteam": match.get("AwayTeam"),
-                "matchgroup": _world_cup_round_label(match),
-                "hometeamscore": match.get("HomeTeamScore"),
-                "awayteamscore": match.get("AwayTeamScore"),
-                "dateeat": _fixture_download_dateeat(match.get("DateUtc")),
-                "season": WORLD_CUP_SEASON,
-            }
-        )
-    return rows
-
-
-def upsert_world_cup_fixtures():
-    if not supabase:
-        return 0
-    response = requests.get(WORLD_CUP_JSON_URL, timeout=20)
-    response.raise_for_status()
-    rows = _world_cup_fixture_rows(response.json())
-    if not rows:
-        return 0
-    return _upsert_fixture_rows(rows)
-
-
 def update_fixtures_from_json():
     if not supabase:
         return False
@@ -511,12 +454,6 @@ def update_fixtures_from_json():
                 "season": CURRENT_EPL_SEASON,
             })
         _upsert_fixture_rows(rows)
-        try:
-            updated = upsert_world_cup_fixtures()
-            if updated:
-                print(f"Upserted {updated} FIFA World Cup rows from FixtureDownload.")
-        except Exception as world_cup_exc:
-            print(f"FIFA World Cup sync skipped: {world_cup_exc}")
         yesterday = (get_eat_now() - timedelta(days=1)).strftime("%Y-%m-%d")
         today = get_eat_today()
         tomorrow = (get_eat_now() + timedelta(days=1)).strftime("%Y-%m-%d")

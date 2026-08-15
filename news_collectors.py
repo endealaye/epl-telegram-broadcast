@@ -190,11 +190,7 @@ BBC_FOOTBALL_SOURCE = {
     "source_url": "https://feeds.bbci.co.uk/sport/football/rss.xml",
 }
 
-BBC_WORLD_CUP_SOURCE = {
-    "source_key": "bbc_world_cup_rss",
-    "source_name": "BBC Sport FIFA World Cup",
-    "source_url": "https://feeds.bbci.co.uk/sport/football/world-cup/rss.xml",
-}
+
 
 RSS_CONNECT_TIMEOUT = float(os.getenv("NEWS_RSS_CONNECT_TIMEOUT", "5"))
 RSS_READ_TIMEOUT = float(os.getenv("NEWS_RSS_READ_TIMEOUT", "10"))
@@ -809,8 +805,7 @@ def fetch_bbc_football_rss():
     return _fetch_rss_source(BBC_FOOTBALL_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
 
 
-def fetch_bbc_world_cup_rss():
-    return _fetch_rss_source(BBC_WORLD_CUP_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
+
 
 
 def fetch_guardian_premier_league_rss():

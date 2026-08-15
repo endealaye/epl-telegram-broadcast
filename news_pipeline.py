@@ -13,10 +13,7 @@ from commands import send_telegram_message, send_telegram_photo, send_telegram_p
 from tts_service import synthesize_news_audio
 
 from news_collectors import (
-    PREMIER_LEAGUE_CLUB_RSS_SOURCES,
-    RSS_MAX_ITEMS_CLUB,
     fetch_bbc_football_rss,
-    fetch_bbc_world_cup_rss,
     fetch_guardian_premier_league_rss,
     fetch_rss_source,
     fetch_sky_sports_football_rss,
@@ -38,7 +35,7 @@ from news_store import (
     upsert_news_items,
     validate_status_transition,
 )
-from store import fetch_premier_league_clubs_for_season
+
 from telegram_limits import (
     TELEGRAM_CAPTION_LIMIT,
     TELEGRAM_NEWS_CAPTION_TARGET,
@@ -457,7 +454,6 @@ def fetch_news_items():
 
     base_collectors = [
         ("bbc", fetch_bbc_football_rss),
-        ("bbc_world_cup", fetch_bbc_world_cup_rss),
         ("guardian", fetch_guardian_premier_league_rss),
         ("sky_sports", fetch_sky_sports_premier_league_rss),
         ("sky_sports_football", fetch_sky_sports_football_rss),
@@ -468,26 +464,7 @@ def fetch_news_items():
         attempted_sources.append(source_name)
         jobs.append((source_name, collector))
 
-    active_clubs = fetch_premier_league_clubs_for_season()
-    club_sources = [
-        source_config
-        for source_config in PREMIER_LEAGUE_CLUB_RSS_SOURCES
-        if not active_clubs or source_config.get("source_name") in active_clubs
-    ]
 
-    for source_config in club_sources:
-        source_key = source_config.get("source_key", "club_unknown")
-        attempted_sources.append(source_key)
-        jobs.append(
-            (
-                source_key,
-                lambda cfg=source_config: fetch_rss_source(
-                    cfg,
-                    enrich=True,
-                    max_items=RSS_MAX_ITEMS_CLUB,
-                ),
-            )
-        )
 
     max_workers = max(1, min(NEWS_FETCH_MAX_WORKERS, len(jobs) or 1))
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -547,9 +524,6 @@ def fetch_news_items():
     # New fetches only need reviewable items; rejected feed junk should be dropped here.
     normalized_items = [item for item in normalized_items if item.get("review_status") == "filtered"]
     
-    # Priority for deduplication: Sky Sports > BBC > Others
-    SOURCE_PRIORITY = {"sky_sports": 3, "sky_sports_football": 3, "bbc_football_rss": 2, "bbc_world_cup": 2}
-
     bbc_source = next(
         (row for row in source_breakdown if row.get("source_key") == "bbc_football_rss"),
         None,
@@ -568,16 +542,6 @@ def fetch_news_items():
             deduped_items[dedupe_key] = item
             continue
             
-        # Prioritize by source (Sky > BBC > others) then by relevance score
-        current_priority = SOURCE_PRIORITY.get(item.get("source_key"), 0)
-        existing_priority = SOURCE_PRIORITY.get(existing_item.get("source_key"), 0)
-        
-        if current_priority > existing_priority:
-            deduped_items[dedupe_key] = item
-        elif current_priority == existing_priority:
-            if item.get("relevance_score", 0) > existing_item.get("relevance_score", 0):
-                deduped_items[dedupe_key] = item
-
     existing_items = get_news_items_by_content_hashes(
         {item.get("content_hash") for item in deduped_items.values()}
     )
@@ -777,6 +741,11 @@ def mark_review_item(
 
 
 
+def _check_translation(text, original_text):
+    if text and ("Error 500" in text or "That’s an error" in text):
+        raise ValueError("Translation service returned an error page")
+    return text or original_text
+
 def translate_news_item(item):
     """
     Translates news title and story to Amharic using deep-translator.
@@ -785,9 +754,9 @@ def translate_news_item(item):
     translator = GoogleTranslator(source='auto', target='am')
     
     try:
-        title = translator.translate(item['title'])
-        story = translator.translate(item['story'])
-        summary = translator.translate(item['summary'])
+        title = _check_translation(translator.translate(item['title']), item['title'])
+        story = _check_translation(translator.translate(item['story']), item['story'])
+        summary = _check_translation(translator.translate(item['summary']), item['summary'])
         
         # Since deep-translator doesn't do "summarization" or "highlighting", 
         # we use the translated summary as the highlight.
