@@ -162,13 +162,48 @@ def build_command_help_message():
 def broadcast_heartbeat(chat_id=None):
     try:
         now = get_eat_now()
-        msg = f"✅ *System Heartbeat*\n\nBot is running normally.\nTime: {now.strftime('%Y-%m-%d %H:%M:%S')} EAT"
+        now_str = now.strftime('%Y-%m-%d %H:%M:%S')
+        
+        from llm import llm
+        from store import supabase_health_check, fetch_fixtures_for_dates
+        from bot_config import get_eat_today
+        
+        health = supabase_health_check()
+        today = get_eat_today()
+        fixtures = fetch_fixtures_for_dates([today])
+        num_fixtures = len(fixtures) if fixtures else 0
+        
+        prompt = (
+            "You are an AI assistant managing an English Premier League Telegram bot. "
+            "Write a short, engaging system heartbeat message. "
+            f"Current Time: {now_str} EAT. "
+            f"Database Health: {'OK' if health.get('ok') else 'Failed'}. "
+            f"Matches scheduled for today: {num_fixtures}. "
+            "Add a brief, fun Premier League fact or a motivational admin quote. "
+            "Keep it under 4 sentences and format it beautifully for Telegram (using emojis and markdown). "
+            "Start the message exactly with '✅ *System Heartbeat*\\n\\n'."
+        )
+        
+        intelligent_msg = llm.generate(prompt)
+        
+        if not intelligent_msg or len(intelligent_msg) < 20 or "[Amharic" in intelligent_msg:
+            msg = f"✅ *System Heartbeat*\n\nBot is running normally.\nTime: {now_str} EAT"
+        else:
+            msg = intelligent_msg
+            
         if chat_id:
             return send_telegram_message(msg, chat_id=chat_id)
         return send_admin_alert(msg.replace("⚠️ *System Alert*", "✅ *System Status*"))
     except Exception as e:
         print(f"Heartbeat error: {e}")
-        return False
+        try:
+            now = get_eat_now()
+            msg = f"✅ *System Heartbeat*\n\nBot is running normally (Fallback).\nTime: {now.strftime('%Y-%m-%d %H:%M:%S')} EAT"
+            if chat_id:
+                return send_telegram_message(msg, chat_id=chat_id)
+            return send_admin_alert(msg.replace("⚠️ *System Alert*", "✅ *System Status*"))
+        except:
+            return False
 
 
 def process_commands():
