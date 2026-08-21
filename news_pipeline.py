@@ -746,24 +746,39 @@ def _check_translation(text, original_text):
         raise ValueError("Translation service returned an error page")
     return text or original_text
 
-def translate_news_item(item):
+class TranslationFailedError(Exception):
+    """Raised when Amharic translation could not be produced after retries."""
+    pass
+
+
+def translate_news_item(item, max_attempts=2):
     """
     Translates news title and story to Amharic using deep-translator.
     Returns: (translated_title, translated_story, highlight)
+    Raises TranslationFailedError instead of silently returning English text,
+    so callers never publish untranslated content as if it were Amharic.
     """
-    translator = GoogleTranslator(source='auto', target='am')
-    
-    try:
-        title = _check_translation(translator.translate(item['title']), item['title'])
-        story = _check_translation(translator.translate(item['story']), item['story'])
-        summary = _check_translation(translator.translate(item['summary']), item['summary'])
-        
-        # Since deep-translator doesn't do "summarization" or "highlighting", 
-        # we use the translated summary as the highlight.
-        return title, story, summary
-    except Exception as e:
-        print(f"Translation failed for item {item.get('id')}: {e}")
-        return item['title'], item['story'], item['summary']
+    last_exc = None
+    for attempt in range(1, max_attempts + 1):
+        translator = GoogleTranslator(source='auto', target='am')
+        try:
+            title = _check_translation(translator.translate(item['title']), item['title'])
+            story = _check_translation(translator.translate(item['story']), item['story'])
+            summary = _check_translation(translator.translate(item['summary']), item['summary'])
+
+            if title == item['title'] or story == item['story']:
+                raise ValueError("Translator returned unchanged (untranslated) text")
+
+            # Since deep-translator doesn't do "summarization" or "highlighting",
+            # we use the translated summary as the highlight.
+            return title, story, summary
+        except Exception as e:
+            last_exc = e
+            print(f"Translation attempt {attempt}/{max_attempts} failed for item {item.get('id')}: {e}")
+
+    raise TranslationFailedError(
+        f"Translation failed for item {item.get('id')} after {max_attempts} attempts: {last_exc}"
+    )
 
 
 
@@ -789,6 +804,7 @@ def sync_and_publish_news():
         }
 
     processed_count = 0
+    failed_count = 0
     for item in queue:
         try:
             translated_title, translated_story, highlight = translate_news_item(item)
@@ -801,12 +817,13 @@ def sync_and_publish_news():
             )
             processed_count += 1
         except Exception as e:
+            failed_count += 1
             print(f"Failed to process item {item.get('id')}: {e}")
 
     return {
         "success": True,
         "processed": processed_count,
+        "failed": failed_count,
         "fetched": fetch_result.get("stored_count", 0),
-        "message": f"Fetched {fetch_result.get('stored_count', 0)} items and published {processed_count} news items."
+        "message": f"Fetched {fetch_result.get('stored_count', 0)} items, published {processed_count}, {failed_count} left in queue for retry."
     }
-
