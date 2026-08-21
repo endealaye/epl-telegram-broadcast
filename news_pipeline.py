@@ -1,851 +1,829 @@
-import html
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import re
-import xml.etree.ElementTree as ET
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
+import tempfile
+from io import BytesIO
+from pathlib import Path
 
 import requests
+from PIL import Image, ImageDraw
+from deep_translator import GoogleTranslator
 
+from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file, send_telegram_audio_file, send_telegram_video_file
+from tts_service import synthesize_news_audio
 
-RSS_NS = {
-    "media": "http://search.yahoo.com/mrss/",
-    "content": "http://purl.org/rss/1.0/modules/content/",
-    "dc": "http://purl.org/dc/elements/1.1/",
-    "atom": "http://www.w3.org/2005/Atom",
-}
-MEDIA_NS = {"media": RSS_NS["media"]}
-IMAGE_META_PATTERNS = [
-    re.compile(
-        r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r'<meta[^>]+name=["\']twitter:image["\'][^>]+content=["\']([^"\']+)["\']',
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']twitter:image["\']',
-        re.IGNORECASE,
-    ),
-]
-ARTICLE_IMAGE_PATTERNS = [
-    re.compile(
-        r'<img[^>]+src=["\']([^"\']+)["\'][^>]+(?:data-testid|class)=["\'][^"\']*(?:hero|lead|main)[^"\']*["\']',
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r'<img[^>]+(?:data-testid|class)=["\'][^"\']*(?:hero|lead|main)[^"\']*["\'][^>]+src=["\']([^"\']+)["\']',
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r'<source[^>]+srcset=["\']([^"\']+)["\']',
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r'<img[^>]+src=["\']([^"\']+)["\']',
-        re.IGNORECASE,
-    ),
-]
-SKY_IMAGE_HOST_PATTERNS = (
-    "e0.365dm.com",
-    "e1.365dm.com",
-    "e2.365dm.com",
-    "e3.365dm.com",
-    "e4.365dm.com",
-    "e5.365dm.com",
-    "e6.365dm.com",
-    "e7.365dm.com",
-    "e8.365dm.com",
-    "e9.365dm.com",
-    "skysports.com",
+from news_collectors import (
+    fetch_bbc_football_rss,
+    fetch_guardian_premier_league_rss,
+    fetch_rss_source,
+    fetch_sky_sports_football_rss,
+    fetch_sky_sports_premier_league_rss,
+    is_excluded_news_item,
 )
-ARTICLE_BODY_PATTERNS = [
-    re.compile(r'"articleBody":"(.*?)"', re.IGNORECASE | re.DOTALL),
-]
-PARAGRAPH_PATTERNS = [
-    re.compile(r'<p[^>]+data-testid=["\']paragraph["\'][^>]*>(.*?)</p>', re.IGNORECASE | re.DOTALL),
-    re.compile(r'<p[^>]*>(.*?)</p>', re.IGNORECASE | re.DOTALL),
-]
-BOILERPLATE_PATTERNS = [
-    re.compile(r"^BBC Homepage", re.IGNORECASE),
-    re.compile(r"^Skip to content", re.IGNORECASE),
-    re.compile(r"^Accessibility Help", re.IGNORECASE),
-    re.compile(r"^Your account$", re.IGNORECASE),
-    re.compile(r"^Home$", re.IGNORECASE),
-    re.compile(r"^More menu$", re.IGNORECASE),
-    re.compile(r"^Search BBC$", re.IGNORECASE),
-    re.compile(r"^Close menu BBC Sport$", re.IGNORECASE),
-    re.compile(r"^MenuHomeFootball", re.IGNORECASE),
-    re.compile(r"^Full Sports A-Z", re.IGNORECASE),
-    re.compile(r"^More from Sport", re.IGNORECASE),
-    re.compile(r"^News Feeds$", re.IGNORECASE),
-    re.compile(r"^Help & FAQs$", re.IGNORECASE),
-    re.compile(r"^Scores & Fixtures$", re.IGNORECASE),
-    re.compile(r"^Table$", re.IGNORECASE),
-    re.compile(r"^Ask Me Anything$", re.IGNORECASE),
-    re.compile(r"^Image source,", re.IGNORECASE),
-    re.compile(r"^Image caption,", re.IGNORECASE),
-    re.compile(r"^Published\d", re.IGNORECASE),
-    re.compile(r"Comments$", re.IGNORECASE),
-    re.compile(
-        r"reporter\s*Published\s*\d+\s*(?:minutes?|hours?|days?)\s*ago\s*(?:\d+\s*Comments)?",
-        re.IGNORECASE,
-    ),
-    re.compile(r"^Prefer the Guardian on Google$", re.IGNORECASE),
-    re.compile(r"^Continue reading\.\.\.?$", re.IGNORECASE),
-]
-NAV_NOISE_PATTERNS = [
-    re.compile(r"addEventListener\s*\(", re.IGNORECASE),
-    re.compile(r"DOMContentLoaded", re.IGNORECASE),
-    re.compile(r"The Guardian - Back to home", re.IGNORECASE),
-    re.compile(r"USUS edition|UK edition|Australia edition|Europe edition|International edition", re.IGNORECASE),
-    re.compile(r"Show moreHide expanded menu", re.IGNORECASE),
-    re.compile(r"Search input", re.IGNORECASE),
-    re.compile(r"View all News|View all Opinion|View all Sport|View all Culture|View all Lifestyle", re.IGNORECASE),
-    re.compile(r"login\s*/\s*sign up", re.IGNORECASE),
-    re.compile(r'"\s*@context\s*"\s*:\s*"http://schema\.org"', re.IGNORECASE),
-    re.compile(r'"@type"\s*:\s*"imageobject"', re.IGNORECASE),
-    re.compile(r"(?:(?:shop|tickets|news|matches|tv|teams)\s*){4,}", re.IGNORECASE),
-]
-STRUCTURED_DATA_PATTERNS = [
-    re.compile(r"\{[^{}]*\"@context\"\s*:\s*\"http://schema\.org\"[^{}]*\}", re.IGNORECASE | re.DOTALL),
-    re.compile(r"\{[^{}]*\"@type\"\s*:\s*\"ImageObject\"[^{}]*\}", re.IGNORECASE | re.DOTALL),
-]
-EXCLUDED_NEWS_PATTERNS = [
-    re.compile(r"\bwomen(?:'s|s)?\b", re.IGNORECASE),
-    re.compile(r"\bwsl\b", re.IGNORECASE),
-    re.compile(r"\buwcl\b", re.IGNORECASE),
-    re.compile(r"\blionesses\b", re.IGNORECASE),
-    re.compile(r"\bunder[\s-]?21s?\b", re.IGNORECASE),
-    re.compile(r"\bu[\s-]?21s?\b", re.IGNORECASE),
-    re.compile(r"\bunder[\s-]?(?:1[0-9]|2[0-3])s?\b", re.IGNORECASE),
-    re.compile(r"\bu[\s-]?(?:1[0-9]|2[0-3])s?\b", re.IGNORECASE),
-    re.compile(r"\bpl2\b", re.IGNORECASE),
-    re.compile(r"\bpremier league 2\b", re.IGNORECASE),
-    re.compile(r"\bacademy\b", re.IGNORECASE),
-    re.compile(r"\bdevelopment squad\b", re.IGNORECASE),
-    re.compile(r"\byouth team\b", re.IGNORECASE),
-    re.compile(r"\bjunior\b", re.IGNORECASE),
-    re.compile(r"\bretail\b", re.IGNORECASE),
-    re.compile(r"\bclub shop\b", re.IGNORECASE),
-    re.compile(r"\bshop\b", re.IGNORECASE),
-    re.compile(r"\bstore\b", re.IGNORECASE),
-    re.compile(r"\bmerch(?:andise)?\b", re.IGNORECASE),
-    re.compile(r"\bseason tickets?\b", re.IGNORECASE),
-    re.compile(r"\bmembership\b", re.IGNORECASE),
-    re.compile(r"\bhospitality\b", re.IGNORECASE),
-    re.compile(r"\bstadium tour\b", re.IGNORECASE),
-    re.compile(r"\bavailable now\b", re.IGNORECASE),
-    re.compile(r"\btv information\b", re.IGNORECASE),
-    re.compile(r"\bhow to follow\b", re.IGNORECASE),
-    re.compile(r"\bhow to watch\b", re.IGNORECASE),
-    re.compile(r"\bwatch live\b", re.IGNORECASE),
-    re.compile(r"\blisten live\b", re.IGNORECASE),
-    re.compile(r"\bfollow live\b", re.IGNORECASE),
-    re.compile(r"\bradio & tv channel\b", re.IGNORECASE),
-    re.compile(r"\bmatchday audio\b", re.IGNORECASE),
-    re.compile(r"\bdaily knowledge\b", re.IGNORECASE),
-    re.compile(r"\bfootball daily\b", re.IGNORECASE),
-    re.compile(r"\bticket info(?:rmation)?\b", re.IGNORECASE),
-    re.compile(r"\btickets? on sale\b", re.IGNORECASE),
-    re.compile(r"\baway ticket\b", re.IGNORECASE),
-    re.compile(r"\baway supporters? guide\b", re.IGNORECASE),
-    re.compile(r"\bsupporters? guide\b", re.IGNORECASE),
-    re.compile(r"\bmatchday guide\b", re.IGNORECASE),
-    re.compile(r"\bkey matchday information\b", re.IGNORECASE),
-    re.compile(r"\bofficial matchday guide\b", re.IGNORECASE),
-    re.compile(r"\blancashire fa senior cup\b", re.IGNORECASE),
-    re.compile(r"\b(?:county|senior)\s+cup\b", re.IGNORECASE),
-    re.compile(r"\bpostponed\b", re.IGNORECASE),
-    re.compile(r"\bfixture update\b", re.IGNORECASE),
-    re.compile(r"\bbasketball\b", re.IGNORECASE),
-    re.compile(r"\bboxing\b", re.IGNORECASE),
-    re.compile(r"\bboxing greats?\b", re.IGNORECASE),
-    re.compile(r"\bticket office update\b", re.IGNORECASE),
-    re.compile(r"\bkeeping the faith\b", re.IGNORECASE),
-    re.compile(r"\bvideo vault\b", re.IGNORECASE),
-    re.compile(r"\binside the mind of\b", re.IGNORECASE),
-    re.compile(r"\blitter picking\b", re.IGNORECASE),
-    re.compile(r"\bi hope .* stays\b", re.IGNORECASE),
-    re.compile(r"\blong beyond next season\b", re.IGNORECASE),
-    re.compile(r"\bthings to know if going to\b", re.IGNORECASE),
-    re.compile(r"\bwaiting list open\b", re.IGNORECASE),
-    re.compile(r"\bfoundation\b", re.IGNORECASE),
-    re.compile(r"\bcommunity patron\b", re.IGNORECASE),
-    re.compile(r"\bmascot experience\b", re.IGNORECASE),
-    re.compile(r"\btour de midlands\b", re.IGNORECASE),
-    re.compile(r"/quiz/", re.IGNORECASE),
-    re.compile(r"/sounds/play/", re.IGNORECASE),
-    re.compile(r"/media-audio/", re.IGNORECASE),
-    re.compile(r"/retail[-/]", re.IGNORECASE),
-]
-BYLINE_PATTERN = re.compile(
-    r"^[A-Z][A-Za-z\s'-]+(?:reporter|writer|correspondent|editor)\s*"
-    r"Published\s*\d+\s*(?:minutes?|hours?|days?)\s*ago\s*"
-    r"(?:\d+\s*Comments\s*)?",
-    re.IGNORECASE,
+from news_store import (
+    build_source_title_key,
+    canonical_article_url,
+    get_news_items_by_article_urls,
+    get_news_items_by_content_hashes,
+    get_existing_news_items_for_sources,
+    get_news_item,
+    is_user_hidden,
+    list_follow_up_requests,
+    list_news_queue,
+    mark_news_item,
+    normalize_news_item,
+    upsert_news_items,
+    validate_status_transition,
 )
 
-# Trailing/embedded site chrome that rides along with scraped article text —
-# not part of the article, shouldn't be translated as if it were.
-CONTENT_CHROME_PATTERNS = [
-    re.compile(r"Prefer the Guardian on Google\s*", re.IGNORECASE),
-    re.compile(r"Continue reading\.\.\.\s*", re.IGNORECASE),
-    re.compile(r"Continue reading\s*$", re.IGNORECASE),
-]
-
-BBC_FOOTBALL_SOURCE = {
-    "source_key": "bbc_football_rss",
-    "source_name": "BBC Sport Football",
-    "source_url": "https://feeds.bbci.co.uk/sport/football/rss.xml",
-}
-
-
-
-RSS_CONNECT_TIMEOUT = float(os.getenv("NEWS_RSS_CONNECT_TIMEOUT", "5"))
-RSS_READ_TIMEOUT = float(os.getenv("NEWS_RSS_READ_TIMEOUT", "10"))
-RSS_TIMEOUT = (RSS_CONNECT_TIMEOUT, RSS_READ_TIMEOUT)
-RSS_MAX_ITEMS_CORE = int(os.getenv("NEWS_RSS_MAX_ITEMS_CORE", "12"))
-RSS_MAX_ITEMS_CLUB = int(os.getenv("NEWS_RSS_MAX_ITEMS_CLUB", "6"))
-NEWS_ENRICH_MAX_WORKERS = int(os.getenv("NEWS_ENRICH_MAX_WORKERS", "2"))
-NEWS_ARTICLE_TIMEOUT = (float(os.getenv("NEWS_ARTICLE_CONNECT_TIMEOUT", "5")), float(os.getenv("NEWS_ARTICLE_READ_TIMEOUT", "10")))
-NEWS_IMAGE_VALIDATE_TIMEOUT = (
-    float(os.getenv("NEWS_IMAGE_VALIDATE_CONNECT_TIMEOUT", "3")),
-    float(os.getenv("NEWS_IMAGE_VALIDATE_READ_TIMEOUT", "5")),
+from telegram_limits import (
+    TELEGRAM_CAPTION_LIMIT,
+    TELEGRAM_NEWS_CAPTION_TARGET,
+    TELEGRAM_NEWS_MAX_LINES,
+    compact_news_caption,
+    telegram_limit_status,
 )
-NEWS_ARTICLE_MAX_BYTES = int(os.getenv("NEWS_ARTICLE_MAX_BYTES", str(1_200_000)))
-NEWS_ARTICLE_CHUNK_SIZE = int(os.getenv("NEWS_ARTICLE_CHUNK_SIZE", str(64 * 1024)))
 
-GUARDIAN_PREMIER_LEAGUE_SOURCE = {
-    "source_key": "guardian_premier_league_rss",
-    "source_name": "The Guardian Premier League",
-    "source_url": "https://www.theguardian.com/football/premierleague/rss",
+WATERMARK_MARGIN_RATIO = 0.04
+WATERMARK_WIDTH_RATIO = 0.108
+WATERMARK_MAX_WIDTH = 320
+WATERMARK_MIN_WIDTH = 120
+WATERMARK_BG_ALPHA = int(os.getenv("WATERMARK_BG_ALPHA", "96"))
+WATERMARK_BG_PADDING = int(os.getenv("WATERMARK_BG_PADDING", "10"))
+WATERMARK_BG_RADIUS = int(os.getenv("WATERMARK_BG_RADIUS", "8"))
+NEWS_IMAGE_MAX_BYTES = int(os.getenv("NEWS_IMAGE_MAX_BYTES", str(8 * 1024 * 1024)))
+NEWS_IMAGE_MAX_PIXELS = int(os.getenv("NEWS_IMAGE_MAX_PIXELS", str(40_000_000)))
+NEWS_IMAGE_TIMEOUT = (8, 20)
+NEWS_IMAGE_CHUNK_SIZE = 64 * 1024
+NEWS_FETCH_MAX_WORKERS = int(os.getenv("NEWS_FETCH_MAX_WORKERS", "2"))
+MIN_NEWS_COPY_LENGTH = int(os.getenv("NEWS_MIN_COPY_LENGTH", "40"))
+WATERMARK_ASSET_CANDIDATES = (
+    "6a8.svg",
+)
+
+TEAM_TAG_LABELS = {
+    "club:arsenal": "Arsenal",
+    "club:aston_villa": "AstonVilla",
+    "club:bournemouth": "Bournemouth",
+    "club:brentford": "Brentford",
+    "club:brighton": "Brighton",
+    "club:burnley": "Burnley",
+    "club:chelsea": "Chelsea",
+    "club:crystal_palace": "CrystalPalace",
+    "club:everton": "Everton",
+    "club:fulham": "Fulham",
+    "club:leeds": "LeedsUnited",
+    "club:liverpool": "Liverpool",
+    "club:man_city": "ManchesterCity",
+    "club:man_utd": "ManchesterUnited",
+    "club:newcastle": "NewcastleUnited",
+    "club:nottingham_forest": "NottinghamForest",
+    "club:spurs": "Tottenham",
+    "club:sunderland": "Sunderland",
+    "club:west_ham": "WestHam",
+    "club:wolves": "Wolves",
 }
 
-SKY_SPORTS_PREMIER_LEAGUE_SOURCE = {
-    "source_key": "sky_sports_premier_league_rss",
-    "source_name": "Sky Sports Premier League",
-    "source_url": "https://www.skysports.com/rss/11661",
+TEAM_TAG_CODES = {
+    "club:arsenal": "ars",
+    "club:aston_villa": "avl",
+    "club:bournemouth": "bou",
+    "club:brentford": "bre",
+    "club:brighton": "bha",
+    "club:burnley": "bur",
+    "club:chelsea": "che",
+    "club:crystal_palace": "cry",
+    "club:everton": "eve",
+    "club:fulham": "ful",
+    "club:leeds": "lee",
+    "club:liverpool": "liv",
+    "club:man_city": "mci",
+    "club:man_utd": "manu",
+    "club:newcastle": "new",
+    "club:nottingham_forest": "nfo",
+    "club:spurs": "tot",
+    "club:sunderland": "sun",
+    "club:west_ham": "whu",
+    "club:wolves": "wol",
 }
 
-SKY_SPORTS_FOOTBALL_SOURCE = {
-    "source_key": "sky_sports_football_rss",
-    "source_name": "Sky Sports Football",
-    "source_url": "https://www.skysports.com/rss/11095",
+UPDATE_TAG_LABELS = {
+    "topic:injury": "InjuryUpdate",
+    "topic:transfer": "TransferUpdate",
+    "topic:manager": "ManagerUpdate",
+    "topic:official": "OfficialUpdate",
+    "topic:preview": "MatchPreview",
+    "topic:result": "MatchUpdate",
+    "topic:gossip": "TransferTalk",
+    "format:lineup_update": "LineupUpdate",
+    "format:pre_match": "MatchPreview",
+    "format:post_match": "MatchUpdate",
+    "fact:injury_update": "InjuryUpdate",
+    "fact:scorers": "MatchUpdate",
+    "fact:final_score": "MatchUpdate",
 }
 
-PREMIER_LEAGUE_CLUB_RSS_SOURCES = [
-    {"source_key": "club_arsenal_rss", "source_name": "Arsenal", "source_url": "https://www.arsenal.com/rss.xml"},
-    {"source_key": "club_bournemouth_rss", "source_name": "Bournemouth", "source_url": "https://www.afcb.co.uk/rss.xml"},
-    {"source_key": "club_brighton_rss", "source_name": "Brighton", "source_url": "https://www.brightonandhovealbion.com/rss"},
-    {"source_key": "club_burnley_rss", "source_name": "Burnley", "source_url": "https://www.burnleyfootballclub.com/rss.xml"},
-    {"source_key": "club_crystal_palace_rss", "source_name": "Crystal Palace", "source_url": "https://www.cpfc.co.uk/rss.xml"},
-    {"source_key": "club_everton_rss", "source_name": "Everton", "source_url": "https://www.evertonfc.com/rss.xml"},
-    {"source_key": "club_fulham_rss", "source_name": "Fulham", "source_url": "https://www.fulhamfc.com/rss.xml"},
-    {"source_key": "club_manchester_united_rss", "source_name": "Manchester United", "source_url": "https://www.manutd.com/rss"},
-    {"source_key": "club_sunderland_rss", "source_name": "Sunderland", "source_url": "https://www.safc.com/rss.xml"},
-    {"source_key": "club_wolves_rss", "source_name": "Wolves", "source_url": "https://www.wolves.co.uk/news/rss"},
-]
+PLAYER_NAME_PATTERN = re.compile(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\b")
+PLAYER_NAME_EXCLUSIONS = {
+    "Premier League",
+    "UEFA Champions League",
+    "UEFA Europa League",
+    "UEFA Conference League",
+    "Aston Villa",
+    "Nottingham Forest",
+    "Crystal Palace",
+    "Manchester City",
+    "Manchester United",
+    "Newcastle United",
+    "Tottenham Hotspur",
+    "West Ham",
+    "Sky Sports",
+    "BBC Sport",
+    "The Guardian",
+}
 
 
-def extract_tag_values(item_element):
+def resolve_watermark_asset():
+    base_path = Path(__file__).resolve().parent
+    for filename in WATERMARK_ASSET_CANDIDATES:
+        candidate = base_path / filename
+        if candidate.exists():
+            return candidate
+    raise FileNotFoundError(
+        "Watermark asset not found. Checked: "
+        + ", ".join(str(Path(__file__).resolve().parent / name) for name in WATERMARK_ASSET_CANDIDATES)
+    )
+
+
+def load_watermark_image(asset_path):
+    if asset_path.suffix.lower() == ".svg":
+        try:
+            import cairosvg
+        except Exception:
+            for fallback_name in WATERMARK_ASSET_CANDIDATES:
+                if fallback_name.endswith(".svg"):
+                    continue
+                fallback_path = Path(__file__).resolve().parent / fallback_name
+                if fallback_path.exists():
+                    with Image.open(fallback_path) as fallback_image:
+                        return fallback_image.convert("RGBA")
+            raise RuntimeError(
+                "SVG watermark found but cairosvg is not installed and no raster fallback is available."
+            )
+
+        rendered_png = cairosvg.svg2png(url=str(asset_path))
+        with Image.open(BytesIO(rendered_png)) as watermark_image:
+            return watermark_image.convert("RGBA")
+
+    with Image.open(asset_path) as watermark_image:
+        return watermark_image.convert("RGBA")
+
+
+def escape_telegram_markdown(text):
+    return re.sub(r"([_*\\[\\]()~`>#+\\-=|{}.!])", r"\\\1", text or "")
+
+
+def truncate_caption_body(text, max_length):
+    if len(text) <= max_length:
+        return text
+    if max_length <= 1:
+        return text[:max_length]
+    return text[: max_length - 1].rstrip() + "…"
+
+
+def _slug_hashtag(label):
+    cleaned = re.sub(r"[^A-Za-z0-9]+", " ", label or "").strip()
+    if not cleaned:
+        return ""
+    parts = cleaned.split()
+    return "#" + "".join(part[:1].upper() + part[1:] for part in parts if part)
+
+
+def _ordered_unique(values):
+    seen = set()
+    ordered = []
+    for value in values:
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        ordered.append(value)
+    return ordered
+
+
+def _extract_league_hashtags(item):
+    topic_tags = item.get("topic_tags") or []
+    haystack = " ".join(
+        [
+            item.get("title") or "",
+            item.get("summary") or "",
+            item.get("story") or "",
+        ]
+    )
     tags = []
-    for category in item_element.findall("category"):
-        value = (category.text or "").strip()
-        if not value:
-            value = (category.get("term") or "").strip()
-        if value:
-            tags.append(value)
-    for category in item_element.findall("atom:category", RSS_NS):
-        value = (category.get("term") or "").strip() or (category.text or "").strip()
-        if value:
-            tags.append(value)
+    if "competition:premier_league" in topic_tags or re.search(r"\bpremier league\b", haystack, re.IGNORECASE):
+        tags.append("#PremierLeague")
+    if "competition:world_cup" in topic_tags or re.search(r"\bfifa world cup\b|\bworld cup\b|\bworld cup qualifiers?\b", haystack, re.IGNORECASE):
+        tags.append("#WorldCup")
+    if re.search(r"\buefa champions league\b|\bchampions league\b", haystack, re.IGNORECASE):
+        tags.append("#ChampionsLeague")
+    if re.search(r"\buefa europa league\b|\beuropa league\b", haystack, re.IGNORECASE):
+        tags.append("#EuropaLeague")
+    if re.search(r"\buefa conference league\b|\bconference league\b", haystack, re.IGNORECASE):
+        tags.append("#ConferenceLeague")
+    return _ordered_unique(tags)
+
+
+def _extract_team_hashtags(item):
+    topic_tags = item.get("topic_tags") or []
+    club_tags = [topic_tag for topic_tag in topic_tags if topic_tag in TEAM_TAG_LABELS]
+    tags = []
+
+    if len(club_tags) >= 2:
+        home_code = TEAM_TAG_CODES.get(club_tags[0])
+        away_code = TEAM_TAG_CODES.get(club_tags[1])
+        if home_code and away_code:
+            tags.append(f"#{home_code}vs{away_code}")
+
+    for topic_tag in club_tags:
+        label = TEAM_TAG_LABELS.get(topic_tag)
+        if label:
+            tags.append(_slug_hashtag(label))
+    return _ordered_unique(tags)
+
+
+def _extract_player_hashtags(item, max_players=3):
+    raw_payload = item.get("raw_payload") or {}
+    match_meta = raw_payload.get("match_metadata") or {}
+    candidates = []
+
+    for scorer in match_meta.get("scorers") or []:
+        player = (scorer.get("player") or "").strip()
+        if player:
+            candidates.append(player)
+
+    source_text = " ".join(
+        [
+            item.get("title") or "",
+            item.get("summary") or "",
+            item.get("story") or "",
+        ]
+    )
+    for player_name in PLAYER_NAME_PATTERN.findall(source_text):
+        if player_name in PLAYER_NAME_EXCLUSIONS:
+            continue
+        candidates.append(player_name)
+
+    tags = []
+    for player_name in _ordered_unique(candidates):
+        hashtag = _slug_hashtag(player_name)
+        if hashtag and hashtag not in tags:
+            tags.append(hashtag)
+        if len(tags) >= max_players:
+            break
     return tags
 
 
-def element_text(element):
-    if element is None:
-        return ""
-    text = "".join(element.itertext())
-    return (text or "").strip()
-
-
-def get_text_candidates(item_element, paths):
-    values = []
-    for path in paths:
-        node = item_element.find(path, RSS_NS)
-        if node is not None:
-            raw = element_text(node)
-            if raw:
-                values.append(raw)
-        direct = (item_element.findtext(path, default="", namespaces=RSS_NS) or "").strip()
-        if direct:
-            values.append(direct)
-    return values
-
-
-def normalize_text_candidate(value):
-    return strip_html(value)
-
-
-def extract_entry_link(item_element):
-    direct_link = (item_element.findtext("link") or "").strip()
-    if direct_link:
-        return direct_link
-
-    atom_link = item_element.find("atom:link", RSS_NS)
-    if atom_link is None:
-        atom_link = item_element.find("link")
-    if atom_link is not None:
-        href = (atom_link.get("href") or "").strip()
-        if href:
-            return href
-    return ""
-
-
-def extract_entry_author(item_element):
-    candidates = get_text_candidates(
-        item_element,
-        [
-            "author",
-            "dc:creator",
-            "{http://purl.org/dc/elements/1.1/}creator",
-            "atom:author/atom:name",
-            "author/name",
-        ],
-    )
-    for candidate in candidates:
-        normalized = normalize_text_candidate(candidate)
-        if normalized:
-            return normalized
-    return None
-
-
-def extract_summary_and_story(item_element):
-    summary_candidates = get_text_candidates(
-        item_element,
-        [
-            "description",
-            "summary",
-            "atom:summary",
-            "media:description",
-        ],
-    )
-    content_candidates = get_text_candidates(
-        item_element,
-        [
-            "content:encoded",
-            "{http://purl.org/rss/1.0/modules/content/}encoded",
-            "content",
-            "atom:content",
-        ],
-    )
-
-    summary = None
-    for candidate in summary_candidates:
-        cleaned = normalize_text_candidate(candidate)
-        if is_navigation_or_script_noise(cleaned):
-            continue
-        if cleaned:
-            summary = cleaned
-            break
-
-    story = None
-    for candidate in content_candidates:
-        cleaned = normalize_text_candidate(candidate)
-        if is_navigation_or_script_noise(cleaned):
-            continue
-        if cleaned:
-            story = cleaned
-            break
-
-    if not summary and story:
-        summary = story
-    if summary and story and story == summary:
-        story = None
-    return summary or "", story
-
-
-def extract_image_url(item_element):
-    candidates = []
-    base_url = extract_entry_link(item_element) or ""
-    for node in item_element.findall("media:content", MEDIA_NS):
-        url = (node.get("url") or "").strip()
-        if not url:
-            continue
-        width = node.get("width")
-        try:
-            width_value = int(width) if width else 0
-        except (TypeError, ValueError):
-            width_value = 0
-        candidates.append((width_value, url))
-
-    for node in item_element.findall("media:thumbnail", MEDIA_NS):
-        url = (node.get("url") or "").strip()
-        if not url:
-            continue
-        width = node.get("width")
-        try:
-            width_value = int(width) if width else 0
-        except (TypeError, ValueError):
-            width_value = 0
-        candidates.append((width_value, url))
-
-    enclosure = item_element.find("enclosure")
-    if enclosure is not None and enclosure.get("type", "").startswith("image/") and enclosure.get("url"):
-        candidates.append((0, enclosure.get("url").strip()))
-
-    html_candidates = get_text_candidates(
-        item_element,
-        [
-            "description",
-            "summary",
-            "atom:summary",
-            "content:encoded",
-            "{http://purl.org/rss/1.0/modules/content/}encoded",
-            "content",
-            "atom:content",
-        ],
-    )
-    for html_candidate in html_candidates:
-        for pattern in ARTICLE_IMAGE_PATTERNS:
-            match = pattern.search(html_candidate)
-            if not match:
-                continue
-            if "srcset" in pattern.pattern:
-                image_url = choose_best_srcset_url(match.group(1), base_url)
-            else:
-                raw_value = (match.group(1) or "").strip().split()[0]
-                image_url = clean_image_url(raw_value, base_url)
-            if image_url:
-                candidates.append((0, image_url))
-                break
-
-    if not candidates:
-        return None
-    candidates.sort(key=lambda row: row[0], reverse=True)
-    return candidates[0][1]
-
-
-def srcset_candidates(value, base_url):
-    candidates = []
-    if not value:
-        return candidates
-
-    for raw_candidate in html.unescape(value).split(","):
-        parts = raw_candidate.strip().split()
-        if not parts:
-            continue
-        image_url = clean_image_url(parts[0], base_url)
-        if not image_url:
-            continue
-
-        width = 0
-        if len(parts) > 1:
-            descriptor = parts[1].strip().lower()
-            if descriptor.endswith("w"):
-                try:
-                    width = int(descriptor[:-1])
-                except ValueError:
-                    width = 0
-            elif descriptor.endswith("x"):
-                try:
-                    width = int(float(descriptor[:-1]) * 1000)
-                except ValueError:
-                    width = 0
-
-        if not width:
-            size_match = re.search(r"/(\d{2,4})x(\d{2,4})/", urlparse(image_url).path or "")
-            if size_match:
-                width = int(size_match.group(1))
-        candidates.append((width, image_url))
-    return candidates
-
-
-def choose_best_srcset_url(value, base_url):
-    candidates = srcset_candidates(value, base_url)
-    if not candidates:
-        return None
-    candidates.sort(key=lambda row: row[0], reverse=True)
-    return candidates[0][1]
-
-
-def clean_image_url(value, base_url):
-    if not value:
-        return None
-    value = html.unescape(value).strip()
-    if not value:
-        return None
-    return urljoin(base_url, value)
-
-
-def is_sky_image_url(url):
-    host = (urlparse(url).netloc or "").lower()
-    return any(pattern in host for pattern in SKY_IMAGE_HOST_PATTERNS)
-
-
-def image_url_is_reachable(url, session):
-    if not url:
-        return False
-    try:
-        response = session.head(url, timeout=NEWS_IMAGE_VALIDATE_TIMEOUT, allow_redirects=True)
-        content_type = (response.headers.get("Content-Type") or "").lower()
-        if response.ok and content_type.startswith("image/"):
-            return True
-        if response.status_code not in {403, 405} and content_type and not content_type.startswith("image/"):
-            return False
-    except requests.RequestException:
-        pass
-
-    try:
-        response = session.get(url, timeout=NEWS_IMAGE_VALIDATE_TIMEOUT, stream=True)
-        content_type = (response.headers.get("Content-Type") or "").lower()
-        ok = response.ok and content_type.startswith("image/")
-        response.close()
-        return ok
-    except requests.RequestException:
-        return False
-
-
-def validated_image_url(url, session):
-    if not url:
-        return None
-    return url if image_url_is_reachable(url, session) else None
-
-
-def upscale_image_url(url):
-    if not url:
-        return url
-
-    parsed = urlparse(url)
-    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
-    host = (parsed.netloc or "").lower()
-    path = parsed.path or ""
-
-    # Guardian/Source images often expose size via query params.
-    if "guim.co.uk" in host or "guardian" in host:
-        for key in ("width", "w", "fit"):
-            if key in query:
-                query.pop(key, None)
-        query["width"] = "1200"
-        query["quality"] = query.get("quality", "85")
-        return urlunparse(parsed._replace(query=urlencode(query)))
-
-    # Sky image URLs expose fixed generated folder sizes. Rewriting them to
-    # arbitrary 1200x800 paths often creates URLs that do not exist.
-    if is_sky_image_url(url):
-        return url
-
-    # Generic thumbnail path upsizing (e.g. .../300x200/... -> .../1200x800/...)
-    bigger = re.sub(r"/(\d{2,4})x(\d{2,4})/", "/1200x800/", path)
-    if bigger != path:
-        return urlunparse(parsed._replace(path=bigger))
-
-    return url
-
-
-def strip_html(value):
-    cleaned = value or ""
-    cleaned = re.sub(r"(?is)<(script|style|noscript)[^>]*>.*?</\1>", " ", cleaned)
-    for pattern in STRUCTURED_DATA_PATTERNS:
-        cleaned = pattern.sub(" ", cleaned)
-    cleaned = re.sub(r"<[^>]+>", "", cleaned)
-    cleaned = html.unescape(cleaned)
-    cleaned = cleaned.replace("\\n", "\n").replace("\\\"", '"')
-    return re.sub(r"\s+", " ", cleaned).strip()
-
-
-def is_boilerplate_paragraph(paragraph):
-    if not paragraph:
-        return True
-    if len(paragraph) < 40:
-        return True
-    return any(pattern.search(paragraph) for pattern in BOILERPLATE_PATTERNS)
-
-
-def dedupe_story_blocks(blocks):
-    unique_blocks = []
-    seen_normalized = set()
-    for block in blocks:
-        normalized = re.sub(r"\s+", " ", block).strip().lower()
-        if not normalized or normalized in seen_normalized:
-            continue
-        seen_normalized.add(normalized)
-        unique_blocks.append(block)
-
-    if len(unique_blocks) >= 2 and len(unique_blocks) % 2 == 0:
-        midpoint = len(unique_blocks) // 2
-        if unique_blocks[:midpoint] == unique_blocks[midpoint:]:
-            return unique_blocks[:midpoint]
-
-    return unique_blocks
-
-
-def normalize_space(value):
-    return re.sub(r"\s+", " ", value or "").strip()
-
-
-def is_navigation_or_script_noise(text):
-    content = normalize_space(text)
-    if not content:
-        return True
-    matches = sum(1 for pattern in NAV_NOISE_PATTERNS if pattern.search(content))
-    return matches >= 2
-
-
-def is_excluded_news_item(item):
-    title = item.get("title") or ""
-    summary = item.get("summary") or ""
-    story = item.get("story") or ""
-    article_url = item.get("article_url") or ""
+def _extract_update_hashtags(item):
     topic_tags = item.get("topic_tags") or []
-    tags_text = " ".join(str(tag) for tag in topic_tags)
-    corpus = " ".join([title, summary, story, article_url, tags_text])
-    return any(pattern.search(corpus) for pattern in EXCLUDED_NEWS_PATTERNS)
+    tags = []
+    for topic_tag in topic_tags:
+        label = UPDATE_TAG_LABELS.get(topic_tag)
+        if label:
+            tags.append(_slug_hashtag(label))
+    return _ordered_unique(tags)
 
 
-def clean_story_text(story, title=None, summary=None):
-    if not story:
-        return None
-
-    story = normalize_space(story)
-    for prefix in (title, summary):
-        normalized_prefix = normalize_space(prefix)
-        if normalized_prefix and story.startswith(normalized_prefix):
-            story = story[len(normalized_prefix):].strip(" :-")
-
-    story = BYLINE_PATTERN.sub("", story).strip()
-    for pattern in CONTENT_CHROME_PATTERNS:
-        story = pattern.sub("", story).strip()
-    story = re.sub(r"\s+", " ", story).strip()
-    for pattern in STRUCTURED_DATA_PATTERNS:
-        story = pattern.sub(" ", story).strip()
-    if is_navigation_or_script_noise(story):
-        return None
-    return story or None
+def _build_news_hashtag_block(item):
+    hashtags = []
+    hashtags.extend(_extract_league_hashtags(item))
+    hashtags.extend(_extract_team_hashtags(item))
+    hashtags.extend(_extract_player_hashtags(item))
+    hashtags.extend(_extract_update_hashtags(item))
+    hashtags = _ordered_unique(hashtags)
+    return " ".join(hashtags)
 
 
-def fetch_article_html(article_url, session):
+def build_watermark_overlay(width, height):
+    watermark_asset_path = resolve_watermark_asset()
+
+    overlay = Image.new("RGBA", (width, height), (255, 255, 255, 0))
+    margin = max(24, int(width * WATERMARK_MARGIN_RATIO))
+    watermark = load_watermark_image(watermark_asset_path)
+
+    target_width = min(max(int(width * WATERMARK_WIDTH_RATIO), WATERMARK_MIN_WIDTH), WATERMARK_MAX_WIDTH)
+    scale = target_width / watermark.width
+    target_height = max(1, int(watermark.height * scale))
+    watermark = watermark.resize((target_width, target_height), Image.LANCZOS)
+
+    x = width - target_width - margin
+    y = margin
+
+    # Improve contrast for light watermarks over bright source images.
+    bg_x0 = x - WATERMARK_BG_PADDING
+    bg_y0 = y - WATERMARK_BG_PADDING
+    bg_x1 = x + target_width + WATERMARK_BG_PADDING
+    bg_y1 = y + target_height + WATERMARK_BG_PADDING
+    draw = ImageDraw.Draw(overlay)
+    # Draw the background rounded rectangle for the watermark
+    draw.rounded_rectangle(
+        (bg_x0, bg_y0, bg_x1, bg_y1),
+        radius=WATERMARK_BG_RADIUS,
+        fill=(0, 0, 0, max(0, min(255, WATERMARK_BG_ALPHA))),
+    )
+    # Use paste with the watermark itself as the mask to preserve transparency
+    overlay.paste(watermark, (x, y), watermark)
+    return overlay
+
+
+def create_watermarked_image(image_url):
+    response = requests.get(image_url, timeout=NEWS_IMAGE_TIMEOUT, stream=True)
+    response.raise_for_status()
+
+    content_type = (response.headers.get("Content-Type") or "").lower()
+    if not content_type.startswith("image/"):
+        raise ValueError(f"Unsupported content type for image: {content_type or 'unknown'}")
+
+    content_length = response.headers.get("Content-Length")
+    if content_length:
+        try:
+            parsed_length = int(content_length)
+        except (TypeError, ValueError):
+            parsed_length = None
+        if parsed_length and parsed_length > NEWS_IMAGE_MAX_BYTES:
+            raise ValueError("Image is too large to process.")
+
+    image_bytes = bytearray()
     try:
-        response = session.get(article_url, timeout=NEWS_ARTICLE_TIMEOUT, stream=True)
-        response.raise_for_status()
-        content_type = (response.headers.get("Content-Type") or "").lower()
-        if content_type and "text/html" not in content_type:
-            response.close()
-            return None, article_url
-        body = bytearray()
-        for chunk in response.iter_content(chunk_size=NEWS_ARTICLE_CHUNK_SIZE):
+        for chunk in response.iter_content(chunk_size=NEWS_IMAGE_CHUNK_SIZE):
             if not chunk:
                 continue
-            body.extend(chunk)
-            if len(body) >= NEWS_ARTICLE_MAX_BYTES:
-                break
+            image_bytes.extend(chunk)
+            if len(image_bytes) > NEWS_IMAGE_MAX_BYTES:
+                raise ValueError("Image is too large to process.")
+    finally:
         response.close()
-    except requests.RequestException:
-        return None, article_url
-    return body.decode(response.encoding or "utf-8", errors="ignore"), response.url
+
+    with Image.open(BytesIO(bytes(image_bytes))) as original:
+        width, height = original.size
+        if width <= 0 or height <= 0:
+            raise ValueError("Invalid image dimensions.")
+        if width * height > NEWS_IMAGE_MAX_PIXELS:
+            raise ValueError("Image dimensions are too large to process.")
+        base = original.convert("RGBA")
+
+    overlay = build_watermark_overlay(*base.size)
+    watermarked = Image.alpha_composite(base, overlay).convert("RGB")
+
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+    temp_path = Path(temp_file.name)
+    temp_file.close()
+    watermarked.save(temp_path, format="JPEG", quality=92, optimize=True)
+    return temp_path
 
 
-def extract_article_image_url(body, base_url):
-    if not body:
-        return None
+def format_news_broadcast(item):
+    # 1. Determine Category Emoji
+    topic_tags = item.get("topic_tags") or []
+    category_emoji = "📰" # Default
+    if "topic:transfer" in topic_tags: category_emoji = "✍️"
+    elif "topic:injury" in topic_tags: category_emoji = "🏥"
+    elif "topic:official" in topic_tags: category_emoji = "🚨"
+    elif "topic:gossip" in topic_tags: category_emoji = "📉"
+    elif "format:lineup_update" in topic_tags: category_emoji = "📋"
 
-    for pattern in IMAGE_META_PATTERNS:
-        match = pattern.search(body)
-        if match:
-            return clean_image_url(match.group(1), base_url)
-
-    for pattern in ARTICLE_IMAGE_PATTERNS:
-        match = pattern.search(body)
-        if match:
-            if "srcset" in pattern.pattern:
-                return choose_best_srcset_url(match.group(1), base_url)
-            return clean_image_url(match.group(1), base_url)
-
-    return None
-
-
-def extract_article_story(body, title=None, summary=None):
-    if not body:
-        return None
-
-    for pattern in ARTICLE_BODY_PATTERNS:
-        match = pattern.search(body)
-        if match:
-            story = clean_story_text(
-                strip_html(match.group(1)),
-                title=title,
-                summary=summary,
-            )
-            if story and len(story) > 120 and not is_boilerplate_paragraph(story):
-                return story
-
-    paragraphs = []
-    for pattern in PARAGRAPH_PATTERNS:
-        matches = pattern.findall(body)
-        for raw_paragraph in matches:
-            paragraph = strip_html(raw_paragraph)
-            if is_boilerplate_paragraph(paragraph):
-                continue
-            if is_navigation_or_script_noise(paragraph):
-                continue
-            if paragraph not in paragraphs:
-                paragraphs.append(paragraph)
-        if len(paragraphs) >= 3:
-            break
-
-    paragraphs = dedupe_story_blocks(paragraphs)
-    if paragraphs:
-        return clean_story_text(
-            "\n\n".join(paragraphs[:5]),
-            title=title,
-            summary=summary,
-        )
-
-    return None
-
-
-def enrich_item_image(item, session):
-    article_url = item.get("article_url")
-    if not article_url:
-        return item
-
-    body, resolved_url = fetch_article_html(article_url, session)
-    article_image_url = extract_article_image_url(body, resolved_url)
-    if article_image_url:
-        item["image_url"] = upscale_image_url(article_image_url)
-    elif item.get("image_url"):
-        item["image_url"] = upscale_image_url(item["image_url"])
-    item["image_url"] = validated_image_url(item.get("image_url"), session)
-    story = extract_article_story(
-        body,
-        title=item.get("title"),
-        summary=item.get("summary"),
-    )
+    raw_title = item.get("translated_title_am") or ""
+    title = f"*{category_emoji} {escape_telegram_markdown(raw_title)}*" if raw_title else ""
+    
+    # The story now contains [Highlight] \n\n [Story] from mark_review_item
+    story_content = item.get("translated_story_am") or ""
+    
+    # Split highlight and story if they were combined
+    parts = story_content.split("\n\n", 1)
+    highlight = parts[0] if len(parts) > 1 else ""
+    story = parts[1] if len(parts) > 1 else story_content
+    
+    image_url = item.get("image_url") or ""
+    source_name = escape_telegram_markdown(item.get("source_name") or "")
+    source_line = f"Source: {source_name}" if source_name else ""
+    hashtag_block = _build_news_hashtag_block(item)
+    
+    lines = []
+    if title:
+        lines.append(title)
+        lines.append("━━━━━━━━━━━━━━━━━━━━")
+    
     if story:
-        item["story"] = story
+        lines.append(escape_telegram_markdown(story))
+        
+    if source_line:
+        if lines:
+            lines.append("")
+        lines.append(source_line)
+        
+    if hashtag_block:
+        if lines:
+            lines.append("")
+        lines.append(hashtag_block)
+        
+    caption = "\n".join(lines)
+    
+    # Handle caption limit
+    if len(caption) > TELEGRAM_CAPTION_LIMIT:
+        # Simple truncation for brevity in this implementation
+        caption = caption[:TELEGRAM_CAPTION_LIMIT-3] + "..."
+        
+    caption = compact_news_caption(caption, has_image=bool(image_url))
+    limit_status = telegram_limit_status(
+        caption,
+        has_image=bool(image_url),
+        target=TELEGRAM_NEWS_CAPTION_TARGET if image_url else None,
+        max_lines=TELEGRAM_NEWS_MAX_LINES,
+    )
+    return {
+        "image_url": image_url,
+        "caption": caption,
+        "limit_status": limit_status,
+    }
 
-    return item
 
 
-def _build_rss_items(root, max_items=None):
-    items = []
+def fetch_news_items():
+    attempted_sources = []
+    failed_sources = []
+    collected_batches = []
 
-    entries = root.findall("./channel/item")
-    if not entries:
-        entries = root.findall("./item")
-    if not entries:
-        entries = root.findall("./{http://www.w3.org/2005/Atom}entry")
-    if not entries:
-        entries = root.findall("./entry")
+    base_collectors = [
+        ("bbc", fetch_bbc_football_rss),
+        ("guardian", fetch_guardian_premier_league_rss),
+        ("sky_sports", fetch_sky_sports_premier_league_rss),
+        ("sky_sports_football", fetch_sky_sports_football_rss),
+    ]
 
-    for entry in entries:
-        summary, story = extract_summary_and_story(entry)
-        title_candidates = get_text_candidates(entry, ["title", "atom:title"])
-        published_candidates = get_text_candidates(
-            entry,
-            [
-                "pubDate",
-                "atom:published",
-                "atom:updated",
-                "updated",
-                "dc:date",
-            ],
-        )
-        title = ""
-        for candidate in title_candidates:
-            cleaned = normalize_text_candidate(candidate)
-            if cleaned:
-                title = cleaned
-                break
+    jobs = []
+    for source_name, collector in base_collectors:
+        attempted_sources.append(source_name)
+        jobs.append((source_name, collector))
 
-        item = {
-            "title": title,
-            "summary": summary,
-            "story": story,
-            "article_url": extract_entry_link(entry),
-            "image_url": upscale_image_url(extract_image_url(entry)),
-            "published_at": published_candidates[0] if published_candidates else "",
-            "author": extract_entry_author(entry),
-            "language": "en",
-            "topic_tags": extract_tag_values(entry),
+
+
+    max_workers = max(1, min(NEWS_FETCH_MAX_WORKERS, len(jobs) or 1))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_map = {
+            executor.submit(job_fn): source_name
+            for source_name, job_fn in jobs
         }
-        if is_excluded_news_item(item):
-            continue
-        items.append(item)
-        if max_items and len(items) >= max_items:
-            break
-    return items
+        for future in as_completed(future_map):
+            source_name = future_map[future]
+            try:
+                source, raw_items = future.result()
+                if raw_items:
+                    collected_batches.append((source, raw_items))
+            except Exception as exc:
+                failed_sources.append({"source": source_name, "error": str(exc)})
 
+    if not collected_batches:
+        raise RuntimeError("All news sources failed or returned no items.")
 
-def _fetch_rss_source(source_config, enrich=True, max_items=None):
-    with requests.Session() as session:
-        session.headers.update(
+    source_breakdown = []
+    normalized_items = []
+    fetched_total = 0
+    active_followups = list_follow_up_requests(status="active")
+
+    for source, raw_items in collected_batches:
+        fetched_total += len(raw_items)
+        source_breakdown.append(
             {
-                "User-Agent": (
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0 Safari/537.36"
-                )
+                "source_key": source.get("source_key"),
+                "source_name": source.get("source_name"),
+                "source_url": source.get("source_url"),
+                "fetched_count": len(raw_items),
             }
         )
+        for item in raw_items:
+            title = (item.get("title") or "").strip()
+            article_url = (item.get("article_url") or "").strip()
+            summary = (item.get("summary") or "").strip()
+            story = (item.get("story") or "").strip()
+            best_copy = story if len(story) >= len(summary) else summary
+            if not title or not article_url:
+                continue
+            if is_excluded_news_item(item):
+                continue
+            if len(best_copy) < MIN_NEWS_COPY_LENGTH:
+                continue
+            normalized_items.append(
+                normalize_news_item(
+                    source_key=source["source_key"],
+                    source_name=source["source_name"],
+                    source_url=source["source_url"],
+                    item=item,
+                    followups=active_followups,
+                )
+            )
 
-        response = session.get(source_config["source_url"], timeout=RSS_TIMEOUT)
-        response.raise_for_status()
+    # New fetches only need reviewable items; rejected feed junk should be dropped here.
+    normalized_items = [item for item in normalized_items if item.get("review_status") == "filtered"]
+    
+    bbc_source = next(
+        (row for row in source_breakdown if row.get("source_key") == "bbc_football_rss"),
+        None,
+    )
 
-        root = ET.fromstring(response.content)
-        items = _build_rss_items(root, max_items=max_items)
+    primary_source = bbc_source or (source_breakdown[0] if source_breakdown else {})
 
-        if not enrich or not items:
-            for item in items:
-                item["image_url"] = validated_image_url(item.get("image_url"), session)
-            return source_config, items
-
-        enriched_items = [None] * len(items)
-        max_workers = max(1, min(NEWS_ENRICH_MAX_WORKERS, len(items)))
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {
-                executor.submit(enrich_item_image, item, session): index
-                for index, item in enumerate(items)
-            }
-            for future in as_completed(futures):
-                enriched_items[futures[future]] = future.result()
-
-        return source_config, enriched_items
-
-
-def fetch_bbc_football_rss():
-    return _fetch_rss_source(BBC_FOOTBALL_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
-
-
-
-
-
-def fetch_guardian_premier_league_rss():
-    return _fetch_rss_source(GUARDIAN_PREMIER_LEAGUE_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
-
-
-def fetch_sky_sports_premier_league_rss():
-    return _fetch_rss_source(SKY_SPORTS_PREMIER_LEAGUE_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
-
-
-def fetch_sky_sports_football_rss():
-    return _fetch_rss_source(SKY_SPORTS_FOOTBALL_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
-
-
-def fetch_rss_source(source_config, enrich=False, max_items=None):
-    return _fetch_rss_source(source_config, enrich=enrich, max_items=max_items)
-
-
-def fetch_premier_league_club_rss_feeds():
-    results = []
-    for source_config in PREMIER_LEAGUE_CLUB_RSS_SOURCES:
-        try:
-            results.append(_fetch_rss_source(source_config, enrich=True, max_items=RSS_MAX_ITEMS_CLUB))
-        except Exception:
+    deduped_items = {}
+    for item in normalized_items:
+        canonical_url = canonical_article_url(item.get("article_url"))
+        item.setdefault("raw_payload", {})["canonical_article_url"] = canonical_url
+        dedupe_key = canonical_url or item["content_hash"]
+        existing_item = deduped_items.get(dedupe_key)
+        
+        if not existing_item:
+            deduped_items[dedupe_key] = item
             continue
-    return results
+            
+    existing_items = get_news_items_by_content_hashes(
+        {item.get("content_hash") for item in deduped_items.values()}
+    )
+    existing_urls = get_news_items_by_article_urls(
+        {item.get("article_url") for item in deduped_items.values()}
+    )
+    recent_items = get_existing_news_items_for_sources(
+        {item.get("source_name") for item in deduped_items.values()}
+    )
+    recent_title_keys = set()
+    hidden_title_keys = set()
+    existing_canonical_urls = {
+        canonical_article_url(url)
+        for url in existing_urls
+        if url
+    }
+    for row in recent_items:
+        canonical_url = canonical_article_url(row.get("article_url"))
+        if canonical_url:
+            existing_canonical_urls.add(canonical_url)
+        title_key = build_source_title_key(row.get("source_name"), row.get("title"))
+        if not title_key:
+            continue
+        recent_title_keys.add(title_key)
+        if is_user_hidden(row.get("notes")):
+            hidden_title_keys.add(title_key)
+
+    deduped_items = {
+        dedupe_key: item
+        for dedupe_key, item in deduped_items.items()
+        if item.get("content_hash") not in existing_items
+        and item.get("article_url") not in existing_urls
+        and canonical_article_url(item.get("article_url")) not in existing_canonical_urls
+        and not is_user_hidden((existing_items.get(item.get("content_hash")) or {}).get("notes"))
+        and not is_user_hidden((existing_urls.get(item.get("article_url")) or {}).get("notes"))
+        and build_source_title_key(item.get("source_name"), item.get("title")) not in hidden_title_keys
+        and build_source_title_key(item.get("source_name"), item.get("title")) not in recent_title_keys
+    }
+
+    stored_items = upsert_news_items(list(deduped_items.values()))
+    follow_up_match_count = sum(
+        1
+        for item in deduped_items.values()
+        if ((item.get("raw_payload") or {}).get("follow_up_matches"))
+    )
+    return {
+        "source": {
+            "source_key": primary_source.get("source_key"),
+            "source_name": primary_source.get("source_name"),
+            "source_url": primary_source.get("source_url"),
+        },
+        "source_breakdown": source_breakdown,
+        "attempted_sources": attempted_sources,
+        "failed_sources": failed_sources,
+        "fallback_used": any(
+            row.get("source_key") != "bbc_football_rss"
+            for row in source_breakdown
+        ),
+        "fetched_count": fetched_total,
+        "normalized_count": len(normalized_items),
+        "deduped_count": len(deduped_items),
+        "stored_count": len(stored_items),
+        "active_follow_up_count": len(active_followups),
+        "follow_up_match_count": follow_up_match_count,
+    }
+
+
+def get_review_queue(limit=20):
+    return list_news_queue(statuses=["filtered", "approved", "translated"], limit=limit)
+
+
+def mark_review_item(
+    item_id,
+    status,
+    translated_title_am=None,
+    translated_story_am=None,
+    notes=None,
+    image_url=None,
+    highlight_am=None,
+):
+    status = (status or "").strip().lower()
+    if status != "published":
+        return mark_news_item(
+            item_id=item_id,
+            status=status,
+            translated_title_am=translated_title_am,
+            translated_story_am=translated_story_am,
+            notes=notes,
+            image_url=image_url,
+        )
+    
+    item = get_news_item(item_id)
+    if not item:
+        raise ValueError("News item not found.")
+    if item.get("review_status") == "published":
+        raise ValueError("News item is already published.")
+    validate_status_transition(item.get("review_status"), status)
+    
+    final_title = translated_title_am if translated_title_am is not None else item.get("translated_title_am")
+    final_story = translated_story_am if translated_story_am is not None else item.get("translated_story_am")
+    if not final_title or not final_story:
+        raise ValueError("Publishing requires both an Amharic title and story.")
+    
+    # Combine highlight into story or notes to avoid DB schema changes
+    if highlight_am:
+        final_story = f"{highlight_am}\n\n{final_story}"
+
+    payload = format_news_broadcast({
+        **item,
+        "image_url": image_url if image_url is not None else item.get("image_url"),
+        "translated_title_am": final_title,
+        "translated_story_am": final_story,
+    })
+    sent_message = None
+    payload["caption"] = compact_news_caption(payload["caption"], has_image=bool(payload["image_url"]))
+    
+    local_image_path = None
+    watermarked_image_path = None
+    
+    if payload["image_url"]:
+        try:
+            watermarked_image_path = create_watermarked_image(payload["image_url"])
+            local_image_path = watermarked_image_path
+            sent_message = send_telegram_photo_file(watermarked_image_path, payload["caption"], return_message=True)
+        except Exception as exc:
+            print(f"Watermark render/upload failed for item {item_id}: {exc}")
+            try:
+                sent_message = send_telegram_photo(payload["image_url"], payload["caption"], return_message=True)
+            except Exception as photo_exc:
+                print(f"Direct photo send failed for item {item_id}: {photo_exc}")
+                sent_message = send_telegram_message(payload["caption"], return_message=True)
+            
+            try:
+                img_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+                response = requests.get(payload["image_url"], timeout=20)
+                response.raise_for_status()
+                img_temp.write(response.content)
+                img_temp.close()
+                local_image_path = Path(img_temp.name)
+            except Exception as download_exc:
+                print(f"Failed to download raw image for video: {download_exc}")
+    else:
+        sent_message = send_telegram_message(payload["caption"], return_message=True)
+        
+    if not sent_message:
+        if watermarked_image_path and watermarked_image_path.exists():
+            watermarked_image_path.unlink(missing_ok=True)
+        if local_image_path and local_image_path != watermarked_image_path and local_image_path.exists():
+            local_image_path.unlink(missing_ok=True)
+        raise RuntimeError("Telegram delivery failed. Check bot configuration.")
+    
+    try:
+        audio_path = synthesize_news_audio(final_title, final_story)
+        if audio_path:
+            if local_image_path and local_image_path.exists():
+                video_path = audio_path.with_suffix('.mp4')
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-loop", "1", "-i", str(local_image_path),
+                    "-i", str(audio_path),
+                    "-c:v", "libx264", "-tune", "stillimage",
+                    "-c:a", "aac", "-b:a", "128k",
+                    "-pix_fmt", "yuv420p",
+                    "-shortest",
+                    str(video_path)
+                ]
+                try:
+                    import subprocess
+                    subprocess.run(cmd, check=True, capture_output=True)
+                    send_telegram_video_file(video_path, caption=f"🔊 {final_title}")
+                except Exception as video_exc:
+                    print(f"Video generation/broadcast failed for item {item_id}: {video_exc}")
+                    send_telegram_audio_file(audio_path, caption=f"🔊 {final_title}")
+                finally:
+                    if 'video_path' in locals() and video_path.exists():
+                        video_path.unlink(missing_ok=True)
+            else:
+                send_telegram_audio_file(audio_path, caption=f"🔊 {final_title}")
+                
+            audio_path.unlink(missing_ok=True)
+    except Exception as audio_exc:
+        print(f"Audio/Video broadcast failed for item {item_id}: {audio_exc}")
+    finally:
+        if watermarked_image_path and watermarked_image_path.exists():
+            watermarked_image_path.unlink(missing_ok=True)
+        if local_image_path and local_image_path != watermarked_image_path and local_image_path.exists():
+            local_image_path.unlink(missing_ok=True)
+            
+    return mark_news_item(
+        item_id=item_id,
+        status=status,
+        translated_title_am=final_title,
+        translated_story_am=final_story,
+        notes=notes,
+        image_url=image_url,
+    )
+
+
+
+def _check_translation(text, original_text):
+    if text and ("Error 500" in text or "That’s an error" in text):
+        raise ValueError("Translation service returned an error page")
+    return text or original_text
+
+class TranslationFailedError(Exception):
+    """Raised when Amharic translation could not be produced after retries."""
+    pass
+
+
+def translate_news_item(item, max_attempts=2):
+    """
+    Translates news title and story to Amharic using deep-translator.
+    Returns: (translated_title, translated_story, highlight)
+    Raises TranslationFailedError instead of silently returning English text,
+    so callers never publish untranslated content as if it were Amharic.
+    """
+    last_exc = None
+    for attempt in range(1, max_attempts + 1):
+        translator = GoogleTranslator(source='auto', target='am')
+        try:
+            title = _check_translation(translator.translate(item['title']), item['title'])
+            story = _check_translation(translator.translate(item['story']), item['story'])
+            summary = _check_translation(translator.translate(item['summary']), item['summary'])
+
+            if title == item['title'] or story == item['story']:
+                raise ValueError("Translator returned unchanged (untranslated) text")
+
+            # Since deep-translator doesn't do "summarization" or "highlighting",
+            # we use the translated summary as the highlight.
+            return title, story, summary
+        except Exception as e:
+            last_exc = e
+            print(f"Translation attempt {attempt}/{max_attempts} failed for item {item.get('id')}: {e}")
+
+    raise TranslationFailedError(
+        f"Translation failed for item {item.get('id')} after {max_attempts} attempts: {last_exc}"
+    )
+
+
+
+
+def sync_and_publish_news():
+    """
+    Complete end-to-end news pipeline: 
+    1. Fetch new items from sources.
+    2. Deduplicate and store in Supabase.
+    3. Process the review queue (Translate -> Publish).
+    """
+    # 1. Fetch and store new items
+    fetch_result = fetch_news_items()
+    
+    # 2. Process and publish from the queue
+    queue = get_review_queue(limit=50)
+    if not queue:
+        return {
+            "success": True, 
+            "processed": 0, 
+            "fetched": fetch_result.get("stored_count", 0),
+            "message": "No new news to process."
+        }
+
+    processed_count = 0
+    failed_count = 0
+    for item in queue:
+        try:
+            translated_title, translated_story, highlight = translate_news_item(item)
+            mark_review_item(
+                item_id=item["id"],
+                status="published",
+                translated_title_am=translated_title,
+                translated_story_am=translated_story,
+                highlight_am=highlight,
+            )
+            processed_count += 1
+        except Exception as e:
+            failed_count += 1
+            print(f"Failed to process item {item.get('id')}: {e}")
+
+    return {
+        "success": True,
+        "processed": processed_count,
+        "failed": failed_count,
+        "fetched": fetch_result.get("stored_count", 0),
+        "message": f"Fetched {fetch_result.get('stored_count', 0)} items, published {processed_count}, {failed_count} left in queue for retry."
+    }
