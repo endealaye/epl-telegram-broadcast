@@ -92,7 +92,12 @@ BOILERPLATE_PATTERNS = [
     re.compile(r"^Image caption,", re.IGNORECASE),
     re.compile(r"^Published\d", re.IGNORECASE),
     re.compile(r"Comments$", re.IGNORECASE),
-    re.compile(r"reporter\s*Published\s*\d+\s*hours?\s*ago\s*\d+\s*Comments", re.IGNORECASE),
+    re.compile(
+        r"reporter\s*Published\s*\d+\s*(?:minutes?|hours?|days?)\s*ago\s*(?:\d+\s*Comments)?",
+        re.IGNORECASE,
+    ),
+    re.compile(r"^Prefer the Guardian on Google$", re.IGNORECASE),
+    re.compile(r"^Continue reading\.\.\.?$", re.IGNORECASE),
 ]
 NAV_NOISE_PATTERNS = [
     re.compile(r"addEventListener\s*\(", re.IGNORECASE),
@@ -180,9 +185,19 @@ EXCLUDED_NEWS_PATTERNS = [
     re.compile(r"/retail[-/]", re.IGNORECASE),
 ]
 BYLINE_PATTERN = re.compile(
-    r"^[A-Z][A-Za-z\s'-]+reporter\s*Published\s*\d+\s*hours?\s*ago\s*\d+\s*Comments\s*",
+    r"^[A-Z][A-Za-z\s'-]+(?:reporter|writer|correspondent|editor)\s*"
+    r"Published\s*\d+\s*(?:minutes?|hours?|days?)\s*ago\s*"
+    r"(?:\d+\s*Comments\s*)?",
     re.IGNORECASE,
 )
+
+# Trailing/embedded site chrome that rides along with scraped article text —
+# not part of the article, shouldn't be translated as if it were.
+CONTENT_CHROME_PATTERNS = [
+    re.compile(r"Prefer the Guardian on Google\s*", re.IGNORECASE),
+    re.compile(r"Continue reading\.\.\.\s*", re.IGNORECASE),
+    re.compile(r"Continue reading\s*$", re.IGNORECASE),
+]
 
 BBC_FOOTBALL_SOURCE = {
     "source_key": "bbc_football_rss",
@@ -605,6 +620,8 @@ def clean_story_text(story, title=None, summary=None):
             story = story[len(normalized_prefix):].strip(" :-")
 
     story = BYLINE_PATTERN.sub("", story).strip()
+    for pattern in CONTENT_CHROME_PATTERNS:
+        story = pattern.sub("", story).strip()
     story = re.sub(r"\s+", " ", story).strip()
     for pattern in STRUCTURED_DATA_PATTERNS:
         story = pattern.sub(" ", story).strip()
