@@ -1,0 +1,18 @@
+diff --git a/standings.py b/standings.py
+index dcccad4..6123897 100644
+--- a/standings.py
++++ b/standings.py
+@@ -18,7 +18,12 @@ OFFICIAL_STANDINGS_API_BASE = os.getenv(
+     "https://sdp-prem-prod.premier-league-prod.pulselive.com/api",
+ )
+ OFFICIAL_COMPETITION_ID = os.getenv("PL_STANDINGS_COMPETITION_ID", "8")
+-OFFICIAL_SEASON_ID = os.getenv("PL_STANDINGS_SEASON_ID", "2025")
++# Premier League's pulselive API keys seasons by their start year (e.g. the
++# 2025-26 season is "2025"). Derive this from CURRENT_EPL_SEASON so it can't
++# drift out of sync the way it did before -- this constant used to be a
++# second, separately hardcoded season identifier nobody remembered to bump
++# alongside CURRENT_EPL_SEASON, which silently pulled last season's table.
++OFFICIAL_SEASON_ID = os.getenv("PL_STANDINGS_SEASON_ID") or CURRENT_EPL_SEASON.split("-")[0]
+ DEFAULT_STANDINGS_FORMAT = os.getenv("PL_STANDINGS_FORMAT", "short").strip().lower()
+ STANDINGS_IMAGE_ROW_HEIGHT = int(os.getenv("STANDINGS_IMAGE_ROW_HEIGHT", "90"))
+ STANDINGS_IMAGE_PADDING = int(os.getenv("STANDINGS_IMAGE_PADDING", "24"))

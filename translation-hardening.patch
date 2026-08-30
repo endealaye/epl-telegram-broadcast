@@ -1,0 +1,90 @@
+diff --git a/news_pipeline.py b/news_pipeline.py
+index cd35a60..32710d1 100644
+--- a/news_pipeline.py
++++ b/news_pipeline.py
+@@ -2,6 +2,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
+ import os
+ import re
+ import tempfile
++import time
+ from io import BytesIO
+ from pathlib import Path
+ 
+@@ -9,7 +10,7 @@ import requests
+ from PIL import Image, ImageDraw
+ from deep_translator import GoogleTranslator
+ 
+-from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file, send_telegram_audio_file, send_telegram_video_file
++from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file, send_telegram_audio_file, send_telegram_video_file, send_admin_alert
+ from tts_service import synthesize_news_audio
+ 
+ from news_collectors import (
+@@ -763,10 +764,12 @@ def translate_news_item(item, max_attempts=2):
+         translator = GoogleTranslator(source='auto', target='am')
+         try:
+             title = _check_translation(translator.translate(item['title']), item['title'])
++            time.sleep(0.5)
+             story = _check_translation(translator.translate(item['story']), item['story'])
++            time.sleep(0.5)
+             summary = _check_translation(translator.translate(item['summary']), item['summary'])
+ 
+-            if title == item['title'] or story == item['story']:
++            if title == item['title'] or story == item['story'] or summary == item['summary']:
+                 raise ValueError("Translator returned unchanged (untranslated) text")
+ 
+             # Since deep-translator doesn't do "summarization" or "highlighting",
+@@ -775,6 +778,8 @@ def translate_news_item(item, max_attempts=2):
+         except Exception as e:
+             last_exc = e
+             print(f"Translation attempt {attempt}/{max_attempts} failed for item {item.get('id')}: {e}")
++            if attempt < max_attempts:
++                time.sleep(1.5)
+ 
+     raise TranslationFailedError(
+         f"Translation failed for item {item.get('id')} after {max_attempts} attempts: {last_exc}"
+@@ -805,7 +810,11 @@ def sync_and_publish_news():
+ 
+     processed_count = 0
+     failed_count = 0
++    consecutive_failures = 0
++    circuit_broken = False
+     for item in queue:
++        if circuit_broken:
++            break
+         try:
+             translated_title, translated_story, highlight = translate_news_item(item)
+             mark_review_item(
+@@ -816,14 +825,32 @@ def sync_and_publish_news():
+                 highlight_am=highlight,
+             )
+             processed_count += 1
++            consecutive_failures = 0
+         except Exception as e:
+             failed_count += 1
++            consecutive_failures += 1
+             print(f"Failed to process item {item.get('id')}: {e}")
++            if consecutive_failures >= 3:
++                circuit_broken = True
++                alert_msg = (
++                    "⚠️ News translation failing repeatedly (3+ items in a row). "
++                    "Likely rate-limited or blocked by the translation service. "
++                    "Stopping this cycle early; remaining items stay queued for retry next run."
++                )
++                print(alert_msg)
++                try:
++                    send_admin_alert(alert_msg)
++                except Exception as alert_err:
++                    print(f"Failed to send admin alert: {alert_err}")
++
++    message = f"Fetched {fetch_result.get('stored_count', 0)} items, published {processed_count}, {failed_count} left in queue for retry."
++    if circuit_broken:
++        message += " Stopped early after repeated translation failures."
+ 
+     return {
+         "success": True,
+         "processed": processed_count,
+         "failed": failed_count,
+         "fetched": fetch_result.get("stored_count", 0),
+-        "message": f"Fetched {fetch_result.get('stored_count', 0)} items, published {processed_count}, {failed_count} left in queue for retry."
++        "message": message
+     }
