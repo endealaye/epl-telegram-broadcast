@@ -1,4 +1,7 @@
 import json
+import os
+import time
+
 from deep_translator import GoogleTranslator
 from orchestrator import route_event_dict
 
@@ -7,42 +10,122 @@ class TranslationFailedError(Exception):
     """Raised when Amharic translation could not be produced after retries."""
 
 
+class TranslationRateLimitedError(TranslationFailedError):
+    """Raised when Google Translate rate-limits the request."""
+
+
 def _check_translation(text, original_text):
     if text and ("Error 500" in text or "That’s an error" in text):
         raise ValueError("Translation service returned an error page")
     return text or original_text
 
 
-def translate_to_amharic(text, context="news", max_attempts=2):
-    """
-    Translate text to Amharic using Google Translate.
-    Returns the translated string or raises TranslationFailedError.
-    """
-    if text is None:
-        return ""
-    original_text = str(text)
-    if not original_text.strip():
-        return ""
+def _is_rate_limit_error(exc):
+    message = str(exc).lower()
+    return any(term in message for term in ("too many requests", "rate limit", "429"))
 
+
+def _translate_batch(texts, max_attempts=2):
+    """Translate several strings with one deep-translator batch request."""
+    originals = [str(text or "") for text in texts]
+    if not any(value.strip() for value in originals):
+        return originals
+
+    retry_delay = float(os.getenv("TRANSLATION_RETRY_DELAY_SECONDS", "60"))
     last_exc = None
     for attempt in range(1, max_attempts + 1):
-        translator = GoogleTranslator(source="auto", target="am")
         try:
-            translated = _check_translation(translator.translate(original_text), original_text)
-            if translated == original_text:
-                raise ValueError("Translator returned unchanged (untranslated) text")
-            return translated
+            translator = GoogleTranslator(source="auto", target="am")
+            translated = translator.translate_batch(originals)
+            if not translated or len(translated) != len(originals):
+                raise ValueError("Translator returned an incomplete batch")
+
+            checked = [
+                _check_translation(value, original)
+                for value, original in zip(translated, originals)
+            ]
+            for value, original in zip(checked, originals):
+                if original.strip() and value == original:
+                    raise ValueError("Translator returned unchanged (untranslated) text")
+            return checked
         except Exception as exc:
             last_exc = exc
-            print(f"Translation attempt {attempt}/{max_attempts} failed: {exc}")
+            if _is_rate_limit_error(exc):
+                if attempt >= max_attempts:
+                    raise TranslationRateLimitedError(str(exc)) from exc
+                delay = retry_delay * attempt
+                print(f"Translation rate limited; sleeping {delay:.1f}s before retry.")
+                time.sleep(delay)
+            else:
+                print(f"Batch translation attempt {attempt}/{max_attempts} failed: {exc}")
 
     raise TranslationFailedError(
         f"Translation failed after {max_attempts} attempts: {last_exc}"
     )
 
 
+def translate_to_amharic(text, context="news", max_attempts=2):
+    """Translate one string to Amharic using the shared batch-safe implementation."""
+    return _translate_batch([text], max_attempts=max_attempts)[0]
+
+
+def translate_news_item(item, max_attempts=2):
+    """Translate a news item with one batch request instead of three separate requests."""
+    title, story, summary = _translate_batch(
+        [item.get("title"), item.get("story"), item.get("summary")],
+        max_attempts=max_attempts,
+    )
+    return title, story, summary
+
+
+def process_automated_news():
+    """Fetch, translate, and publish a small controlled batch of news items."""
+    from news_pipeline import fetch_news_items, mark_review_item
+    from news_pipeline import get_review_queue
+
+    fetch_result = fetch_news_items()
+    limit = max(1, int(os.getenv("NEWS_TRANSLATION_BATCH_SIZE", "5")))
+    queue = get_review_queue(limit=limit)
+    processed = 0
+    failed = 0
+    stopped_reason = None
+
+    for item in queue:
+        try:
+            translated_title, translated_story, highlight = translate_news_item(item)
+            mark_review_item(
+                item_id=item["id"],
+                status="published",
+                translated_title_am=translated_title,
+                translated_story_am=translated_story,
+                highlight_am=highlight,
+            )
+            processed += 1
+        except TranslationRateLimitedError as exc:
+            failed += 1
+            stopped_reason = f"Translation rate limited for item {item.get('id')}: {exc}"
+            print(f"Stopping news publish run: {stopped_reason}")
+            break
+        except Exception as exc:
+            failed += 1
+            print(f"Failed to process item {item.get('id')}: {exc}")
+
+    success = not stopped_reason
+    return {
+        "success": success,
+        "processed": processed,
+        "failed": failed,
+        "fetched": fetch_result.get("stored_count", 0),
+        "stopped_reason": stopped_reason,
+        "message": (
+            f"Fetched {fetch_result.get('stored_count', 0)} items, published {processed}, "
+            f"{failed} left in queue for retry."
+            + (f" Stopped early: {stopped_reason}" if stopped_reason else "")
+        ),
+    }
+
+
 def process_next_news():
-    # 1. Fetch the next item from the queue
     print("Fetching next news item from queue...")
     queue_result = route_event_dict({
         "intent": "news_queue",
@@ -57,19 +140,9 @@ def process_next_news():
 
     item = queue_result.data["items"][0]
     item_id = item["id"]
-    title = item["title"]
-    story = item["story"]
-
     print(f"Processing Item ID: {item_id}")
-    print(f"Original Title: {title}")
 
-    # 2. Translate
-    print("Translating title and story...")
-    translated_title = translate_to_amharic(title)
-    translated_story = translate_to_amharic(story)
-
-    # 3. Mark as published
-    print("Marking as published...")
+    translated_title, translated_story, _ = translate_news_item(item)
     mark_result = route_event_dict({
         "intent": "news_mark",
         "payload": {
@@ -81,11 +154,11 @@ def process_next_news():
         "source": "news_translator_agent",
         "locale": "am"
     })
-
-    if mark_result.success:
-        print(f"Successfully processed and published item {item_id}.")
-    else:
-        print(f"Failed to publish item {item_id}: {mark_result.message}")
+    print(
+        f"Successfully processed and published item {item_id}."
+        if mark_result.success
+        else f"Failed to publish item {item_id}: {mark_result.message}"
+    )
 
 
 if __name__ == "__main__":
