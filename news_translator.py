@@ -1,14 +1,45 @@
-
 import json
+from deep_translator import GoogleTranslator
 from orchestrator import route_event_dict
 
-def translate_to_amharic(text, context="news"):
+
+class TranslationFailedError(Exception):
+    """Raised when Amharic translation could not be produced after retries."""
+
+
+def _check_translation(text, original_text):
+    if text and ("Error 500" in text or "That’s an error" in text):
+        raise ValueError("Translation service returned an error page")
+    return text or original_text
+
+
+def translate_to_amharic(text, context="news", max_attempts=2):
     """
-    Placeholder for translation logic.
-    In a real production environment, this would call an LLM API (e.g., OpenAI, Gemini).
+    Translate text to Amharic using Google Translate.
+    Returns the translated string or raises TranslationFailedError.
     """
-    # This is a mock translation. In reality, this function should call an LLM API.
-    return f"[TRANSLATED TO AMHARIC]: {text}"
+    if text is None:
+        return ""
+    original_text = str(text)
+    if not original_text.strip():
+        return ""
+
+    last_exc = None
+    for attempt in range(1, max_attempts + 1):
+        translator = GoogleTranslator(source="auto", target="am")
+        try:
+            translated = _check_translation(translator.translate(original_text), original_text)
+            if translated == original_text:
+                raise ValueError("Translator returned unchanged (untranslated) text")
+            return translated
+        except Exception as exc:
+            last_exc = exc
+            print(f"Translation attempt {attempt}/{max_attempts} failed: {exc}")
+
+    raise TranslationFailedError(
+        f"Translation failed after {max_attempts} attempts: {last_exc}"
+    )
+
 
 def process_next_news():
     # 1. Fetch the next item from the queue
@@ -55,6 +86,7 @@ def process_next_news():
         print(f"Successfully processed and published item {item_id}.")
     else:
         print(f"Failed to publish item {item_id}: {mark_result.message}")
+
 
 if __name__ == "__main__":
     process_next_news()
