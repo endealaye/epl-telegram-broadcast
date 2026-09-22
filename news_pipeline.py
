@@ -1,0 +1,68 @@
+import os
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import re
+import tempfile
+from io import BytesIO
+from pathlib import Path
+
+import requests
+from PIL import Image, ImageDraw
+from deep_translator import GoogleTranslator
+
+from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file, send_telegram_audio_file, send_telegram_video_file
+from tts_service import synthesize_news_audio
+
+from news_collectors import (
+    fetch_bbc_football_rss,
+    fetch_guardian_premier_league_rss,
+    fetch_rss_source,
+    fetch_sky_sports_football_rss,
+    fetch_sky_sports_premier_league_rss,
+    is_excluded_news_item,
+)
+from news_store import (
+    build_source_title_key,
+    canonical_article_url,
+    get_news_items_by_article_urls,
+    get_news_items_by_content_hashes,
+    get_existing_news_items_for_sources,
+    get_news_item,
+    is_user_hidden,
+    list_follow_up_requests,
+    list_news_queue,
+    mark_news_item,
+    normalize_news_item,
+    upsert_news_items,
+    validate_status_transition,
+)
+
+from telegram_limits import (
+    TELEGRAM_CAPTION_LIMIT,
+    TELEGRAM_NEWS_CAPTION_TARGET,
+    TELEGRAM_NEWS_MAX_LINES,
+    compact_news_caption,
+    telegram_limit_status,
+)
+
+NEWS_QUEUE_BATCH_SIZE = max(1, int(os.getenv("NEWS_QUEUE_BATCH_SIZE", "5")))
+NEWS_QUEUE_MAX_BATCHES = max(1, int(os.getenv("NEWS_QUEUE_MAX_BATCHES", "8")))
+NEWS_TRANSLATION_MAX_ATTEMPTS = max(1, int(os.getenv("NEWS_TRANSLATION_MAX_ATTEMPTS", "3")))
+NEWS_TRANSLATION_RETRY_DELAY_SECONDS = max(1, int(os.getenv("NEWS_TRANSLATION_RETRY_DELAY_SECONDS", "2")))
+
+WATERMARK_MARGIN_RATIO = 0.04
+WATERMARK_WIDTH_RATIO = 0.108
+WATERMARK_MAX_WIDTH = 320
+WATERMARK_MIN_WIDTH = 120
+WATERMARK_BG_ALPHA = int(os.getenv("WATERMARK_BG_ALPHA", "96"))
+WATERMARK_BG_PADDING = int(os.getenv("WATERMARK_BG_PADDING", "10"))
+WATERMARK_BG_RADIUS = int(os.getenv("WATERMARK_BG_RADIUS", "8"))
+NEWS_IMAGE_MAX_BYTES = int(os.getenv("NEWS_IMAGE_MAX_BYTES", str(8 * 1024 * 1024)))
+NEWS_IMAGE_MAX_PIXELS = int(os.getenv("NEWS_IMAGE_MAX_PIXELS", str(40_000_000)))
+NEWS_IMAGE_TIMEOUT = (8, 20)
+NEWS_IMAGE_CHUNK_SIZE = 64 * 1024
+NEWS_FETCH_MAX_WORKERS = int(os.getenv("NEWS_FETCH_MAX_WORKERS", "2"))
+MIN_NEWS_COPY_LENGTH = int(os.getenv("NEWS_MIN_COPY_LENGTH", "40"))
+WATERMARK_ASSET_CANDIDATES = (
+    "6a8.svg",
+)
