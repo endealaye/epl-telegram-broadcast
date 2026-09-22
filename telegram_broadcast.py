@@ -82,6 +82,9 @@ if __name__ == '__main__':
             if len(sys.argv) > 5:
                 payload["translated_story_am"] = sys.argv[5]
             result = route_event_dict({"intent": "news_mark", "payload": payload})
+        elif mode == 'automated-news':
+            from news_translator import process_automated_news
+            result = process_automated_news()
         elif mode == 'standings':
             payload = {}
             if len(sys.argv) > 2:
@@ -89,4 +92,6 @@ if __name__ == '__main__':
             result = route_event_dict({"intent": "standings", "payload": payload})
         else:
             result = route_event_dict({"intent": mode})
-        print(json.dumps(result.to_dict(), ensure_ascii=False, default=json_serial))
+        if hasattr(result, "to_dict"):
+            result = result.to_dict()
+        print(json.dumps(result, ensure_ascii=False, default=json_serial))
