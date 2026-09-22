@@ -1,8 +1,7 @@
-import json
 import os
 import time
 
-from deep_translator import GoogleTranslator
+from deep_translator import MyMemoryTranslator
 from orchestrator import route_event_dict
 
 
@@ -11,7 +10,12 @@ class TranslationFailedError(Exception):
 
 
 class TranslationRateLimitedError(TranslationFailedError):
-    """Raised when Google Translate rate-limits the request."""
+    """Raised when MyMemory rate-limits the request."""
+
+
+TRANSLATION_DELIMITER = "NEWS_TRANSLATION_SEPARATOR_7F3A9C"
+TRANSLATION_ITEM_DELAY_SECONDS = float(os.getenv("TRANSLATION_ITEM_DELAY_SECONDS", "2"))
+TRANSLATION_RETRY_DELAY_SECONDS = float(os.getenv("TRANSLATION_RETRY_DELAY_SECONDS", "30"))
 
 
 def _check_translation(text, original_text):
@@ -22,42 +26,45 @@ def _check_translation(text, original_text):
 
 def _is_rate_limit_error(exc):
     message = str(exc).lower()
-    return any(term in message for term in ("too many requests", "rate limit", "429"))
+    return any(term in message for term in ("too many requests", "rate limit", "429", "quota"))
 
 
 def _translate_batch(texts, max_attempts=2):
-    """Translate several strings with one deep-translator batch request."""
+    """Translate several strings with one MyMemory request."""
     originals = [str(text or "") for text in texts]
     if not any(value.strip() for value in originals):
         return originals
 
-    retry_delay = float(os.getenv("TRANSLATION_RETRY_DELAY_SECONDS", "60"))
+    combined = f"\n\n{TRANSLATION_DELIMITER}\n\n".join(originals)
     last_exc = None
     for attempt in range(1, max_attempts + 1):
         try:
-            translator = GoogleTranslator(source="auto", target="am")
-            translated = translator.translate_batch(originals)
-            if not translated or len(translated) != len(originals):
-                raise ValueError("Translator returned an incomplete batch")
+            translator = MyMemoryTranslator(source="en-GB", target="am-ET")
+            translated = translator.translate(combined)
+            if not translated:
+                raise ValueError("Translator returned an empty response")
+
+            parts = translated.split(TRANSLATION_DELIMITER)
+            if len(parts) != len(originals):
+                raise ValueError("Translator changed or removed the batch delimiter")
 
             checked = [
-                _check_translation(value, original)
-                for value, original in zip(translated, originals)
+                _check_translation(value.strip(), original)
+                for value, original in zip(parts, originals)
             ]
             for value, original in zip(checked, originals):
-                if original.strip() and value == original:
+                if original.strip() and value.strip() == original.strip():
                     raise ValueError("Translator returned unchanged (untranslated) text")
             return checked
         except Exception as exc:
             last_exc = exc
-            if _is_rate_limit_error(exc):
-                if attempt >= max_attempts:
+            if attempt >= max_attempts:
+                if _is_rate_limit_error(exc):
                     raise TranslationRateLimitedError(str(exc)) from exc
-                delay = retry_delay * attempt
-                print(f"Translation rate limited; sleeping {delay:.1f}s before retry.")
-                time.sleep(delay)
-            else:
-                print(f"Batch translation attempt {attempt}/{max_attempts} failed: {exc}")
+                break
+            delay = TRANSLATION_RETRY_DELAY_SECONDS * attempt
+            print(f"Translation attempt {attempt}/{max_attempts} failed: {exc}; sleeping {delay:.1f}s.")
+            time.sleep(delay)
 
     raise TranslationFailedError(
         f"Translation failed after {max_attempts} attempts: {last_exc}"
@@ -65,32 +72,31 @@ def _translate_batch(texts, max_attempts=2):
 
 
 def translate_to_amharic(text, context="news", max_attempts=2):
-    """Translate one string to Amharic using the shared batch-safe implementation."""
     return _translate_batch([text], max_attempts=max_attempts)[0]
 
 
 def translate_news_item(item, max_attempts=2):
-    """Translate a news item with one batch request instead of three separate requests."""
-    title, story, summary = _translate_batch(
-        [item.get("title"), item.get("story"), item.get("summary")],
-        max_attempts=max_attempts,
+    """Translate title, story, and summary with one paced MyMemory request."""
+    return tuple(
+        _translate_batch(
+            [item.get("title"), item.get("story"), item.get("summary")],
+            max_attempts=max_attempts,
+        )
     )
-    return title, story, summary
 
 
 def process_automated_news():
-    """Fetch, translate, and publish a small controlled batch of news items."""
-    from news_pipeline import fetch_news_items, mark_review_item
-    from news_pipeline import get_review_queue
+    """Fetch and publish a small, rate-limited queue of news items."""
+    from news_pipeline import fetch_news_items, mark_review_item, get_review_queue
 
     fetch_result = fetch_news_items()
-    limit = max(1, int(os.getenv("NEWS_TRANSLATION_BATCH_SIZE", "5")))
+    limit = max(1, int(os.getenv("NEWS_TRANSLATION_BATCH_SIZE", "12")))
     queue = get_review_queue(limit=limit)
     processed = 0
     failed = 0
     stopped_reason = None
 
-    for item in queue:
+    for index, item in enumerate(queue):
         try:
             translated_title, translated_story, highlight = translate_news_item(item)
             mark_review_item(
@@ -109,6 +115,9 @@ def process_automated_news():
         except Exception as exc:
             failed += 1
             print(f"Failed to process item {item.get('id')}: {exc}")
+        finally:
+            if index < len(queue) - 1:
+                time.sleep(TRANSLATION_ITEM_DELAY_SECONDS)
 
     success = not stopped_reason
     return {
@@ -131,7 +140,7 @@ def process_next_news():
         "intent": "news_queue",
         "payload": {"limit": 1},
         "source": "news_translator_agent",
-        "locale": "am"
+        "locale": "am",
     })
 
     if not queue_result.success or not queue_result.data.get("items"):
@@ -141,7 +150,6 @@ def process_next_news():
     item = queue_result.data["items"][0]
     item_id = item["id"]
     print(f"Processing Item ID: {item_id}")
-
     translated_title, translated_story, _ = translate_news_item(item)
     mark_result = route_event_dict({
         "intent": "news_mark",
@@ -152,7 +160,7 @@ def process_next_news():
             "translated_story_am": translated_story,
         },
         "source": "news_translator_agent",
-        "locale": "am"
+        "locale": "am",
     })
     print(
         f"Successfully processed and published item {item_id}."
