@@ -98,7 +98,14 @@ def process_automated_news():
 
     for index, item in enumerate(queue):
         try:
-            translated_title, translated_story, highlight = translate_news_item(item)
+            existing_title = (item.get("translated_title_am") or "").strip()
+            existing_story = (item.get("translated_story_am") or "").strip()
+            if existing_title and existing_story:
+                # Already translated (e.g. by hand): publish as-is, skip MyMemory,
+                # and don't prepend a machine-translated highlight.
+                translated_title, translated_story, highlight = existing_title, existing_story, None
+            else:
+                translated_title, translated_story, highlight = translate_news_item(item)
             mark_review_item(
                 item_id=item["id"],
                 status="published",
