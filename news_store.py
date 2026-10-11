@@ -645,7 +645,7 @@ def get_existing_news_items_for_sources(source_names, days_back=TITLE_DEDUPE_WIN
     return rows
 
 
-def list_news_queue(statuses=None, limit=20):
+def list_news_queue(statuses=None, limit=20, require_translation=False):
     if not supabase:
         return []
     query = supabase.table("news_items").select(
@@ -654,6 +654,15 @@ def list_news_queue(statuses=None, limit=20):
     ).order("relevance_score", desc=True).order("published_at", desc=True).limit(limit)
     if statuses:
         query = query.in_("review_status", statuses)
+    if require_translation:
+        # Only rows that already carry an Amharic title and story, so untranslated
+        # rows can't occupy queue slots and block translated ones behind them.
+        query = (
+            query.not_.is_("translated_title_am", "null")
+            .neq("translated_title_am", "")
+            .not_.is_("translated_story_am", "null")
+            .neq("translated_story_am", "")
+        )
     res = _safe_execute(query, default=None, context="list_news_queue")
     if res is None:
         return []
