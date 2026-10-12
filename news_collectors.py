@@ -489,13 +489,25 @@ def is_sky_image_url(url):
     return any(pattern in host for pattern in SKY_IMAGE_HOST_PATTERNS)
 
 
+BLOCKED_PROBE_STATUSES = {401, 403, 405}
+
+
+def _is_guardian_image_url(url):
+    return "guim.co.uk" in (urlparse(url).netloc or "").lower()
+
+
 def image_url_is_reachable(url, session):
     if not url:
         return False
+    # Guardian's CDN often refuses HEAD/GET probes from CI hosts while serving
+    # Telegram's fetcher fine. Posting falls back to text if the image fails.
+    trust_blocked_probe = _is_guardian_image_url(url)
     try:
         response = session.head(url, timeout=NEWS_IMAGE_VALIDATE_TIMEOUT, allow_redirects=True)
         content_type = (response.headers.get("Content-Type") or "").lower()
         if response.ok and content_type.startswith("image/"):
+            return True
+        if trust_blocked_probe and response.status_code in BLOCKED_PROBE_STATUSES:
             return True
         if response.status_code not in {403, 405} and content_type and not content_type.startswith("image/"):
             return False
@@ -506,6 +518,8 @@ def image_url_is_reachable(url, session):
         response = session.get(url, timeout=NEWS_IMAGE_VALIDATE_TIMEOUT, stream=True)
         content_type = (response.headers.get("Content-Type") or "").lower()
         ok = response.ok and content_type.startswith("image/")
+        if not ok and trust_blocked_probe and response.status_code in BLOCKED_PROBE_STATUSES:
+            ok = True
         response.close()
         return ok
     except requests.RequestException:
@@ -529,6 +543,10 @@ def upscale_image_url(url):
 
     # Guardian/Source images often expose size via query params.
     if "guim.co.uk" in host or "guardian" in host:
+        # Signed URLs (s=<signature>) are only valid for the exact parameters
+        # they were signed with; rewriting width/fit invalidates them.
+        if query.get("s") not in (None, "", "none"):
+            return url
         for key in ("width", "w", "fit"):
             if key in query:
                 query.pop(key, None)
