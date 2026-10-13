@@ -21,7 +21,9 @@ if SUPABASE_URL and SUPABASE_KEY:
         options=ClientOptions(postgrest_client_timeout=SUPABASE_DB_TIMEOUT_SECONDS),
     )
 
-LIVE_POLLING_WINDOW_MINUTES = int(os.getenv("LIVE_POLLING_WINDOW_MINUTES", "105"))
+# 45 + 15 (half-time) + 45 = 105 minutes is only the scheduled length; real matches run
+# ~115-125 minutes with stoppage time, so allow 135 to cover the final whistle.
+LIVE_POLLING_WINDOW_MINUTES = int(os.getenv("LIVE_POLLING_WINDOW_MINUTES", "135"))
 KNOCKOUT_LIVE_POLLING_WINDOW_MINUTES = int(os.getenv("KNOCKOUT_LIVE_POLLING_WINDOW_MINUTES", "210"))
 
 def _safe_execute(query, default=None, context="supabase"):
@@ -285,10 +287,14 @@ def is_in_live_polling_window(fixture, now=None, window_minutes=LIVE_POLLING_WIN
 
 
 def has_live_window_matches():
+    # Include yesterday: a match that kicked off late yesterday (EAT) can still be
+    # live after midnight.
+    now_aware = get_eat_now()
+    yesterday = (now_aware - timedelta(days=1)).strftime('%Y-%m-%d')
     today = get_eat_today()
-    tomorrow = (get_eat_now() + timedelta(days=1)).strftime('%Y-%m-%d')
-    fixtures = fetch_fixtures_for_dates([today, tomorrow])
-    now = get_eat_now().replace(tzinfo=None)
+    tomorrow = (now_aware + timedelta(days=1)).strftime('%Y-%m-%d')
+    fixtures = fetch_fixtures_for_dates([yesterday, today, tomorrow])
+    now = now_aware.replace(tzinfo=None)
     return any(is_in_live_polling_window(fixture, now=now) for fixture in fixtures)
 
 

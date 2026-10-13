@@ -42,11 +42,16 @@ def classify_match_day(now=None):
         kickoff = _kickoff_for_fixture(fixture)
         if not kickoff:
             continue
+        in_live_window = kickoff - timedelta(minutes=90) <= current <= kickoff + timedelta(hours=4)
         if kickoff.strftime("%Y-%m-%d") != today:
+            # A match that kicked off late yesterday can still be live after midnight,
+            # and one kicking off just after midnight is about to start.
+            if in_live_window:
+                live_fixtures.append(fixture)
             continue
         today_fixtures.append(fixture)
 
-        if kickoff - timedelta(minutes=90) <= current <= kickoff + timedelta(hours=4):
+        if in_live_window:
             live_fixtures.append(fixture)
         elif current < kickoff:
             upcoming_fixtures.append(fixture)
