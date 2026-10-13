@@ -28,6 +28,11 @@ on:
           - 'reminders'
           - 'automated-news'
 
+# One run at a time so overlapping runs can't post the same item twice.
+concurrency:
+  group: epl-broadcast
+  cancel-in-progress: false
+
 jobs:
   broadcast:
     runs-on: ubuntu-latest

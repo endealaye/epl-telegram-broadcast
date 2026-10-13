@@ -2,6 +2,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import re
 import tempfile
+import time
 from io import BytesIO
 from pathlib import Path
 
@@ -9,7 +10,7 @@ import requests
 from PIL import Image, ImageDraw
 from deep_translator import GoogleTranslator
 
-from commands import send_telegram_message, send_telegram_photo, send_telegram_photo_file, send_telegram_audio_file, send_telegram_video_file
+from commands import send_admin_alert, send_telegram_message, send_telegram_photo, send_telegram_photo_file, send_telegram_audio_file, send_telegram_video_file
 from tts_service import synthesize_news_audio
 
 from news_collectors import (
@@ -38,6 +39,7 @@ from news_store import (
 
 from telegram_limits import (
     TELEGRAM_CAPTION_LIMIT,
+    TELEGRAM_TEXT_LIMIT,
     TELEGRAM_NEWS_CAPTION_TARGET,
     TELEGRAM_NEWS_MAX_LINES,
     compact_news_caption,
@@ -180,7 +182,8 @@ def load_watermark_image(asset_path):
 
 
 def escape_telegram_markdown(text):
-    return re.sub(r"([_*\\[\\]()~`>#+\\-=|{}.!])", r"\\\1", text or "")
+    # Telegram's legacy "Markdown" parse mode only treats _ * ` [ as special.
+    return re.sub(r"([_*`\[])", r"\\\1", text or "")
 
 
 def truncate_caption_body(text, max_length):
@@ -394,13 +397,9 @@ def format_news_broadcast(item):
     raw_title = item.get("translated_title_am") or ""
     title = f"*{category_emoji} {escape_telegram_markdown(raw_title)}*" if raw_title else ""
     
-    # The story now contains [Highlight] \n\n [Story] from mark_review_item
-    story_content = item.get("translated_story_am") or ""
-    
-    # Split highlight and story if they were combined
-    parts = story_content.split("\n\n", 1)
-    highlight = parts[0] if len(parts) > 1 else ""
-    story = parts[1] if len(parts) > 1 else story_content
+    # The story may already include a machine-translated highlight on its own
+    # first paragraph (see mark_review_item); show every paragraph.
+    story = item.get("translated_story_am") or ""
     
     image_url = item.get("image_url") or ""
     source_name = escape_telegram_markdown(item.get("source_name") or "")
@@ -427,10 +426,11 @@ def format_news_broadcast(item):
         
     caption = "\n".join(lines)
     
-    # Handle caption limit
-    if len(caption) > TELEGRAM_CAPTION_LIMIT:
+    # Handle caption limit: photo captions allow 1000 characters, plain messages 4096.
+    hard_limit = TELEGRAM_CAPTION_LIMIT if image_url else TELEGRAM_TEXT_LIMIT
+    if len(caption) > hard_limit:
         # Simple truncation for brevity in this implementation
-        caption = caption[:TELEGRAM_CAPTION_LIMIT-3] + "..."
+        caption = caption[:hard_limit-3] + "..."
         
     caption = compact_news_caption(caption, has_image=bool(image_url))
     limit_status = telegram_limit_status(
@@ -613,6 +613,35 @@ def get_review_queue(limit=20):
     return list_news_queue(statuses=["filtered", "approved", "translated"], limit=limit)
 
 
+MARK_PUBLISHED_MAX_ATTEMPTS = int(os.getenv("MARK_PUBLISHED_MAX_ATTEMPTS", "3"))
+MARK_PUBLISHED_RETRY_DELAY_SECONDS = float(os.getenv("MARK_PUBLISHED_RETRY_DELAY_SECONDS", "2"))
+
+
+def _mark_published_with_retry(**kwargs):
+    """Record a successful Telegram post. The post cannot be undone, so a lost
+    database write would re-broadcast the item on the next run: retry, and
+    alert the admin if it still cannot be saved. mark_news_item returns None
+    (it does not raise) when the update fails."""
+    item_id = kwargs.get("item_id")
+    for attempt in range(1, MARK_PUBLISHED_MAX_ATTEMPTS + 1):
+        result = mark_news_item(**kwargs)
+        if result:
+            return result
+        if attempt < MARK_PUBLISHED_MAX_ATTEMPTS:
+            time.sleep(MARK_PUBLISHED_RETRY_DELAY_SECONDS * attempt)
+    message = (
+        f"News item {item_id} was posted to Telegram but could not be marked published "
+        f"after {MARK_PUBLISHED_MAX_ATTEMPTS} attempts. It may be posted again; "
+        "mark it published manually."
+    )
+    print(message)
+    try:
+        send_admin_alert(message)
+    except Exception as alert_exc:
+        print(f"Could not send admin alert: {alert_exc!r}")
+    raise RuntimeError(message)
+
+
 def mark_review_item(
     item_id,
     status,
@@ -730,7 +759,7 @@ def mark_review_item(
         if local_image_path and local_image_path != watermarked_image_path and local_image_path.exists():
             local_image_path.unlink(missing_ok=True)
             
-    return mark_news_item(
+    return _mark_published_with_retry(
         item_id=item_id,
         status=status,
         translated_title_am=final_title,

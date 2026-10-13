@@ -5,6 +5,11 @@ on:
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
+# One run at a time so overlapping runs can't post the same item twice.
+concurrency:
+  group: epl-live
+  cancel-in-progress: false
+
 jobs:
   live:
     runs-on: ubuntu-latest

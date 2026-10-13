@@ -89,7 +89,14 @@ def process_automated_news():
     """Fetch and publish a small, rate-limited queue of news items."""
     from news_pipeline import fetch_news_items, mark_review_item, get_review_queue
 
-    fetch_result = fetch_news_items()
+    # A feed outage must not stop already-translated rows from publishing.
+    fetch_error = None
+    try:
+        fetch_result = fetch_news_items()
+    except Exception as exc:
+        fetch_error = f"{type(exc).__name__}: {exc}"
+        print(f"News fetch failed, publishing the existing queue anyway: {fetch_error}")
+        fetch_result = {}
     limit = max(1, int(os.getenv("NEWS_TRANSLATION_BATCH_SIZE", "12")))
     queue = get_review_queue(limit=limit)
     processed = 0
@@ -106,13 +113,15 @@ def process_automated_news():
                 translated_title, translated_story, highlight = existing_title, existing_story, None
             else:
                 translated_title, translated_story, highlight = translate_news_item(item)
-            mark_review_item(
+            published = mark_review_item(
                 item_id=item["id"],
                 status="published",
                 translated_title_am=translated_title,
                 translated_story_am=translated_story,
                 highlight_am=highlight,
             )
+            if not published:
+                raise RuntimeError(f"Item {item['id']} was not recorded as published.")
             processed += 1
         except TranslationRateLimitedError as exc:
             failed += 1
@@ -133,9 +142,11 @@ def process_automated_news():
         "failed": failed,
         "fetched": fetch_result.get("stored_count", 0),
         "stopped_reason": stopped_reason,
+        "fetch_error": fetch_error,
         "message": (
             f"Fetched {fetch_result.get('stored_count', 0)} items, published {processed}, "
             f"{failed} left in queue for retry."
+            + (f" Fetch failed: {fetch_error}." if fetch_error else "")
             + (f" Stopped early: {stopped_reason}" if stopped_reason else "")
         ),
     }
