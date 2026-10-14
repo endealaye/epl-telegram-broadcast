@@ -107,10 +107,6 @@ WOMENS_FOOTBALL_PATTERNS = [
 
 INCLUDE_TERMS = [
     "premier league",
-    "world cup",
-    "fifa world cup",
-    "world cup qualifier",
-    "world cup qualifiers",
     *PREMIER_LEAGUE_CLUBS.keys(),
 ]
 
