@@ -16,7 +16,6 @@ from tts_service import synthesize_news_audio
 from news_collectors import (
     fetch_bbc_football_rss,
     fetch_guardian_premier_league_rss,
-    fetch_rss_source,
     fetch_sky_sports_football_rss,
     fetch_sky_sports_premier_league_rss,
     is_excluded_news_item,
@@ -161,7 +160,7 @@ def load_watermark_image(asset_path):
     if asset_path.suffix.lower() == ".svg":
         try:
             import cairosvg
-        except Exception:
+        except Exception as import_error:
             for fallback_name in WATERMARK_ASSET_CANDIDATES:
                 if fallback_name.endswith(".svg"):
                     continue
@@ -171,7 +170,7 @@ def load_watermark_image(asset_path):
                         return fallback_image.convert("RGBA")
             raise RuntimeError(
                 "SVG watermark found but cairosvg is not installed and no raster fallback is available."
-            )
+            ) from import_error
 
         rendered_png = cairosvg.svg2png(url=str(asset_path))
         with Image.open(BytesIO(rendered_png)) as watermark_image:
@@ -387,12 +386,17 @@ def create_watermarked_image(image_url):
 def format_news_broadcast(item):
     # 1. Determine Category Emoji
     topic_tags = item.get("topic_tags") or []
-    category_emoji = "📰" # Default
-    if "topic:transfer" in topic_tags: category_emoji = "✍️"
-    elif "topic:injury" in topic_tags: category_emoji = "🏥"
-    elif "topic:official" in topic_tags: category_emoji = "🚨"
-    elif "topic:gossip" in topic_tags: category_emoji = "📉"
-    elif "format:lineup_update" in topic_tags: category_emoji = "📋"
+    category_emoji = "📰"  # Default
+    if "topic:transfer" in topic_tags:
+        category_emoji = "✍️"
+    elif "topic:injury" in topic_tags:
+        category_emoji = "🏥"
+    elif "topic:official" in topic_tags:
+        category_emoji = "🚨"
+    elif "topic:gossip" in topic_tags:
+        category_emoji = "📉"
+    elif "format:lineup_update" in topic_tags:
+        category_emoji = "📋"
 
     raw_title = item.get("translated_title_am") or ""
     title = f"*{category_emoji} {escape_telegram_markdown(raw_title)}*" if raw_title else ""

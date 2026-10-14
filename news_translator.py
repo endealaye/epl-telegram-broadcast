@@ -50,9 +50,9 @@ def _translate_batch(texts, max_attempts=2):
 
             checked = [
                 _check_translation(value.strip(), original)
-                for value, original in zip(parts, originals)
+                for value, original in zip(parts, originals, strict=True)
             ]
-            for value, original in zip(checked, originals):
+            for value, original in zip(checked, originals, strict=True):
                 if original.strip() and value.strip() == original.strip():
                     raise ValueError("Translator returned unchanged (untranslated) text")
             return checked

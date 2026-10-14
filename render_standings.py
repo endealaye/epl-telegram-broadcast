@@ -1,9 +1,6 @@
-import os
 import tempfile
-import unicodedata
-import re
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 import standings
 
 # Re-using logic from standings.py for consistency

@@ -181,7 +181,7 @@ def json_safe_payload(payload):
 
 def build_check_rows(fixture_download, openfootball, mismatches):
     mismatch_by_matchnumber = {}
-    for match_number, reason, fd, of in mismatches:
+    for match_number, reason, fd, _of in mismatches:
         if match_number is None and fd:
             match_number = fd["raw"].get("MatchNumber")
         if match_number is None:
@@ -216,7 +216,7 @@ def build_team_rows(fixture_download):
         group_name = row.get("group")
         if not group_name:
             continue
-        for side, raw_field in (("home", "HomeTeam"), ("away", "AwayTeam")):
+        for _side, raw_field in (("home", "HomeTeam"), ("away", "AwayTeam")):
             raw_name = row["raw"].get(raw_field)
             team_name = TEAM_MAPPING.get(raw_name, raw_name)
             if not team_name or re.match(r"^(?:\d|to be announced)", team_name, re.IGNORECASE):

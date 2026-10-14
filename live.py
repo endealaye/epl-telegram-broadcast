@@ -15,19 +15,15 @@ from bot_config import (
     parse_eat_datetime,
 )
 from commands import send_admin_alert, send_telegram_message
-from broadcasts import _render_results_news_style
-from world_cup_standings import broadcast_world_cup_standings_card_for_fixture
 from sync import sky_result_overrides_for_date
 from store import (
     fetch_fixtures_for_dates,
     fixture_competition_name,
     fixture_live_window_minutes,
-    get_bot_state_value,
     has_live_window_matches,
     is_in_live_polling_window,
     is_premier_league_fixture,
     mark_match_state,
-    set_bot_state_value,
     supabase,
 )
 

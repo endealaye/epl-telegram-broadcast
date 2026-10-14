@@ -17,7 +17,6 @@ from bot_config import (
 )
 from commands import send_admin_alert, send_telegram_message, send_telegram_photo_file
 from news_pipeline import load_watermark_image, resolve_watermark_asset
-from posting_policy import build_policy_summary, classify_match_day, should_send_daily
 from standings import (
     _build_standings_watermark_overlay,
     _fit_logo,
@@ -35,7 +34,6 @@ from store import (
     fixture_competition_name,
     fixtures_in_window,
     get_bot_state_value,
-    has_matches_today,
     has_pending_results,
     has_upcoming_matches,
     is_premier_league_fixture,
@@ -126,7 +124,6 @@ def _render_match_board(title, subtitle, groups, mode="fixtures"):
     title_font = _load_font(48, bold=True)
     small_title_font = _load_latin_font(22, bold=False)
     chip_font = _load_latin_font(26, bold=True)
-    team_font = _load_font(34, bold=True)
     time_font = _load_latin_font(22, bold=False)
     score_font = _load_latin_font(70, bold=True)
     hero_label_font = _load_latin_font(20, bold=False)
