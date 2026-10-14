@@ -24,7 +24,6 @@ if SUPABASE_URL and SUPABASE_KEY:
 # 45 + 15 (half-time) + 45 = 105 minutes is only the scheduled length; real matches run
 # ~115-125 minutes with stoppage time, so allow 135 to cover the final whistle.
 LIVE_POLLING_WINDOW_MINUTES = int(os.getenv("LIVE_POLLING_WINDOW_MINUTES", "135"))
-KNOCKOUT_LIVE_POLLING_WINDOW_MINUTES = int(os.getenv("KNOCKOUT_LIVE_POLLING_WINDOW_MINUTES", "210"))
 
 def _safe_execute(query, default=None, context="supabase"):
     try:
@@ -239,21 +238,7 @@ def is_premier_league_fixture(fixture):
     return fixture_competition_name(fixture) == "Premier League"
 
 
-def is_world_cup_fixture(fixture):
-    return fixture_competition_name(fixture).startswith("FIFA World Cup")
-
-
-def is_world_cup_group_fixture(fixture):
-    return fixture_competition_name(fixture).startswith("FIFA World Cup - Group ")
-
-
-def fixture_allows_extra_time(fixture):
-    return is_world_cup_fixture(fixture) and not is_world_cup_group_fixture(fixture)
-
-
 def fixture_live_window_minutes(fixture):
-    if fixture_allows_extra_time(fixture):
-        return max(120, KNOCKOUT_LIVE_POLLING_WINDOW_MINUTES)
     return max(90, LIVE_POLLING_WINDOW_MINUTES)
 
 
