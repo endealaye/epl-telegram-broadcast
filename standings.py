@@ -601,7 +601,6 @@ def render_short_standings_image(rows, matchweek=None):
 
     y = table_top + 56
     for row in rows:
-        pos_text = f"{int(row['position']):02d}"
         team_text = _short_team_name(row)
         gd_text = f"{int(row['gd']):+d}"
         color = (0, 0, 0)

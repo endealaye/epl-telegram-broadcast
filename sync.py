@@ -223,7 +223,6 @@ def _sky_competition_fixtures_for_date(date_string, competitions=None):
             continue
 
         dateeat = _to_eat_datetime(date_string, uk_time)
-        round_name = ((((competition.get("round") or {}).get("name")) or {}).get("full") or "").strip()
         match_id = payload.get("id")
         if match_id is None:
             continue
