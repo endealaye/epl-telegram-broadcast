@@ -9,6 +9,11 @@ from standings import broadcast_standings
 from store import fetch_fixtures_for_dates, has_live_window_matches, has_matches_today, has_pending_results, has_upcoming_matches
 from bot_config import get_eat_today
 from sync import update_fixtures_from_json
+from world_cup_coaches import update_world_cup_coaches
+from world_cup_form import refresh_world_cup_qualifier_form
+from world_cup_players import refresh_world_cup_players, refresh_world_cup_players_with_bbc
+from world_cup_squad_audit import audit_world_cup_squads
+from world_cup_standings import refresh_world_cup_group_standings
 
 
 def sync_fixtures_service():
