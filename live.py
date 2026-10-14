@@ -33,21 +33,9 @@ LIVE_COMPETITIONS = {
     "UEFA Champions League",
     "UEFA Europa League",
     "UEFA Conference League",
-    "FIFA World Cup",
-    "World Cup",
 }
-FIFA_WORLD_CUP_CALENDAR_URL = "https://api.fifa.com/api/v3/calendar/matches"
-FIFA_WORLD_CUP_COMPETITION_ID = "17"
-FIFA_WORLD_CUP_SEASON_ID = "285023"
-FIFA_WORLD_CUP_STAGE_ID = "289273"
-FIFA_WORLD_CUP_HEADERS = {
-    "Accept": "application/json",
-    "User-Agent": "Mozilla/5.0 football-broadcaster/1.0",
-}
-
-
 def _is_supported_live_competition(competition_name):
-    return competition_name in LIVE_COMPETITIONS or competition_name.startswith("FIFA World Cup")
+    return competition_name in LIVE_COMPETITIONS
 
 
 class ScoreProvider:
@@ -95,108 +83,6 @@ def _localized_description(values):
         if value.get("Description"):
             return value["Description"].strip()
     return ""
-
-
-def _fifa_team_name(team):
-    return _localized_description((team or {}).get("TeamName")) or (team or {}).get("ShortClubName") or ""
-
-
-def _fifa_score(match, side):
-    score = match.get(f"{side}TeamScore")
-    if score is not None:
-        return score
-    team = match.get(side) or {}
-    return team.get("Score")
-
-
-def _fetch_fifa_calendar(params):
-    response = requests.get(
-        FIFA_WORLD_CUP_CALENDAR_URL,
-        params=params,
-        headers=FIFA_WORLD_CUP_HEADERS,
-        timeout=10,
-    )
-    response.raise_for_status()
-    return response.json()
-
-
-def fetch_fifa_world_cup_group_stage_matches():
-    stage_payload = _fetch_fifa_calendar(
-        {
-            "idCompetition": FIFA_WORLD_CUP_COMPETITION_ID,
-            "idSeason": FIFA_WORLD_CUP_SEASON_ID,
-            "idStage": FIFA_WORLD_CUP_STAGE_ID,
-            "language": "en",
-        }
-    )
-    group_ids = []
-    seen_groups = set()
-    for match in stage_payload.get("Results") or []:
-        group = match.get("IdGroup")
-        if group and group not in seen_groups:
-            seen_groups.add(group)
-            group_ids.append(group)
-
-    matches = []
-    seen_matches = set()
-    for group_id in group_ids:
-        group_payload = _fetch_fifa_calendar(
-            {
-                "idCompetition": FIFA_WORLD_CUP_COMPETITION_ID,
-                "idSeason": FIFA_WORLD_CUP_SEASON_ID,
-                "idStage": FIFA_WORLD_CUP_STAGE_ID,
-                "idGroup": group_id,
-                "language": "en",
-            }
-        )
-        for match in group_payload.get("Results") or []:
-            match_id = match.get("IdMatch")
-            if match_id and match_id not in seen_matches:
-                seen_matches.add(match_id)
-                matches.append(match)
-    return matches
-
-
-class FIFAWorldCupProvider(ScoreProvider):
-    def get_scores(self):
-        try:
-            payload_matches = fetch_fifa_world_cup_group_stage_matches()
-            if payload_matches:
-                # Debug: print the first match payload to see if goal details are present
-                print(f"DEBUG: Sample match payload: {payload_matches[0]}")
-            
-            scores = []
-            for match in payload_matches:
-                home_name = _fifa_team_name(match.get("Home"))
-                away_name = _fifa_team_name(match.get("Away"))
-                h_score = _fifa_score(match, "Home")
-                a_score = _fifa_score(match, "Away")
-                if not home_name or not away_name:
-                    continue
-                if h_score is None or a_score is None:
-                    continue
-
-                match_status = match.get("MatchStatus")
-                result_type = match.get("ResultType")
-                if match_status == 0 or result_type == 1:
-                    status = "FT"
-                elif match_status == 3:
-                    status = "LIVE"
-                else:
-                    continue
-
-                scores.append({
-                    "home": home_name,
-                    "h_score": str(h_score),
-                    "away": away_name,
-                    "a_score": str(a_score),
-                    "text": f"{home_name} {h_score}-{a_score} {away_name} {status}",
-                    "competition": "FIFA World Cup",
-                })
-            return scores
-        except Exception as e:
-            print(f"FIFAWorldCupProvider error: {e}")
-            return []
 
 
 class SkySportsProvider(ScoreProvider):
@@ -320,10 +206,6 @@ def _find_db_match(home_team, away_team, competition_name, now):
         competition_matches = (
             not competition_name
             or candidate_competition == competition_name
-            or (
-                competition_name in {"FIFA World Cup", "World Cup"}
-                and candidate_competition.startswith("FIFA World Cup")
-            )
         )
         if (
             is_in_live_polling_window(candidate, now=now)
@@ -336,10 +218,6 @@ def _find_db_match(home_team, away_team, competition_name, now):
         competition_matches = (
             not competition_name
             or candidate_competition == competition_name
-            or (
-                competition_name in {"FIFA World Cup", "World Cup"}
-                and candidate_competition.startswith("FIFA World Cup")
-            )
         )
         if (
             kickoff
@@ -402,8 +280,6 @@ def _score_entry_for_match(score_map, db_match, competition_name):
     score_entry = score_map.get(key)
     if score_entry:
         return score_entry
-    if competition_name.startswith("FIFA World Cup"):
-        return score_map.get((db_match.get('hometeam'), db_match.get('awayteam'), "FIFA World Cup"))
     return None
 
 
@@ -460,12 +336,8 @@ def _reconcile_overdue_matches(score_map, now):
         if kickoff > now - timedelta(minutes=overdue_minutes):
             continue
 
-        dated_override = (
-            dated_result_overrides.get((db_match.get('hometeam'), db_match.get('awayteam'), competition_name))
-            or (
-                competition_name.startswith("FIFA World Cup")
-                and dated_result_overrides.get((db_match.get('hometeam'), db_match.get('awayteam'), "FIFA World Cup"))
-            )
+        dated_override = dated_result_overrides.get(
+            (db_match.get('hometeam'), db_match.get('awayteam'), competition_name)
         )
         if dated_override:
             h_score, a_score = dated_override
@@ -496,7 +368,7 @@ def _reconcile_overdue_matches(score_map, now):
                 continue
 
         # Do not turn the last live/HT score into a final without a provider-confirmed FT.
-        # World Cup stoppage-time goals would otherwise be lost if the official feed times out.
+        # Stoppage-time goals would otherwise be lost if the official feed times out.
 
 
 def _needs_live_processing(now):
@@ -532,7 +404,7 @@ def process_live_updates():
         print("Skip live: no fixtures in active window or awaiting finalization.")
         return
 
-    providers = [FIFAWorldCupProvider(), SkySportsProvider(), BBCProvider()]
+    providers = [SkySportsProvider(), BBCProvider()]
     all_scores = _merged_scores(providers)
     score_map = {
         (item["mapped_home"], item["mapped_away"], (item.get("competition") or "").strip()): item

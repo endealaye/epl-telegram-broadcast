@@ -9,7 +9,6 @@ from PIL import Image, ImageDraw
 
 from bot_config import (
     AMHARIC_TEAMS,
-    SHORT_AMHARIC_TEAMS,
     format_display_date,
     get_eat_now,
     get_eat_today,
@@ -26,11 +25,9 @@ from standings import (
     _resolve_logo_path,
     broadcast_standings,
 )
-from world_cup_standings import broadcast_world_cup_standings_card_for_fixture, world_cup_group_name_for_fixture
 from store import (
     acquire_bot_lock,
     fetch_fixtures_for_dates,
-    fixture_allows_extra_time,
     fixture_competition_name,
     fixtures_in_window,
     get_bot_state_value,
@@ -61,7 +58,6 @@ COMPETITION_HEADER_LOGOS = {
     "Premier League": None,
     "UEFA Champions League": "UEFA_Champions_League.svg",
     "UEFA Europa League": "UEFA_Europa_League_logo_(2024_version).svg",
-    "FIFA World Cup": "fifa-world-cup-2026-logo.png",
 }
 
 
@@ -89,7 +85,7 @@ def _draw_badge_fallback(image, draw, x, y, size, team_name):
 
 def _team_amharic_name(team_name, short=False):
     if short:
-        return SHORT_AMHARIC_TEAMS.get(team_name) or AMHARIC_TEAMS.get(team_name, team_name)
+        return AMHARIC_TEAMS.get(team_name, team_name)
     return AMHARIC_TEAMS.get(team_name, team_name)
 
 
@@ -515,19 +511,9 @@ def _has_final_score(fixture):
 
 
 def _result_note(fixture):
-    if fixture_allows_extra_time(fixture):
-        if fixture.get("went_penalties"):
-            home_pens = fixture.get("home_penalties")
-            away_pens = fixture.get("away_penalties")
-            if home_pens is not None and away_pens is not None:
-                return f"pens {home_pens}-{away_pens}"
-            return "pens"
-        if fixture.get("went_extra_time"):
-            return "AET"
-
     note = (fixture.get("result_note") or fixture.get("last_broadcast_score") or "").strip()
     normal_score = f"{fixture.get('hometeamscore')}-{fixture.get('awayteamscore')}"
-    if not fixture_allows_extra_time(fixture) and any(
+    if any(
         marker in note.lower()
         for marker in ("aet", "extra time", "pen", "penalty", "penalties")
     ):
@@ -859,16 +845,6 @@ def broadcast_results(date_strings=None):
             "result_sent": True,
             "broadcaststatus": 'result_sent',
         }).in_('matchnumber', sent_ids).execute()
-
-        broadcasted_groups = set()
-        for result in results:
-            try:
-                group_name = world_cup_group_name_for_fixture(result)
-                if group_name and group_name not in broadcasted_groups:
-                    broadcasted_groups.add(group_name)
-                    broadcast_world_cup_standings_card_for_fixture(result)
-            except Exception as e:
-                print(f"Failed to auto-broadcast standing card for match {result.get('matchnumber')}: {e}")
 
         refreshed_target_day = fetch_fixtures_for_dates([target_date])
         maybe_send_auto_standings(refreshed_target_day, today=target_date)

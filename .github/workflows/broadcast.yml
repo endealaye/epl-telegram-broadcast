@@ -6,10 +6,6 @@ on:
     - cron: '0 3 * * *'
     # 8 PM EAT = 5 PM UTC
     - cron: '0 17 * * *'
-    # 6 PM EAT = 3 PM UTC, before the evening World Cup kickoff block
-    - cron: '0 15 * * *'
-    # 11:30 PM EAT = 8:30 PM UTC, before the overnight World Cup kickoff block
-    - cron: '30 20 * * *'
     # Every 10 minutes for reminders, results, commands, and news
     - cron: '*/10 * * * *'
   workflow_dispatch: # Allows manual trigger
