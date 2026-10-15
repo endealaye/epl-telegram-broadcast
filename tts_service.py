@@ -26,6 +26,63 @@ def _alert_tts_failure(stage, exc):
     except Exception as alert_exc:
         print(f"Could not send TTS admin alert: {alert_exc!r}")
 
+VIDEO_WIDTH = 1280
+VIDEO_HEIGHT = 720
+VIDEO_FPS = 10
+VIDEO_TIMEOUT_SECONDS = int(os.getenv("VIDEO_TIMEOUT_SECONDS", "300"))
+
+
+def render_news_video(audio_path, video_path, image_path=None):
+    """
+    Build an H.264/AAC mp4 from a still image plus the narration audio.
+
+    The image is scaled to fit inside 1280x720 and padded, so the output
+    dimensions are always even. libx264 with yuv420p refuses odd sizes, which
+    is what made video generation fail for many news images. When there is no
+    image, a plain black frame is used so a video is still produced.
+    Raises RuntimeError with ffmpeg's own error output if encoding fails.
+    """
+    if image_path:
+        video_input = ["-loop", "1", "-framerate", str(VIDEO_FPS), "-i", str(image_path)]
+    else:
+        video_input = [
+            "-f", "lavfi",
+            "-i", f"color=c=black:s={VIDEO_WIDTH}x{VIDEO_HEIGHT}:r={VIDEO_FPS}",
+        ]
+
+    video_filter = (
+        f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=decrease,"
+        f"pad={VIDEO_WIDTH}:{VIDEO_HEIGHT}:(ow-iw)/2:(oh-ih)/2:color=black,"
+        "setsar=1,format=yuv420p"
+    )
+    cmd = [
+        "ffmpeg", "-y", "-loglevel", "error",
+        *video_input,
+        "-i", str(audio_path),
+        "-vf", video_filter,
+        "-c:v", "libx264", "-tune", "stillimage", "-preset", "veryfast",
+        "-r", str(VIDEO_FPS),
+        "-c:a", "aac", "-b:a", "128k",
+        "-movflags", "+faststart",
+        "-shortest",
+        str(video_path),
+    ]
+    try:
+        subprocess.run(
+            cmd, check=True, capture_output=True, text=True,
+            timeout=VIDEO_TIMEOUT_SECONDS,
+        )
+    except subprocess.CalledProcessError as exc:
+        stderr_tail = (exc.stderr or "").strip()[-500:]
+        raise RuntimeError(f"ffmpeg video render failed: {stderr_tail}") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"ffmpeg video render timed out after {VIDEO_TIMEOUT_SECONDS}s") from exc
+
+    if not Path(video_path).exists() or Path(video_path).stat().st_size == 0:
+        raise RuntimeError("ffmpeg produced an empty video file")
+    return Path(video_path)
+
+
 def synthesize_news_audio(title, story):
     """
     Converts Amharic news text to audio, appends a signature, 

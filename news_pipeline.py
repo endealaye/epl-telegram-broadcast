@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw
 from deep_translator import GoogleTranslator
 
 from commands import send_admin_alert, send_telegram_message, send_telegram_photo, send_telegram_photo_file, send_telegram_audio_file, send_telegram_video_file
-from tts_service import synthesize_news_audio
+from tts_service import render_news_video, synthesize_news_audio
 
 from news_collectors import (
     fetch_bbc_football_rss,
@@ -725,31 +725,18 @@ def mark_review_item(
     try:
         audio_path = synthesize_news_audio(final_title, final_story)
         if audio_path:
-            if local_image_path and local_image_path.exists():
-                video_path = audio_path.with_suffix('.mp4')
-                cmd = [
-                    "ffmpeg", "-y",
-                    "-loop", "1", "-i", str(local_image_path),
-                    "-i", str(audio_path),
-                    "-c:v", "libx264", "-tune", "stillimage",
-                    "-c:a", "aac", "-b:a", "128k",
-                    "-pix_fmt", "yuv420p",
-                    "-shortest",
-                    str(video_path)
-                ]
-                try:
-                    import subprocess
-                    subprocess.run(cmd, check=True, capture_output=True)
-                    send_telegram_video_file(video_path, caption=f"🔊 {final_title}")
-                except Exception as video_exc:
-                    print(f"Video generation/broadcast failed for item {item_id}: {video_exc}")
-                    send_telegram_audio_file(audio_path, caption=f"🔊 {final_title}")
-                finally:
-                    if 'video_path' in locals() and video_path.exists():
-                        video_path.unlink(missing_ok=True)
-            else:
+            video_path = audio_path.with_suffix('.mp4')
+            image_for_video = local_image_path if local_image_path and local_image_path.exists() else None
+            try:
+                render_news_video(audio_path, video_path, image_path=image_for_video)
+                send_telegram_video_file(video_path, caption=f"🔊 {final_title}")
+            except Exception as video_exc:
+                # Audio-only is the last resort, not the normal path.
+                print(f"Video generation/broadcast failed for item {item_id}: {video_exc}")
                 send_telegram_audio_file(audio_path, caption=f"🔊 {final_title}")
-                
+            finally:
+                video_path.unlink(missing_ok=True)
+
             audio_path.unlink(missing_ok=True)
     except Exception as audio_exc:
         print(f"Audio/Video broadcast failed for item {item_id}: {audio_exc}")

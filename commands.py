@@ -88,8 +88,11 @@ def send_telegram_video_file(video_path, caption=None, chat_id=None, return_mess
     data = {
         "chat_id": target_chat,
         "caption": caption,
+        "supports_streaming": "true",
+        "width": 1280,
+        "height": 720,
     }
-    
+
     with Path(video_path).open("rb") as video_file:
         result = _telegram_post("sendVideo", data=data, files={"video": video_file})
     
