@@ -207,14 +207,14 @@ def build_and_upload_digest(dry_run=False):
 
 def build_and_send_digest_telegram(chat_id=None):
     """Merge everything broadcast since the last digest and send it to Telegram.
-    Goes to the admin chat unless MERGED_VIDEO_CHAT_ID / chat_id says otherwise,
-    so the result can be reviewed before it goes anywhere public. Does not
+    Goes to the news channel (TELEGRAM_CHAT_ID, where the news posts and their
+    videos go) unless MERGED_VIDEO_CHAT_ID / chat_id says otherwise. Does not
     advance the digest window, so a re-run covers the same stories."""
-    from bot_config import TELEGRAM_ADMIN_ID
+    from bot_config import TELEGRAM_CHAT_ID
 
-    target = chat_id or os.getenv("MERGED_VIDEO_CHAT_ID", "").strip() or TELEGRAM_ADMIN_ID
+    target = chat_id or os.getenv("MERGED_VIDEO_CHAT_ID", "").strip() or TELEGRAM_CHAT_ID
     if not target:
-        return {"success": False, "message": "No Telegram chat: set TELEGRAM_ADMIN_ID or MERGED_VIDEO_CHAT_ID."}
+        return {"success": False, "message": "No Telegram chat: set TELEGRAM_CHAT_ID or MERGED_VIDEO_CHAT_ID."}
 
     now = datetime.now(timezone.utc)
     items = select_items(list_published_news_since(_window_start(now).isoformat(), limit=60))
