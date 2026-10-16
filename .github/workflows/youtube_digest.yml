@@ -1,9 +1,9 @@
-name: YouTube Daily Digest
+name: YouTube Digest (manual)
 
+# Merged videos are now built after every news translation run (see
+# news_translator.process_automated_news). This workflow is manual only: it
+# merges everything broadcast since the last manual/digest run.
 on:
-  schedule:
-    # 9 PM EAT = 6 PM UTC
-    - cron: '0 18 * * *'
   workflow_dispatch:
 
 # Shares the broadcast lock so the digest never overlaps a news run.
