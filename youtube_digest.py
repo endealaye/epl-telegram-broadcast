@@ -15,7 +15,7 @@ from tts_service import concat_videos, media_duration, render_news_video, synthe
 from youtube_uploader import upload_news_video, youtube_enabled
 
 DIGEST_STATE_KEY = "youtube_digest_last_run"
-DIGEST_MAX_ITEMS = int(os.getenv("YOUTUBE_DIGEST_MAX_ITEMS", "10"))
+DIGEST_MAX_ITEMS = int(os.getenv("YOUTUBE_DIGEST_MAX_ITEMS", "25"))
 DIGEST_DEFAULT_WINDOW_HOURS = 24
 DIGEST_MAX_WINDOW_HOURS = 48
 EAT = timezone(timedelta(hours=3))
@@ -53,14 +53,15 @@ def build_chapters(titles_and_durations):
 
 
 def select_items(items, max_items=DIGEST_MAX_ITEMS):
-    """Usable items only (image + Amharic text); keep the highest-relevance
-    ones, in the order they were broadcast."""
+    """Every usable story (image + Amharic text) in the order it was broadcast.
+    Only if there are more than max_items (a runtime/length cap) are the oldest
+    dropped. No relevance ranking: the stored score is a crude keyword count."""
     usable = [
         i for i in items
         if i.get("image_url") and i.get("translated_title_am") and i.get("translated_story_am")
     ]
-    top = sorted(usable, key=lambda i: i.get("relevance_score") or 0, reverse=True)[:max_items]
-    return sorted(top, key=lambda i: i.get("reviewed_at") or "")
+    ordered = sorted(usable, key=lambda i: i.get("reviewed_at") or "")
+    return ordered[-max_items:] if max_items > 0 else ordered
 
 
 def build_and_upload_digest(dry_run=False):
