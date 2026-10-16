@@ -675,6 +675,28 @@ def list_news_queue_preview(statuses=None, limit=20):
     return res.data or []
 
 
+def list_published_news_since(since_iso, limit=50):
+    """Items broadcast to Telegram since the given ISO timestamp (reviewed_at is
+    set when an item is marked published), oldest first."""
+    if not supabase:
+        return []
+    query = (
+        supabase.table("news_items")
+        .select(
+            "id,source_name,title,image_url,relevance_score,"
+            "translated_title_am,translated_story_am,reviewed_at"
+        )
+        .eq("review_status", "published")
+        .gte("reviewed_at", since_iso)
+        .order("reviewed_at", desc=False)
+        .limit(limit)
+    )
+    res = _safe_execute(query, default=None, context="list_published_news_since")
+    if res is None:
+        return []
+    return res.data or []
+
+
 def get_news_item(item_id):
     if not supabase:
         return None

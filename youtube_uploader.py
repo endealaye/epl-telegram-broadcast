@@ -3,7 +3,7 @@ Upload broadcast news videos to YouTube (Data API v3, videos.insert).
 
 Disabled unless YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET and
 YOUTUBE_REFRESH_TOKEN are all set. Get the refresh token once with
-get_youtube_refresh_token.py. Uploads default to "unlisted" (override with
+get_youtube_refresh_token.py. Uploads default to "private" (override with
 YOUTUBE_PRIVACY=private|unlisted|public).
 """
 import os
@@ -27,8 +27,8 @@ def youtube_enabled():
 
 
 def _privacy_status():
-    value = (os.getenv("YOUTUBE_PRIVACY") or "unlisted").strip().lower()
-    return value if value in VALID_PRIVACY else "unlisted"
+    value = (os.getenv("YOUTUBE_PRIVACY") or "private").strip().lower()
+    return value if value in VALID_PRIVACY else "private"
 
 
 def _clean(text, limit):
