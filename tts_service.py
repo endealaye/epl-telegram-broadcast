@@ -27,18 +27,12 @@ def _synthesize_edge(text, out_path):
         raise RuntimeError("edge-tts produced an empty audio file")
 
 
-def _synthesize_gtts(text, out_path):
-    from gtts import gTTS  # imported lazily; only used as a fallback
-
-    gTTS(text=text, lang='am').save(str(out_path))
-
-
 def _synthesize_speech(text, out_path):
     """
-    Try edge-tts first, then fall back to gTTS so a Microsoft-side outage
-    doesn't silence the broadcast. Returns the engine name used, or None.
+    Synthesize with edge-tts only (no gTTS fallback), retrying on failure.
+    Returns the engine name used, or None if every attempt failed.
     """
-    for engine, synth in (("edge-tts", _synthesize_edge), ("gTTS", _synthesize_gtts)):
+    for engine, synth in (("edge-tts", _synthesize_edge),):
         for attempt in range(1, TTS_MAX_ATTEMPTS + 1):
             try:
                 synth(text, out_path)
@@ -215,7 +209,7 @@ def synthesize_news_audio(title, story, signature=True):
     fast_audio = temp_dir / f"tts_fast_{os.urandom(4).hex()}.mp3"
     
     try:
-        # 1. Synthesize text to speech (edge-tts, gTTS as fallback)
+        # 1. Synthesize text to speech (edge-tts only)
         engine = _synthesize_speech(full_text, raw_audio)
         if not engine:
             return None
