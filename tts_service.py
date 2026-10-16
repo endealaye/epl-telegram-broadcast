@@ -13,6 +13,7 @@ TTS_RETRY_DELAY_SECONDS = float(os.getenv("TTS_RETRY_DELAY_SECONDS", "3"))
 # am-ET-MekdesNeural (female) or am-ET-AmehaNeural (male)
 EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "am-ET-MekdesNeural")
 EDGE_TTS_TIMEOUT_SECONDS = int(os.getenv("EDGE_TTS_TIMEOUT_SECONDS", "120"))
+TTS_SPEED = float(os.getenv("TTS_SPEED", "1.15"))  # ffmpeg atempo accepts 0.5 to 100
 _tts_alert_sent = False
 
 
@@ -144,11 +145,11 @@ def synthesize_news_audio(title, story):
             return None
         print(f"TTS engine used: {engine}")
 
-        # 2. Speed up using ffmpeg (1.5x)
-        # -filter:a "atempo=1.5" speeds up audio without changing pitch
+        # 2. Speed up using ffmpeg (TTS_SPEED, default 1.15x)
+        # atempo speeds up audio without changing pitch
         cmd = [
             "ffmpeg", "-y", "-i", str(raw_audio),
-            "-filter:a", "atempo=1.5",
+            "-filter:a", f"atempo={TTS_SPEED}",
             str(fast_audio)
         ]
         subprocess.run(cmd, check=True, capture_output=True)
