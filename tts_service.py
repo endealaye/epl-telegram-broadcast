@@ -138,8 +138,8 @@ def _alert_tts_failure(stage, exc):
     except Exception as alert_exc:
         print(f"Could not send TTS admin alert: {alert_exc!r}")
 
-VIDEO_WIDTH = 1280
-VIDEO_HEIGHT = 720
+VIDEO_WIDTH = 1920
+VIDEO_HEIGHT = 1080
 VIDEO_FPS = 10
 VIDEO_TIMEOUT_SECONDS = int(os.getenv("VIDEO_TIMEOUT_SECONDS", "300"))
 
@@ -148,7 +148,7 @@ def render_news_video(audio_path, video_path, image_path=None):
     """
     Build an H.264/AAC mp4 from a still image plus the narration audio.
 
-    The image is scaled to fit inside 1280x720 and padded, so the output
+    The image is scaled to fit inside 1920x1080 and padded, so the output
     dimensions are always even. libx264 with yuv420p refuses odd sizes, which
     is what made video generation fail for many news images. When there is no
     image, a plain black frame is used so a video is still produced.
