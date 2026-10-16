@@ -9,4 +9,3 @@ deep-translator==1.11.4
 edge-tts==7.3.1
 google-api-python-client==2.201.0
 google-auth==2.62.0
-gtts==2.5.4
