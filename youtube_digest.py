@@ -29,6 +29,8 @@ DIGEST_DEFAULT_WINDOW_HOURS = 24
 DIGEST_MAX_WINDOW_HOURS = 48
 EAT = timezone(timedelta(hours=3))
 DIGEST_TITLE = "የፕሪሚየር ሊግ ዜና ማጠቃለያ"
+# Telegram's bot API rejects uploads over 50 MB.
+TELEGRAM_VIDEO_LIMIT_BYTES = 49 * 1024 * 1024
 
 
 def _window_start(now):
@@ -73,8 +75,29 @@ def select_items(items, max_items=DIGEST_MAX_ITEMS):
     return ordered[-max_items:] if max_items > 0 else ordered
 
 
-def _render_and_upload(items, title, dry_run=False):
-    """Render each story, join them, upload. Returns a result dict."""
+def _send_merged_to_telegram(merged_path, title, chapter_lines, story_count, total_seconds, chat_id):
+    """Send the merged video (then its chapter list) to a Telegram chat."""
+    from commands import send_telegram_message, send_telegram_video_file
+
+    size = Path(merged_path).stat().st_size
+    if size > TELEGRAM_VIDEO_LIMIT_BYTES:
+        return {
+            "success": False, "items": story_count, "seconds": round(total_seconds),
+            "message": f"Merged video is {size // (1024 * 1024)} MB, over Telegram's 50 MB limit.",
+        }
+    caption = f"{title}\n{story_count} stories, {_timestamp(total_seconds)}"
+    if not send_telegram_video_file(merged_path, caption=caption[:1000], chat_id=chat_id):
+        return {"success": False, "items": story_count, "message": "Telegram send failed (token or chat id missing)."}
+    send_telegram_message("\n".join(chapter_lines)[:4000], chat_id=chat_id, parse_mode=None)
+    return {
+        "success": True, "items": story_count, "seconds": round(total_seconds),
+        "destination": "telegram", "chat_id": str(chat_id), "size_mb": round(size / (1024 * 1024), 1),
+    }
+
+
+def _render_and_upload(items, title, dry_run=False, destination="youtube", chat_id=None):
+    """Render each story, join them, then upload to YouTube or send to Telegram.
+    Returns a result dict."""
     from news_pipeline import create_watermarked_image, send_admin_alert  # heavy import, kept lazy
 
     work_dir = Path(tempfile.mkdtemp(prefix="yt_digest_"))
@@ -108,6 +131,12 @@ def _render_and_upload(items, title, dry_run=False):
         merged_path = work_dir / "merged.mp4"
         concat_videos(clips, merged_path)
         total_seconds = media_duration(merged_path)
+
+        if destination == "telegram":
+            return _send_merged_to_telegram(
+                merged_path, title, build_chapters(chapters_input),
+                len(clips), total_seconds, chat_id,
+            )
 
         sources = sorted({i.get("source_name") for i in items if i.get("source_name")})
         description = "\n".join(
@@ -174,3 +203,23 @@ def build_and_upload_digest(dry_run=False):
     if result.get("success") and not dry_run:
         set_bot_state_value(DIGEST_STATE_KEY, now.isoformat())
     return result
+
+
+def build_and_send_digest_telegram(chat_id=None):
+    """Merge everything broadcast since the last digest and send it to Telegram.
+    Goes to the admin chat unless MERGED_VIDEO_CHAT_ID / chat_id says otherwise,
+    so the result can be reviewed before it goes anywhere public. Does not
+    advance the digest window, so a re-run covers the same stories."""
+    from bot_config import TELEGRAM_ADMIN_ID
+
+    target = chat_id or os.getenv("MERGED_VIDEO_CHAT_ID", "").strip() or TELEGRAM_ADMIN_ID
+    if not target:
+        return {"success": False, "message": "No Telegram chat: set TELEGRAM_ADMIN_ID or MERGED_VIDEO_CHAT_ID."}
+
+    now = datetime.now(timezone.utc)
+    items = select_items(list_published_news_since(_window_start(now).isoformat(), limit=60))
+    if len(items) < 2:
+        return {"success": True, "items": len(items), "message": "Fewer than 2 usable stories (need image and Amharic text)."}
+
+    date_label = now.astimezone(EAT).strftime("%d %b %Y %H:%M")
+    return _render_and_upload(items, f"{DIGEST_TITLE} | {date_label}", destination="telegram", chat_id=target)

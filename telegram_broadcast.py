@@ -19,6 +19,7 @@ SUPABASE_REQUIRED_MODES = {
     "news-mark",
     "automated-news",
     "youtube-digest",
+    "telegram-digest",
 }
 
 
@@ -32,7 +33,7 @@ def json_serial(obj):
 def print_usage():
     print(
         "Usage: python3 telegram_broadcast.py "
-        "[refresh|commands|live|daily|reminders|results|standings [short|full]|heartbeat|news-fetch|news-queue|news-mark|automated-news|youtube-digest [--dry-run]|event]"
+        "[refresh|commands|live|daily|reminders|results|standings [short|full]|heartbeat|news-fetch|news-queue|news-mark|automated-news|youtube-digest [--dry-run]|telegram-digest|event]"
     )
 
 
@@ -89,6 +90,9 @@ if __name__ == '__main__':
         elif mode == 'youtube-digest':
             from youtube_digest import build_and_upload_digest
             result = build_and_upload_digest(dry_run='--dry-run' in sys.argv[2:])
+        elif mode == 'telegram-digest':
+            from youtube_digest import build_and_send_digest_telegram
+            result = build_and_send_digest_telegram()
         elif mode == 'standings':
             payload = {}
             if len(sys.argv) > 2:
