@@ -10,8 +10,8 @@ import edge_tts
 
 TTS_MAX_ATTEMPTS = int(os.getenv("TTS_MAX_ATTEMPTS", "3"))
 TTS_RETRY_DELAY_SECONDS = float(os.getenv("TTS_RETRY_DELAY_SECONDS", "3"))
-# am-ET-MekdesNeural (female) or am-ET-AmehaNeural (male)
-EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "am-ET-MekdesNeural")
+# am-ET-AmehaNeural (male, default) or am-ET-MekdesNeural (female)
+EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "am-ET-AmehaNeural")
 EDGE_TTS_TIMEOUT_SECONDS = int(os.getenv("EDGE_TTS_TIMEOUT_SECONDS", "120"))
 TTS_SPEED = float(os.getenv("TTS_SPEED", "1.15"))  # ffmpeg atempo accepts 0.5 to 100
 _tts_alert_sent = False
