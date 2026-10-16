@@ -1,4 +1,4 @@
-from gtts import gTTS
+import asyncio
 import os
 import tempfile
 import subprocess
@@ -6,9 +6,50 @@ import time
 import traceback
 from pathlib import Path
 
+import edge_tts
+
 TTS_MAX_ATTEMPTS = int(os.getenv("TTS_MAX_ATTEMPTS", "3"))
 TTS_RETRY_DELAY_SECONDS = float(os.getenv("TTS_RETRY_DELAY_SECONDS", "3"))
+# am-ET-MekdesNeural (female) or am-ET-AmehaNeural (male)
+EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "am-ET-MekdesNeural")
+EDGE_TTS_TIMEOUT_SECONDS = int(os.getenv("EDGE_TTS_TIMEOUT_SECONDS", "120"))
 _tts_alert_sent = False
+
+
+def _synthesize_edge(text, out_path):
+    async def _run():
+        communicate = edge_tts.Communicate(text, EDGE_TTS_VOICE)
+        await asyncio.wait_for(communicate.save(str(out_path)), timeout=EDGE_TTS_TIMEOUT_SECONDS)
+
+    asyncio.run(_run())
+    if not Path(out_path).exists() or Path(out_path).stat().st_size == 0:
+        raise RuntimeError("edge-tts produced an empty audio file")
+
+
+def _synthesize_gtts(text, out_path):
+    from gtts import gTTS  # imported lazily; only used as a fallback
+
+    gTTS(text=text, lang='am').save(str(out_path))
+
+
+def _synthesize_speech(text, out_path):
+    """
+    Try edge-tts first, then fall back to gTTS so a Microsoft-side outage
+    doesn't silence the broadcast. Returns the engine name used, or None.
+    """
+    for engine, synth in (("edge-tts", _synthesize_edge), ("gTTS", _synthesize_gtts)):
+        for attempt in range(1, TTS_MAX_ATTEMPTS + 1):
+            try:
+                synth(text, out_path)
+                return engine
+            except Exception as tts_exc:
+                Path(out_path).unlink(missing_ok=True)
+                if attempt >= TTS_MAX_ATTEMPTS:
+                    _alert_tts_failure(f"{engine} (after {attempt} attempts)", tts_exc)
+                    break
+                print(f"{engine} attempt {attempt}/{TTS_MAX_ATTEMPTS} failed: {tts_exc!r}")
+                time.sleep(TTS_RETRY_DELAY_SECONDS * attempt)
+    return None
 
 
 def _alert_tts_failure(stage, exc):
@@ -97,19 +138,12 @@ def synthesize_news_audio(title, story):
     fast_audio = temp_dir / f"tts_fast_{os.urandom(4).hex()}.mp3"
     
     try:
-        # 1. Synthesize text to speech
-        for attempt in range(1, TTS_MAX_ATTEMPTS + 1):
-            try:
-                tts = gTTS(text=full_text, lang='am')
-                tts.save(str(raw_audio))
-                break
-            except Exception as tts_exc:
-                if attempt >= TTS_MAX_ATTEMPTS:
-                    _alert_tts_failure(f"gTTS (after {attempt} attempts)", tts_exc)
-                    return None
-                print(f"gTTS attempt {attempt}/{TTS_MAX_ATTEMPTS} failed: {tts_exc!r}")
-                time.sleep(TTS_RETRY_DELAY_SECONDS * attempt)
-        
+        # 1. Synthesize text to speech (edge-tts, gTTS as fallback)
+        engine = _synthesize_speech(full_text, raw_audio)
+        if not engine:
+            return None
+        print(f"TTS engine used: {engine}")
+
         # 2. Speed up using ffmpeg (1.5x)
         # -filter:a "atempo=1.5" speeds up audio without changing pitch
         cmd = [
