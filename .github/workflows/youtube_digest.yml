@@ -5,6 +5,15 @@ name: YouTube Digest (manual)
 # merges everything broadcast since the last manual/digest run.
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Where to send the merged video'
+        required: true
+        type: choice
+        default: 'telegram-digest'
+        options:
+          - 'telegram-digest'
+          - 'youtube-digest'
 
 # Shares the broadcast lock so the digest never overlaps a news run.
 concurrency:
@@ -46,4 +55,6 @@ jobs:
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           YOUTUBE_PRIVACY: ${{ vars.YOUTUBE_PRIVACY }}
-        run: python3 telegram_broadcast.py youtube-digest
+          MERGED_VIDEO_CHAT_ID: ${{ vars.MERGED_VIDEO_CHAT_ID }}
+          DIGEST_MODE: ${{ inputs.mode }}
+        run: python3 telegram_broadcast.py "$DIGEST_MODE"
