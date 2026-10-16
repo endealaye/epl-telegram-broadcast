@@ -12,6 +12,7 @@ from deep_translator import GoogleTranslator
 
 from commands import send_admin_alert, send_telegram_message, send_telegram_photo, send_telegram_photo_file, send_telegram_audio_file, send_telegram_video_file
 from tts_service import render_news_video, synthesize_news_audio
+from youtube_uploader import upload_news_video, youtube_enabled
 
 from news_collectors import (
     fetch_bbc_football_rss,
@@ -642,6 +643,26 @@ def _mark_published_with_retry(**kwargs):
     raise RuntimeError(message)
 
 
+def _upload_news_video_to_youtube(video_path, title, story, source_name, item_id):
+    """Best-effort YouTube upload. Never raises: Telegram delivery comes first."""
+    if not youtube_enabled():
+        return
+    try:
+        description_parts = [story or ""]
+        if source_name:
+            description_parts.append(f"Source: {source_name}")
+        description_parts.append("Narration is AI-generated (synthetic voice). Text is machine-translated.")
+        result = upload_news_video(video_path, title, "\n\n".join(description_parts))
+        if result:
+            print(f"YouTube upload ok for item {item_id}: {result['url']} ({result['privacy']})")
+            try:
+                send_admin_alert(f"YouTube upload ({result['privacy']}): {result['url']}")
+            except Exception as alert_exc:
+                print(f"Could not send YouTube admin alert: {alert_exc!r}")
+    except Exception as yt_exc:
+        print(f"YouTube upload failed for item {item_id}: {yt_exc!r}")
+
+
 def mark_review_item(
     item_id,
     status,
@@ -730,6 +751,10 @@ def mark_review_item(
             try:
                 render_news_video(audio_path, video_path, image_path=image_for_video)
                 send_telegram_video_file(video_path, caption=f"🔊 {final_title}")
+                if image_for_video:  # skip black-frame videos (no image)
+                    _upload_news_video_to_youtube(
+                        video_path, final_title, final_story, item.get("source_name"), item_id
+                    )
             except Exception as video_exc:
                 # Audio-only is the last resort, not the normal path.
                 print(f"Video generation/broadcast failed for item {item_id}: {video_exc}")
