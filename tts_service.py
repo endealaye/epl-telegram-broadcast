@@ -47,11 +47,6 @@ def _synthesize_speech(text, out_path):
     return None
 
 
-SHORT_WIDTH = 1080
-SHORT_HEIGHT = 1920
-SHORT_MAX_SECONDS = 175  # YouTube Shorts must be under 3 minutes
-
-
 def media_duration(path):
     """Duration in seconds of an audio/video file, via ffprobe."""
     result = subprocess.run(
@@ -60,42 +55,6 @@ def media_duration(path):
         check=True, capture_output=True, text=True, timeout=60,
     )
     return float(result.stdout.strip())
-
-
-def render_news_short(audio_path, video_path, image_path):
-    """
-    Vertical 1080x1920 H.264/AAC video for YouTube Shorts: the image sits
-    centred over a blurred, enlarged copy of itself so there are no black bars.
-    """
-    filter_complex = (
-        "[0:v]split=2[bg][fg];"
-        f"[bg]scale={SHORT_WIDTH}:{SHORT_HEIGHT}:force_original_aspect_ratio=increase,"
-        f"crop={SHORT_WIDTH}:{SHORT_HEIGHT},boxblur=25:5[b];"
-        f"[fg]scale={SHORT_WIDTH}:{SHORT_HEIGHT}:force_original_aspect_ratio=decrease[f];"
-        "[b][f]overlay=(W-w)/2:(H-h)/2,setsar=1,format=yuv420p[v]"
-    )
-    cmd = [
-        "ffmpeg", "-y", "-loglevel", "error",
-        "-loop", "1", "-framerate", str(VIDEO_FPS), "-i", str(image_path),
-        "-i", str(audio_path),
-        "-filter_complex", filter_complex,
-        "-map", "[v]", "-map", "1:a",
-        "-c:v", "libx264", "-tune", "stillimage", "-preset", "veryfast",
-        "-r", str(VIDEO_FPS),
-        "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
-        "-movflags", "+faststart",
-        "-shortest",
-        str(video_path),
-    ]
-    try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=VIDEO_TIMEOUT_SECONDS)
-    except subprocess.CalledProcessError as exc:
-        raise RuntimeError(f"ffmpeg short render failed: {(exc.stderr or '').strip()[-500:]}") from exc
-    except subprocess.TimeoutExpired as exc:
-        raise RuntimeError(f"ffmpeg short render timed out after {VIDEO_TIMEOUT_SECONDS}s") from exc
-    if not Path(video_path).exists() or Path(video_path).stat().st_size == 0:
-        raise RuntimeError("ffmpeg produced an empty short file")
-    return Path(video_path)
 
 
 def concat_videos(video_paths, output_path):

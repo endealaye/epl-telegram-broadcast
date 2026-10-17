@@ -1,19 +1,9 @@
-name: YouTube Digest (manual)
+name: Video Digest (manual)
 
-# Merged videos are now built after every news translation run (see
-# news_translator.process_automated_news). This workflow is manual only: it
-# merges everything broadcast since the last manual/digest run.
+# Manual only: merges the stories broadcast in the last 24 hours into one video
+# and sends it to Telegram.
 on:
   workflow_dispatch:
-    inputs:
-      mode:
-        description: 'Where to send the merged video'
-        required: true
-        type: choice
-        default: 'telegram-digest'
-        options:
-          - 'telegram-digest'
-          - 'youtube-digest'
 
 # Shares the broadcast lock so the digest never overlaps a news run.
 concurrency:
@@ -44,17 +34,12 @@ jobs:
       - name: Install ffmpeg
         run: which ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
 
-      - name: Build and upload digest
+      - name: Build and send digest
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_ADMIN_ID: ${{ secrets.TELEGRAM_ADMIN_ID }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
-          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-          YOUTUBE_PRIVACY: ${{ vars.YOUTUBE_PRIVACY }}
           MERGED_VIDEO_CHAT_ID: ${{ vars.MERGED_VIDEO_CHAT_ID }}
-          DIGEST_MODE: ${{ inputs.mode }}
-        run: python3 telegram_broadcast.py "$DIGEST_MODE"
+        run: python3 telegram_broadcast.py telegram-digest
