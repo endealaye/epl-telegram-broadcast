@@ -102,7 +102,6 @@ def process_automated_news():
     processed = 0
     failed = 0
     stopped_reason = None
-    published_ids = []
 
     for index, item in enumerate(queue):
         try:
@@ -124,7 +123,6 @@ def process_automated_news():
             if not published:
                 raise RuntimeError(f"Item {item['id']} was not recorded as published.")
             processed += 1
-            published_ids.append(item["id"])
         except TranslationRateLimitedError as exc:
             failed += 1
             stopped_reason = f"Translation rate limited for item {item.get('id')}: {exc}"
@@ -137,17 +135,6 @@ def process_automated_news():
             if index < len(queue) - 1:
                 time.sleep(TRANSLATION_ITEM_DELAY_SECONDS)
 
-    # One merged YouTube video per run. Telegram is already done, so this must
-    # never raise or change the run's result.
-    merged_video = None
-    if published_ids:
-        try:
-            from youtube_digest import build_and_upload_batch
-            merged_video = build_and_upload_batch(published_ids)
-            print(f"Merged YouTube video: {merged_video}")
-        except Exception as exc:
-            print(f"Merged YouTube video failed: {exc!r}")
-
     success = not stopped_reason
     return {
         "success": success,
@@ -156,7 +143,6 @@ def process_automated_news():
         "fetched": fetch_result.get("stored_count", 0),
         "stopped_reason": stopped_reason,
         "fetch_error": fetch_error,
-        "merged_video": merged_video,
         "message": (
             f"Fetched {fetch_result.get('stored_count', 0)} items, published {processed}, "
             f"{failed} left in queue for retry."

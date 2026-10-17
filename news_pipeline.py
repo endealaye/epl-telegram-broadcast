@@ -11,14 +11,7 @@ from PIL import Image, ImageDraw
 from deep_translator import GoogleTranslator
 
 from commands import send_admin_alert, send_telegram_message, send_telegram_photo, send_telegram_photo_file, send_telegram_audio_file, send_telegram_video_file
-from tts_service import (
-    SHORT_MAX_SECONDS,
-    media_duration,
-    render_news_short,
-    render_news_video,
-    synthesize_news_audio,
-)
-from youtube_uploader import upload_news_video, youtube_enabled
+from tts_service import render_news_video, synthesize_news_audio
 
 from news_collectors import (
     fetch_bbc_football_rss,
@@ -649,35 +642,6 @@ def _mark_published_with_retry(**kwargs):
     raise RuntimeError(message)
 
 
-def _upload_news_short_to_youtube(audio_path, image_path, title, story, source_name, item_id):
-    """Best-effort vertical Short upload. Never raises: Telegram delivery comes first."""
-    if not youtube_enabled():
-        return
-    short_path = Path(audio_path).with_name(f"{Path(audio_path).stem}_short.mp4")
-    try:
-        duration = media_duration(audio_path)
-        if duration > SHORT_MAX_SECONDS:
-            print(f"Skipping YouTube Short for item {item_id}: {duration:.0f}s is too long for a Short.")
-            return
-        render_news_short(audio_path, short_path, image_path)
-        description_parts = [story or ""]
-        if source_name:
-            description_parts.append(f"Source: {source_name}")
-        description_parts.append("Narration is AI-generated (synthetic voice). Text is machine-translated.")
-        description_parts.append("#Shorts #EPL #PremierLeague")
-        result = upload_news_video(short_path, title, "\n\n".join(description_parts))
-        if result:
-            print(f"YouTube Short ok for item {item_id}: {result['url']} ({result['privacy']})")
-            try:
-                send_admin_alert(f"YouTube Short ({result['privacy']}): {result['url']}")
-            except Exception as alert_exc:
-                print(f"Could not send YouTube admin alert: {alert_exc!r}")
-    except Exception as yt_exc:
-        print(f"YouTube Short failed for item {item_id}: {yt_exc!r}")
-    finally:
-        short_path.unlink(missing_ok=True)
-
-
 def mark_review_item(
     item_id,
     status,
@@ -766,11 +730,6 @@ def mark_review_item(
             try:
                 render_news_video(audio_path, video_path, image_path=image_for_video)
                 send_telegram_video_file(video_path, caption=f"🔊 {final_title}")
-                if image_for_video:  # skip black-frame videos (no image)
-                    _upload_news_short_to_youtube(
-                        audio_path, image_for_video, final_title, final_story,
-                        item.get("source_name"), item_id,
-                    )
             except Exception as video_exc:
                 # Audio-only is the last resort, not the normal path.
                 print(f"Video generation/broadcast failed for item {item_id}: {video_exc}")
