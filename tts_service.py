@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shutil
 import tempfile
 import subprocess
 import time
@@ -195,19 +196,16 @@ def render_news_video(audio_path, video_path, image_path=None):
     return Path(video_path)
 
 
-def synthesize_news_audio(title, story, signature=True):
-    """
-    Converts Amharic news text to audio, appends a signature (unless
-    signature=False), and speeds up the output using ffmpeg.
-    """
-    suffix = " ይህ ዜና የቀረበላችሁ በካታንጋ ቻናል ነው" if signature else ""
-    full_text = f"{title}. {story}{suffix}"
-    
+SIGNATURE_TEXT = "ይህ ዜና የቀረበላችሁ በካታንጋ ቻናል ነው"
+
+
+def _synthesize_text(full_text):
+    """Edge-TTS the text, then speed it up with ffmpeg (TTS_SPEED). Returns an mp3 path or None."""
     # Temporary files for processing
     temp_dir = Path(tempfile.gettempdir())
     raw_audio = temp_dir / f"tts_raw_{os.urandom(4).hex()}.mp3"
     fast_audio = temp_dir / f"tts_fast_{os.urandom(4).hex()}.mp3"
-    
+
     try:
         # 1. Synthesize text to speech (edge-tts only)
         engine = _synthesize_speech(full_text, raw_audio)
@@ -223,7 +221,7 @@ def synthesize_news_audio(title, story, signature=True):
             str(fast_audio)
         ]
         subprocess.run(cmd, check=True, capture_output=True)
-        
+
         return fast_audio
     except Exception as e:
         _alert_tts_failure("ffmpeg/other", e)
@@ -232,3 +230,95 @@ def synthesize_news_audio(title, story, signature=True):
         # Clean up raw file immediately
         if raw_audio.exists():
             raw_audio.unlink()
+
+
+def synthesize_news_audio(title, story, signature=True):
+    """
+    Converts Amharic news text to audio, appends a signature (unless
+    signature=False), and speeds up the output using ffmpeg.
+    """
+    suffix = f" {SIGNATURE_TEXT}" if signature else ""
+    return _synthesize_text(f"{title}. {story}{suffix}")
+
+
+_signature_audio = None  # one signature clip per process, voiced once
+
+
+def _get_signature_audio():
+    global _signature_audio
+    if _signature_audio is None or not Path(_signature_audio).exists():
+        _signature_audio = _synthesize_text(SIGNATURE_TEXT)
+    return _signature_audio
+
+
+def with_signature(body_audio):
+    """
+    Return a NEW mp3 made of body_audio followed by the sign-off, so a story
+    is voiced once and the sign-off only once per process. If the sign-off
+    can't be voiced, the new file is just a copy of body_audio.
+    The caller owns (and must delete) the returned file; body_audio is untouched.
+    """
+    out = Path(tempfile.gettempdir()) / f"tts_signed_{os.urandom(4).hex()}.mp3"
+    signature = _get_signature_audio()
+    if not signature:
+        shutil.copy(body_audio, out)
+        return out
+    cmd = [
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-i", str(body_audio), "-i", str(signature),
+        "-filter_complex", "[0:a][1:a]concat=n=2:v=0:a=1[a]",
+        "-map", "[a]", str(out),
+    ]
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=VIDEO_TIMEOUT_SECONDS)
+    except Exception as exc:
+        print(f"Could not append sign-off, using story audio only: {exc!r}")
+        out.unlink(missing_ok=True)
+        shutil.copy(body_audio, out)
+    return out
+
+
+# Story media kept between publishing and the end-of-run merged video, so the
+# merge reuses the narration instead of voicing every story a second time.
+_story_media = {}
+_story_media_dir = None
+_story_media_enabled = False  # only the automated news run turns this on
+
+
+def enable_story_media_cache():
+    """Start keeping story media for the end-of-run merged video."""
+    global _story_media_enabled
+    _story_media_enabled = True
+
+
+def cache_story_media(item_id, body_audio, image_path):
+    """Copy a story's sign-off-free audio and its image into the run cache.
+    No-op unless enable_story_media_cache() was called (dashboard and other
+    callers of mark_review_item never clear it)."""
+    global _story_media_dir
+    if not _story_media_enabled:
+        return
+    if _story_media_dir is None or not Path(_story_media_dir).exists():
+        _story_media_dir = Path(tempfile.mkdtemp(prefix="story_media_"))
+    audio_copy = _story_media_dir / f"{item_id}_audio.mp3"
+    image_copy = _story_media_dir / f"{item_id}_image{Path(image_path).suffix or '.jpg'}"
+    shutil.copy(body_audio, audio_copy)
+    shutil.copy(image_path, image_copy)
+    _story_media[str(item_id)] = (audio_copy, image_copy)
+
+
+def get_cached_story_media(item_id):
+    """(audio, image) paths cached for this story, or None."""
+    media = _story_media.get(str(item_id))
+    if media and all(Path(p).exists() for p in media):
+        return media
+    return None
+
+
+def clear_story_media_cache():
+    global _story_media_dir, _story_media_enabled
+    _story_media_enabled = False
+    _story_media.clear()
+    if _story_media_dir is not None:
+        shutil.rmtree(_story_media_dir, ignore_errors=True)
+        _story_media_dir = None

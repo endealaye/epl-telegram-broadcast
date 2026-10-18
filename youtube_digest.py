@@ -18,7 +18,14 @@ from pathlib import Path
 
 from news_store import get_news_item, list_published_news_since
 from store import get_bot_state_value, set_bot_state_value
-from tts_service import concat_videos, media_duration, render_news_video, synthesize_news_audio
+from tts_service import (
+    concat_videos,
+    get_cached_story_media,
+    media_duration,
+    render_news_video,
+    synthesize_news_audio,
+    with_signature,
+)
 from youtube_uploader import upload_news_video, youtube_enabled
 
 DIGEST_STATE_KEY = "youtube_digest_last_run"
@@ -106,11 +113,17 @@ def _render_and_upload(items, title, dry_run=False, destination="youtube", chat_
         for index, item in enumerate(items):
             is_last = index == len(items) - 1
             image_path = audio_path = None
+            cached = get_cached_story_media(item["id"])  # set when this run just published the story
             try:
-                image_path = create_watermarked_image(item["image_url"])
-                audio_path = synthesize_news_audio(
-                    item["translated_title_am"], item["translated_story_am"], signature=is_last
-                )
+                if cached:
+                    # Reuse the narration and image from publishing: no new TTS, no re-download.
+                    body_audio, image_path = cached
+                    audio_path = with_signature(body_audio) if is_last else body_audio
+                else:
+                    image_path = create_watermarked_image(item["image_url"])
+                    audio_path = synthesize_news_audio(
+                        item["translated_title_am"], item["translated_story_am"], signature=is_last
+                    )
                 if not audio_path:
                     raise RuntimeError("no audio produced")
                 clip_path = work_dir / f"clip_{index:02d}.mp4"
@@ -121,9 +134,14 @@ def _render_and_upload(items, title, dry_run=False, destination="youtube", chat_
             except Exception as exc:
                 print(f"Merged video: skipping item {item.get('id')}: {exc!r}")
             finally:
-                for temp in (image_path, audio_path):
-                    if temp:
-                        Path(temp).unlink(missing_ok=True)
+                # Cached files stay until the run's cache is cleared; only delete what we made here.
+                if cached:
+                    if is_last and audio_path:
+                        Path(audio_path).unlink(missing_ok=True)  # the signed copy
+                else:
+                    for temp in (image_path, audio_path):
+                        if temp:
+                            Path(temp).unlink(missing_ok=True)
 
         if not clips:
             return {"success": False, "items": 0, "message": "No clips could be rendered."}
@@ -185,6 +203,37 @@ def build_and_upload_batch(item_ids, min_items=BATCH_MIN_ITEMS):
 
     stamp = datetime.now(timezone.utc).astimezone(EAT).strftime("%d %b %Y %H:%M")
     return _render_and_upload(items, f"{DIGEST_TITLE} | {stamp}")
+
+
+def build_and_send_batch_telegram(item_ids, min_items=BATCH_MIN_ITEMS, chat_id=None):
+    """Merge the stories published by one translation run into a single video and
+    send it to Telegram (the news channel unless MERGED_VIDEO_CHAT_ID / chat_id
+    says otherwise). No YouTube needed. Best-effort: callers wrap this so it can
+    never affect publishing, but a failed merge alerts the admin."""
+    from bot_config import TELEGRAM_CHAT_ID
+    from commands import send_admin_alert
+
+    if not item_ids:
+        return {"success": True, "skipped": "nothing to merge."}
+    target = chat_id or os.getenv("MERGED_VIDEO_CHAT_ID", "").strip() or TELEGRAM_CHAT_ID
+    if not target:
+        return {"success": False, "message": "No Telegram chat: set TELEGRAM_CHAT_ID or MERGED_VIDEO_CHAT_ID."}
+
+    rows = [row for row in (get_news_item(i) for i in item_ids) if row]
+    items = select_items(rows)
+    if len(items) < min_items:
+        return {"success": True, "skipped": f"only {len(items)} usable stories (minimum {min_items})."}
+
+    stamp = datetime.now(timezone.utc).astimezone(EAT).strftime("%d %b %Y %H:%M")
+    result = _render_and_upload(
+        items, f"{DIGEST_TITLE} | {stamp}", destination="telegram", chat_id=target
+    )
+    if not result.get("success"):
+        try:
+            send_admin_alert(f"Merged video was not sent: {result.get('message', result)}")
+        except Exception as alert_exc:
+            print(f"Could not send merged-video failure alert: {alert_exc!r}")
+    return result
 
 
 def build_and_upload_digest(dry_run=False):
