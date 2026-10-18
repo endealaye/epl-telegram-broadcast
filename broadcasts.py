@@ -665,6 +665,15 @@ def maybe_send_auto_standings(today_fixtures, today=None):
             "reason": "outside_retry_window",
         }
 
+    # Once per matchday. Without this, running every 10 minutes would repeat the
+    # table each time the 45-minute cooldown expires, for the whole retry window.
+    if get_bot_state_value(f"standings:auto:sent:{date_key}"):
+        return {
+            "success": False,
+            "sent": False,
+            "reason": "already_sent",
+        }
+
     last_sent_key = f"standings:auto:last_sent:{date_key}"
     last_sent_raw = get_bot_state_value(last_sent_key)
     last_sent_at = _parse_state_datetime(last_sent_raw)
@@ -822,6 +831,9 @@ def broadcast_results(date_strings=None):
             print("Skip results: another run currently holds the results lock.")
             return
         if not has_pending_results(date_strings=date_strings):
+            # live.py marks result_sent=True at full time, so by the time this job
+            # runs there is often nothing pending. The table must still go out.
+            maybe_send_auto_standings(fetch_fixtures_for_dates([target_date]), today=target_date)
             print("Skip results: no completed fixtures awaiting a results post.")
             return
 
