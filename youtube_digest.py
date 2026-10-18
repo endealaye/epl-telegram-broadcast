@@ -30,8 +30,10 @@ from youtube_uploader import upload_news_video, youtube_enabled
 
 DIGEST_STATE_KEY = "youtube_digest_last_run"
 DIGEST_MAX_ITEMS = int(os.getenv("YOUTUBE_DIGEST_MAX_ITEMS", "25"))
-# A "merge" of one story is just a landscape copy of its Short, so skip it.
-BATCH_MIN_ITEMS = int(os.getenv("YOUTUBE_BATCH_MIN_ITEMS", "2"))
+# Hard floor: a merged video never has fewer than this many usable stories
+# (image + Amharic text). Neither the env var nor a caller's min_items can lower it.
+MIN_MERGED_STORIES = 5
+BATCH_MIN_ITEMS = max(MIN_MERGED_STORIES, int(os.getenv("YOUTUBE_BATCH_MIN_ITEMS", str(MIN_MERGED_STORIES))))
 DIGEST_DEFAULT_WINDOW_HOURS = 24
 DIGEST_MAX_WINDOW_HOURS = 48
 EAT = timezone(timedelta(hours=3))
@@ -196,6 +198,7 @@ def build_and_upload_batch(item_ids, min_items=BATCH_MIN_ITEMS):
     if not item_ids or not youtube_enabled():
         return {"success": True, "skipped": "nothing to merge or YouTube not configured."}
 
+    min_items = max(min_items, MIN_MERGED_STORIES)
     rows = [row for row in (get_news_item(i) for i in item_ids) if row]
     items = select_items(rows)
     if len(items) < min_items:
@@ -219,6 +222,7 @@ def build_and_send_batch_telegram(item_ids, min_items=BATCH_MIN_ITEMS, chat_id=N
     if not target:
         return {"success": False, "message": "No Telegram chat: set TELEGRAM_CHAT_ID or MERGED_VIDEO_CHAT_ID."}
 
+    min_items = max(min_items, MIN_MERGED_STORIES)
     rows = [row for row in (get_news_item(i) for i in item_ids) if row]
     items = select_items(rows)
     if len(items) < min_items:
@@ -244,8 +248,11 @@ def build_and_upload_digest(dry_run=False):
     now = datetime.now(timezone.utc)
     since = _window_start(now)
     items = select_items(list_published_news_since(since.isoformat(), limit=60))
-    if not items:
-        return {"success": True, "items": 0, "message": "No stories to include."}
+    if len(items) < MIN_MERGED_STORIES:
+        return {
+            "success": True, "items": len(items),
+            "message": f"Fewer than {MIN_MERGED_STORIES} usable stories (need image and Amharic text).",
+        }
 
     date_label = now.astimezone(EAT).strftime("%d %b %Y")
     result = _render_and_upload(items, f"{DIGEST_TITLE} | {date_label}", dry_run=dry_run)
@@ -267,8 +274,11 @@ def build_and_send_digest_telegram(chat_id=None):
 
     now = datetime.now(timezone.utc)
     items = select_items(list_published_news_since(_window_start(now).isoformat(), limit=60))
-    if len(items) < 2:
-        return {"success": True, "items": len(items), "message": "Fewer than 2 usable stories (need image and Amharic text)."}
+    if len(items) < MIN_MERGED_STORIES:
+        return {
+            "success": True, "items": len(items),
+            "message": f"Fewer than {MIN_MERGED_STORIES} usable stories (need image and Amharic text).",
+        }
 
     date_label = now.astimezone(EAT).strftime("%d %b %Y %H:%M")
     return _render_and_upload(items, f"{DIGEST_TITLE} | {date_label}", destination="telegram", chat_id=target)
