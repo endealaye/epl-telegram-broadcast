@@ -97,6 +97,8 @@ def process_automated_news():
         fetch_error = f"{type(exc).__name__}: {exc}"
         print(f"News fetch failed, publishing the existing queue anyway: {fetch_error}")
         fetch_result = {}
+    from tts_service import enable_story_media_cache
+    enable_story_media_cache()  # merged video reuses each story's narration
     limit = max(1, int(os.getenv("NEWS_TRANSLATION_BATCH_SIZE", "12")))
     queue = get_review_queue(limit=limit)
     processed = 0
@@ -147,6 +149,9 @@ def process_automated_news():
             print(f"Merged YouTube video: {merged_video}")
         except Exception as exc:
             print(f"Merged YouTube video failed: {exc!r}")
+        finally:
+            from tts_service import clear_story_media_cache
+            clear_story_media_cache()
 
     success = not stopped_reason
     return {

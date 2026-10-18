@@ -18,7 +18,14 @@ from pathlib import Path
 
 from news_store import get_news_item, list_published_news_since
 from store import get_bot_state_value, set_bot_state_value
-from tts_service import concat_videos, media_duration, render_news_video, synthesize_news_audio
+from tts_service import (
+    concat_videos,
+    get_cached_story_media,
+    media_duration,
+    render_news_video,
+    synthesize_news_audio,
+    with_signature,
+)
 from youtube_uploader import upload_news_video, youtube_enabled
 
 DIGEST_STATE_KEY = "youtube_digest_last_run"
@@ -106,11 +113,17 @@ def _render_and_upload(items, title, dry_run=False, destination="youtube", chat_
         for index, item in enumerate(items):
             is_last = index == len(items) - 1
             image_path = audio_path = None
+            cached = get_cached_story_media(item["id"])  # set when this run just published the story
             try:
-                image_path = create_watermarked_image(item["image_url"])
-                audio_path = synthesize_news_audio(
-                    item["translated_title_am"], item["translated_story_am"], signature=is_last
-                )
+                if cached:
+                    # Reuse the narration and image from publishing: no new TTS, no re-download.
+                    body_audio, image_path = cached
+                    audio_path = with_signature(body_audio) if is_last else body_audio
+                else:
+                    image_path = create_watermarked_image(item["image_url"])
+                    audio_path = synthesize_news_audio(
+                        item["translated_title_am"], item["translated_story_am"], signature=is_last
+                    )
                 if not audio_path:
                     raise RuntimeError("no audio produced")
                 clip_path = work_dir / f"clip_{index:02d}.mp4"
@@ -121,9 +134,14 @@ def _render_and_upload(items, title, dry_run=False, destination="youtube", chat_
             except Exception as exc:
                 print(f"Merged video: skipping item {item.get('id')}: {exc!r}")
             finally:
-                for temp in (image_path, audio_path):
-                    if temp:
-                        Path(temp).unlink(missing_ok=True)
+                # Cached files stay until the run's cache is cleared; only delete what we made here.
+                if cached:
+                    if is_last and audio_path:
+                        Path(audio_path).unlink(missing_ok=True)  # the signed copy
+                else:
+                    for temp in (image_path, audio_path):
+                        if temp:
+                            Path(temp).unlink(missing_ok=True)
 
         if not clips:
             return {"success": False, "items": 0, "message": "No clips could be rendered."}

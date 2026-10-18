@@ -13,10 +13,12 @@ from deep_translator import GoogleTranslator
 from commands import send_admin_alert, send_telegram_message, send_telegram_photo, send_telegram_photo_file, send_telegram_audio_file, send_telegram_video_file
 from tts_service import (
     SHORT_MAX_SECONDS,
+    cache_story_media,
     media_duration,
     render_news_short,
     render_news_video,
     synthesize_news_audio,
+    with_signature,
 )
 from youtube_uploader import upload_news_video, youtube_enabled
 
@@ -759,7 +761,18 @@ def mark_review_item(
         raise RuntimeError("Telegram delivery failed. Check bot configuration.")
     
     try:
-        audio_path = synthesize_news_audio(final_title, final_story)
+        # Voice the story once, without the sign-off. The Telegram video and
+        # Short get the sign-off appended (cheap ffmpeg join); the end-of-run
+        # merged video reuses this same narration instead of voicing it again.
+        body_audio = synthesize_news_audio(final_title, final_story, signature=False)
+        audio_path = with_signature(body_audio) if body_audio else None
+        if body_audio:
+            if local_image_path and Path(local_image_path).exists() and youtube_enabled():
+                try:
+                    cache_story_media(item_id, body_audio, local_image_path)
+                except Exception as cache_exc:
+                    print(f"Could not cache media for merged video (item {item_id}): {cache_exc!r}")
+            body_audio.unlink(missing_ok=True)
         if audio_path:
             video_path = audio_path.with_suffix('.mp4')
             image_for_video = local_image_path if local_image_path and local_image_path.exists() else None
