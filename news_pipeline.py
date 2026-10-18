@@ -8,7 +8,6 @@ from pathlib import Path
 
 import requests
 from PIL import Image, ImageDraw
-from deep_translator import GoogleTranslator
 
 from commands import send_admin_alert, send_telegram_message, send_telegram_photo, send_telegram_photo_file, send_telegram_audio_file, send_telegram_video_file
 from tts_service import (
@@ -622,8 +621,12 @@ def fetch_news_items():
     }
 
 
-def get_review_queue(limit=20):
-    return list_news_queue(statuses=["filtered", "approved", "translated"], limit=limit)
+def get_review_queue(limit=20, require_translation=False):
+    return list_news_queue(
+        statuses=["filtered", "approved", "translated"],
+        limit=limit,
+        require_translation=require_translation,
+    )
 
 
 MARK_PUBLISHED_MAX_ATTEMPTS = int(os.getenv("MARK_PUBLISHED_MAX_ATTEMPTS", "3"))
@@ -815,89 +818,44 @@ def mark_review_item(
 
 
 
-def _check_translation(text, original_text):
-    if text and ("Error 500" in text or "That’s an error" in text):
-        raise ValueError("Translation service returned an error page")
-    return text or original_text
-
-class TranslationFailedError(Exception):
-    """Raised when Amharic translation could not be produced after retries."""
-    pass
-
-
-def translate_news_item(item, max_attempts=2):
-    """
-    Translates news title and story to Amharic using deep-translator.
-    Returns: (translated_title, translated_story, highlight)
-    Raises TranslationFailedError instead of silently returning English text,
-    so callers never publish untranslated content as if it were Amharic.
-    """
-    last_exc = None
-    for attempt in range(1, max_attempts + 1):
-        translator = GoogleTranslator(source='auto', target='am')
-        try:
-            title = _check_translation(translator.translate(item['title']), item['title'])
-            story = _check_translation(translator.translate(item['story']), item['story'])
-            summary = _check_translation(translator.translate(item['summary']), item['summary'])
-
-            if title == item['title'] or story == item['story']:
-                raise ValueError("Translator returned unchanged (untranslated) text")
-
-            # Since deep-translator doesn't do "summarization" or "highlighting",
-            # we use the translated summary as the highlight.
-            return title, story, summary
-        except Exception as e:
-            last_exc = e
-            print(f"Translation attempt {attempt}/{max_attempts} failed for item {item.get('id')}: {e}")
-
-    raise TranslationFailedError(
-        f"Translation failed for item {item.get('id')} after {max_attempts} attempts: {last_exc}"
-    )
-
-
-
-
 def sync_and_publish_news():
     """
-    Complete end-to-end news pipeline: 
+    News pipeline without machine translation:
     1. Fetch new items from sources.
     2. Deduplicate and store in Supabase.
-    3. Process the review queue (Translate -> Publish).
+    3. Publish queued items that already have an Amharic title and story.
+       Untranslated items are left in the queue for a human or a Claude run.
     """
-    # 1. Fetch and store new items
     fetch_result = fetch_news_items()
-    
-    # 2. Process and publish from the queue
-    queue = get_review_queue(limit=50)
+
+    queue = get_review_queue(limit=50, require_translation=True)
     if not queue:
         return {
-            "success": True, 
-            "processed": 0, 
+            "success": True,
+            "processed": 0,
             "fetched": fetch_result.get("stored_count", 0),
-            "message": "No new news to process."
+            "message": "No translated news to publish.",
         }
 
     processed_count = 0
     failed_count = 0
     for item in queue:
         try:
-            translated_title, translated_story, highlight = translate_news_item(item)
             mark_review_item(
                 item_id=item["id"],
                 status="published",
-                translated_title_am=translated_title,
-                translated_story_am=translated_story,
-                highlight_am=highlight,
+                translated_title_am=item["translated_title_am"],
+                translated_story_am=item["translated_story_am"],
             )
             processed_count += 1
         except Exception as e:
             failed_count += 1
-            print(f"Failed to process item {item.get('id')}: {e}")
+            print(f"Failed to publish item {item.get('id')}: {e}")
 
     return {
         "success": True,
         "processed": processed_count,
         "failed": failed_count,
         "fetched": fetch_result.get("stored_count", 0),
-        "message": f"Fetched {fetch_result.get('stored_count', 0)} items, published {processed_count}, {failed_count} left in queue for retry."
+        "message": f"Fetched {fetch_result.get('stored_count', 0)} items, published {processed_count}, {failed_count} failed and left in queue.",
     }
