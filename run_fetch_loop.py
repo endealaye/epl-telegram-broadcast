@@ -11,13 +11,10 @@ Defaults:
 """
 
 import argparse
-import json
-import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
-from service_models import ServiceResult
 from worker_services import (
     fetch_news_service,
     process_live_window_service,

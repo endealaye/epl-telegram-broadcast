@@ -1,0 +1,9 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+extend-exclude = [".agents", ".kilo"]
+
+[tool.ruff.lint]
+# Correctness rules only. Complexity (C901, PLR0912, PLR0915) is deliberately
+# left out until the large functions are split and covered by tests.
+select = ["E4", "E7", "E9", "F", "B"]

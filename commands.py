@@ -205,7 +205,7 @@ def broadcast_heartbeat(chat_id=None):
             if chat_id:
                 return send_telegram_message(msg, chat_id=chat_id)
             return send_admin_alert(msg.replace("⚠️ *System Alert*", "✅ *System Status*"))
-        except:
+        except Exception:
             return False
 
 
