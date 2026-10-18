@@ -767,7 +767,7 @@ def mark_review_item(
         body_audio = synthesize_news_audio(final_title, final_story, signature=False)
         audio_path = with_signature(body_audio) if body_audio else None
         if body_audio:
-            if local_image_path and Path(local_image_path).exists() and youtube_enabled():
+            if local_image_path and Path(local_image_path).exists():
                 try:
                     cache_story_media(item_id, body_audio, local_image_path)
                 except Exception as cache_exc:

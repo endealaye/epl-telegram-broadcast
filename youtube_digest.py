@@ -205,6 +205,37 @@ def build_and_upload_batch(item_ids, min_items=BATCH_MIN_ITEMS):
     return _render_and_upload(items, f"{DIGEST_TITLE} | {stamp}")
 
 
+def build_and_send_batch_telegram(item_ids, min_items=BATCH_MIN_ITEMS, chat_id=None):
+    """Merge the stories published by one translation run into a single video and
+    send it to Telegram (the news channel unless MERGED_VIDEO_CHAT_ID / chat_id
+    says otherwise). No YouTube needed. Best-effort: callers wrap this so it can
+    never affect publishing, but a failed merge alerts the admin."""
+    from bot_config import TELEGRAM_CHAT_ID
+    from commands import send_admin_alert
+
+    if not item_ids:
+        return {"success": True, "skipped": "nothing to merge."}
+    target = chat_id or os.getenv("MERGED_VIDEO_CHAT_ID", "").strip() or TELEGRAM_CHAT_ID
+    if not target:
+        return {"success": False, "message": "No Telegram chat: set TELEGRAM_CHAT_ID or MERGED_VIDEO_CHAT_ID."}
+
+    rows = [row for row in (get_news_item(i) for i in item_ids) if row]
+    items = select_items(rows)
+    if len(items) < min_items:
+        return {"success": True, "skipped": f"only {len(items)} usable stories (minimum {min_items})."}
+
+    stamp = datetime.now(timezone.utc).astimezone(EAT).strftime("%d %b %Y %H:%M")
+    result = _render_and_upload(
+        items, f"{DIGEST_TITLE} | {stamp}", destination="telegram", chat_id=target
+    )
+    if not result.get("success"):
+        try:
+            send_admin_alert(f"Merged video was not sent: {result.get('message', result)}")
+        except Exception as alert_exc:
+            print(f"Could not send merged-video failure alert: {alert_exc!r}")
+    return result
+
+
 def build_and_upload_digest(dry_run=False):
     """Everything broadcast since the last digest (manual or scheduled run)."""
     if not dry_run and not youtube_enabled():
