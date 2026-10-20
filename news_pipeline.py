@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import json
 import os
 import re
 import tempfile
@@ -459,10 +460,29 @@ def format_news_broadcast(item):
 
 
 
+NEWS_SOURCE_HEALTH_KEY = "news_source_health"
+
+
+def _record_source_health(source_health):
+    """Persist last per-source fetch outcome so a dead source is visible without Actions logs."""
+    try:
+        from datetime import datetime, timezone
+        from store import set_bot_state_value
+
+        payload = {
+            "checked_at": datetime.now(timezone.utc).isoformat(),
+            "sources": source_health,
+        }
+        set_bot_state_value(NEWS_SOURCE_HEALTH_KEY, json.dumps(payload))
+    except Exception as exc:  # monitoring must never break the pipeline
+        print(f"Could not record news source health: {exc}")
+
+
 def fetch_news_items():
     attempted_sources = []
     failed_sources = []
     collected_batches = []
+    source_health = {}
 
     base_collectors = [
         ("bbc", fetch_bbc_football_rss),
@@ -488,12 +508,25 @@ def fetch_news_items():
             source_name = future_map[future]
             try:
                 source, raw_items = future.result()
+                source_health[source_name] = {
+                    "ok": True,
+                    "source_key": source.get("source_key"),
+                    "raw_items": len(raw_items or []),
+                }
                 if raw_items:
                     collected_batches.append((source, raw_items))
             except Exception as exc:
+                response = getattr(exc, "response", None)
                 failed_sources.append({"source": source_name, "error": str(exc)})
+                source_health[source_name] = {
+                    "ok": False,
+                    "error_type": type(exc).__name__,
+                    "http_status": getattr(response, "status_code", None),
+                    "error": str(exc)[:300],
+                }
 
     if not collected_batches:
+        _record_source_health(source_health)
         raise RuntimeError("All news sources failed or returned no items.")
 
     source_breakdown = []
@@ -511,6 +544,10 @@ def fetch_news_items():
                 "fetched_count": len(raw_items),
             }
         )
+        drops = {"missing_fields": 0, "excluded": 0, "too_short": 0}
+        for health in source_health.values():
+            if health.get("source_key") == source.get("source_key"):
+                health["drops"] = drops
         for item in raw_items:
             title = (item.get("title") or "").strip()
             article_url = (item.get("article_url") or "").strip()
@@ -518,10 +555,13 @@ def fetch_news_items():
             story = (item.get("story") or "").strip()
             best_copy = story if len(story) >= len(summary) else summary
             if not title or not article_url:
+                drops["missing_fields"] += 1
                 continue
             if is_excluded_news_item(item):
+                drops["excluded"] += 1
                 continue
             if len(best_copy) < MIN_NEWS_COPY_LENGTH:
+                drops["too_short"] += 1
                 continue
             normalized_items.append(
                 normalize_news_item(
@@ -535,7 +575,13 @@ def fetch_news_items():
 
     # New fetches only need reviewable items; rejected feed junk should be dropped here.
     normalized_items = [item for item in normalized_items if item.get("review_status") == "filtered"]
-    
+    for health in source_health.values():
+        if health.get("ok"):
+            health["passed_review_filter"] = sum(
+                1 for item in normalized_items if item.get("source_key") == health.get("source_key")
+            )
+    _record_source_health(source_health)
+
     bbc_source = next(
         (row for row in source_breakdown if row.get("source_key") == "bbc_football_rss"),
         None,
