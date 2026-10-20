@@ -22,6 +22,24 @@ def process_automated_news():
         fetch_error = f"{type(exc).__name__}: {exc}"
         print(f"News fetch failed, publishing the existing queue anyway: {fetch_error}")
         fetch_result = {}
+        try:  # keep the failure readable without Actions logs
+            import json
+            import traceback
+            from datetime import datetime, timezone
+            from store import set_bot_state_value
+
+            set_bot_state_value(
+                "news_fetch_last_error",
+                json.dumps(
+                    {
+                        "at": datetime.now(timezone.utc).isoformat(),
+                        "error": fetch_error[:500],
+                        "traceback": traceback.format_exc()[-1500:],
+                    }
+                ),
+            )
+        except Exception as record_exc:
+            print(f"Could not record fetch error: {record_exc}")
     from tts_service import enable_story_media_cache
     enable_story_media_cache()  # merged video reuses each story's narration
     limit = max(1, int(os.getenv("NEWS_PUBLISH_BATCH_SIZE", os.getenv("NEWS_TRANSLATION_BATCH_SIZE", "12"))))
