@@ -49,7 +49,7 @@ FIXTURE_IMAGE_HEADER_HEIGHT = 170
 FIXTURE_IMAGE_GROUP_HEADER = 42
 FIXTURE_IMAGE_ROW_HEIGHT = 260
 FIXTURE_LOGO_SIZE = 118
-AUTO_STANDINGS_REPEAT_WINDOW_HOURS = int(os.getenv("AUTO_STANDINGS_REPEAT_WINDOW_HOURS", "6"))
+AUTO_STANDINGS_REPEAT_WINDOW_HOURS = int(os.getenv("AUTO_STANDINGS_REPEAT_WINDOW_HOURS", "30"))
 AUTO_STANDINGS_RETRY_COOLDOWN_MINUTES = int(os.getenv("AUTO_STANDINGS_RETRY_COOLDOWN_MINUTES", "45"))
 COMPETITION_DISPLAY_ORDER = {
     "Premier League": 0,
@@ -637,6 +637,40 @@ def _latest_premier_league_kickoff(today_fixtures):
     return max(kickoffs) if kickoffs else None
 
 
+
+def _maybe_send_auto_standings_for_dates(date_strings):
+    """Send the table once per fixture date, whichever day the job happens to run on.
+
+    Matches that kick off late and finish after midnight EAT belong to the previous
+    date, so we check every date in scope instead of only today. A date that already
+    has a 'standings:auto:sent' marker is skipped, so the 10-minute cron can call
+    this every run without reposting.
+    """
+    dates = sorted({d for d in date_strings if d}, reverse=True)
+    pending = []
+    for date_key in dates:
+        if get_bot_state_value(f"standings:auto:sent:{date_key}"):
+            continue
+        fixtures = fetch_fixtures_for_dates([date_key])
+        if not any(is_premier_league_fixture(f) for f in fixtures):
+            continue
+        pending.append((date_key, fixtures))
+
+    for index, (date_key, fixtures) in enumerate(pending):
+        try:
+            outcome = maybe_send_auto_standings(fixtures, today=date_key)
+        except Exception as exc:
+            print(f"Auto standings failed for {date_key}: {exc}")
+            continue
+        if outcome.get("sent"):
+            # The table is current as of now, so it also covers older pending dates.
+            timestamp = datetime.now(timezone.utc).isoformat()
+            for older_key, _ in pending[index + 1:]:
+                set_bot_state_value(f"standings:auto:sent:{older_key}", timestamp)
+            return outcome
+    return None
+
+
 def maybe_send_auto_standings(today_fixtures, today=None):
     if not today_fixtures:
         return {
@@ -820,6 +854,8 @@ def broadcast_results(date_strings=None):
             return
         if not has_pending_results(date_strings=date_strings):
             print("Skip results: no completed fixtures awaiting a results post.")
+            # The live job may already have posted the score; the table still needs to go out.
+            _maybe_send_auto_standings_for_dates(normalized_dates)
             return
 
         results = [
@@ -870,8 +906,7 @@ def broadcast_results(date_strings=None):
             except Exception as e:
                 print(f"Failed to auto-broadcast standing card for match {result.get('matchnumber')}: {e}")
 
-        refreshed_target_day = fetch_fixtures_for_dates([target_date])
-        maybe_send_auto_standings(refreshed_target_day, today=target_date)
+        _maybe_send_auto_standings_for_dates(normalized_dates)
     except Exception as e:
         error_msg = f"Results broadcast error: {e}"
         print(error_msg)
