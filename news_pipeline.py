@@ -541,7 +541,7 @@ def fetch_news_items():
         for _src, _raw in collected_batches:
             if not str(_src.get("source_key", "")).startswith("sky_sports_football"):
                 continue
-            _it = _raw[0]
+            _it = next((x for x in _raw if "/football/news/" in (x.get("article_url") or "")), _raw[0])
             _story = _it.get("story") or ""
             _probe = {
                 "url": _it.get("article_url"),
@@ -564,6 +564,15 @@ def fetch_news_items():
                 _probe["articleBody_head"] = _m.group(1)[:200] if _m else None
                 _probe["p_tag_count"] = len(PARAGRAPH_PATTERNS[1].findall(_body))
                 _probe["testid_paragraph_count"] = len(PARAGRAPH_PATTERNS[0].findall(_body))
+                import re as _re
+                _probe["markers"] = {k: _body.count(k) for k in ["sdc-article-body", "article-body", "articleBody", "application/ld+json", "og:description", "__NEXT_DATA__", "window.__"]}
+                _i = _body.find("sdc-article-body")
+                _probe["sdc_excerpt"] = _re.sub(r"\s+", " ", _body[_i:_i + 700]) if _i >= 0 else None
+                _og = _re.search(r'property=["\']og:description["\'] content=["\']([^"\']*)', _body)
+                _probe["og_description"] = _og.group(1)[:200] if _og else None
+                _probe["ld_types"] = _re.findall(r'"@type"\s*:\s*"([A-Za-z]+)"', _body)[:12]
+                _ps = [_re.sub(r"<[^>]+>", "", x).strip() for x in PARAGRAPH_PATTERNS[1].findall(_body)]
+                _probe["p_samples"] = [x[:120] for x in _ps[:8]]
             source_health["_sky_probe"] = _probe
             break
     except Exception as _exc:
