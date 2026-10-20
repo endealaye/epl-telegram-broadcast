@@ -627,6 +627,29 @@ def is_excluded_news_item(item):
     return any(pattern.search(corpus) for pattern in EXCLUDED_NEWS_PATTERNS)
 
 
+def excluded_news_match(item):
+    """Diagnostic twin of is_excluded_news_item: which pattern matched, in which field, with context."""
+    fields = {
+        "title": item.get("title") or "",
+        "summary": item.get("summary") or "",
+        "story": item.get("story") or "",
+        "url": item.get("article_url") or "",
+        "tags": " ".join(str(tag) for tag in (item.get("topic_tags") or [])),
+    }
+    for pattern in EXCLUDED_NEWS_PATTERNS:
+        for field, text in fields.items():
+            match = pattern.search(text)
+            if match:
+                start = max(0, match.start() - 40)
+                return {
+                    "pattern": pattern.pattern,
+                    "field": field,
+                    "context": text[start:match.end() + 40],
+                    "story_len": len(fields["story"]),
+                }
+    return None
+
+
 def clean_story_text(story, title=None, summary=None):
     if not story:
         return None

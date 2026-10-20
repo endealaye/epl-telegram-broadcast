@@ -27,6 +27,7 @@ from news_collectors import (
     fetch_guardian_premier_league_rss,
     fetch_sky_sports_football_rss,
     fetch_sky_sports_premier_league_rss,
+    excluded_news_match,
     is_excluded_news_item,
 )
 from news_store import (
@@ -559,6 +560,11 @@ def fetch_news_items():
                 continue
             if is_excluded_news_item(item):
                 drops["excluded"] += 1
+                examples = drops.setdefault("excluded_examples", [])
+                if len(examples) < 4:
+                    match_info = excluded_news_match(item) or {}
+                    match_info["title"] = title[:80]
+                    examples.append(match_info)
                 continue
             if len(best_copy) < MIN_NEWS_COPY_LENGTH:
                 drops["too_short"] += 1
