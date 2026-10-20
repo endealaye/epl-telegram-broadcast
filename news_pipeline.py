@@ -535,6 +535,40 @@ def fetch_news_items():
     fetched_total = 0
     active_followups = list_follow_up_requests(status="active")
 
+    try:  # TEMPORARY Sky probe, remove once story extraction is fixed
+        import requests as _rq
+        from news_collectors import ARTICLE_BODY_PATTERNS, PARAGRAPH_PATTERNS, fetch_article_html
+        for _src, _raw in collected_batches:
+            if not str(_src.get("source_key", "")).startswith("sky_sports_football"):
+                continue
+            _it = _raw[0]
+            _story = _it.get("story") or ""
+            _probe = {
+                "url": _it.get("article_url"),
+                "item_keys": sorted(_it.keys()),
+                "story_len": len(_story),
+                "summary_len": len(_it.get("summary") or ""),
+                "story_head": _story[:300],
+                "story_tail": _story[-300:],
+                "nav_pos": _story.find("Women's Super League"),
+                "store_pos": _story.find("Store Locator"),
+            }
+            with _rq.Session() as _s:
+                _s.headers.update({"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0 Safari/537.36"})
+                _body, _resolved = fetch_article_html(_it.get("article_url"), _s)
+            _probe["page_len"] = len(_body or "")
+            _probe["resolved_url"] = _resolved
+            if _body:
+                _m = ARTICLE_BODY_PATTERNS[0].search(_body)
+                _probe["articleBody_match_len"] = len(_m.group(1)) if _m else None
+                _probe["articleBody_head"] = _m.group(1)[:200] if _m else None
+                _probe["p_tag_count"] = len(PARAGRAPH_PATTERNS[1].findall(_body))
+                _probe["testid_paragraph_count"] = len(PARAGRAPH_PATTERNS[0].findall(_body))
+            source_health["_sky_probe"] = _probe
+            break
+    except Exception as _exc:
+        source_health["_sky_probe"] = {"error": str(_exc)[:300]}
+
     for source, raw_items in collected_batches:
         fetched_total += len(raw_items)
         source_breakdown.append(
