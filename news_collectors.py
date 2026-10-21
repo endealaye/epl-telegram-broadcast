@@ -758,6 +758,10 @@ def extract_article_story(body, title=None, summary=None):
                 return story
 
     paragraphs = extract_scoped_article_paragraphs(body)
+    if not paragraphs and "sdc-site-" in body:
+        # Sky Sports page with no article container (live blogs, team hubs): a page-wide <p>
+        # scrape returns only site nav/footer, so keep the feed's own summary instead.
+        return None
     for pattern in PARAGRAPH_PATTERNS if not paragraphs else []:
         matches = pattern.findall(body)
         for raw_paragraph in matches:
