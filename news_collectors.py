@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 
 import requests
+from bs4 import BeautifulSoup
 
 
 RSS_NS = {
@@ -711,6 +712,32 @@ def extract_article_image_url(body, base_url):
     return None
 
 
+MAX_FALLBACK_PARAGRAPH_CHARS = 2500
+
+
+def extract_scoped_article_paragraphs(body):
+    """Sky Sports pages no longer carry articleBody JSON, and a page-wide <p> scrape pulls in
+    the site nav and footer ("Women's Super League...", "Store Locator"). Read only the paragraphs
+    inside the article body container instead."""
+    if not body or "sdc-article-body" not in body:
+        return []
+    try:
+        soup = BeautifulSoup(body, "html.parser")
+    except Exception:
+        return []
+    paragraphs = []
+    for container in soup.select("[class*='sdc-article-body']"):
+        for node in container.find_all("p"):
+            paragraph = strip_html(str(node))
+            if not paragraph or len(paragraph) > MAX_FALLBACK_PARAGRAPH_CHARS:
+                continue
+            if is_boilerplate_paragraph(paragraph) or is_navigation_or_script_noise(paragraph):
+                continue
+            if paragraph not in paragraphs:
+                paragraphs.append(paragraph)
+    return paragraphs
+
+
 def extract_article_story(body, title=None, summary=None):
     if not body:
         return None
@@ -726,11 +753,13 @@ def extract_article_story(body, title=None, summary=None):
             if story and len(story) > 120 and not is_boilerplate_paragraph(story):
                 return story
 
-    paragraphs = []
-    for pattern in PARAGRAPH_PATTERNS:
+    paragraphs = extract_scoped_article_paragraphs(body)
+    for pattern in PARAGRAPH_PATTERNS if not paragraphs else []:
         matches = pattern.findall(body)
         for raw_paragraph in matches:
             paragraph = strip_html(raw_paragraph)
+            if len(paragraph) > MAX_FALLBACK_PARAGRAPH_CHARS:
+                continue
             if is_boilerplate_paragraph(paragraph):
                 continue
             if is_navigation_or_script_noise(paragraph):
