@@ -24,6 +24,8 @@ from youtube_uploader import upload_news_video, youtube_enabled
 
 from news_collectors import (
     fetch_bbc_football_rss,
+    fetch_guardian_champions_league_rss,
+    fetch_guardian_europa_league_rss,
     fetch_guardian_premier_league_rss,
     fetch_sky_sports_football_rss,
     fetch_sky_sports_premier_league_rss,
@@ -488,6 +490,8 @@ def fetch_news_items():
     base_collectors = [
         ("bbc", fetch_bbc_football_rss),
         ("guardian", fetch_guardian_premier_league_rss),
+        ("guardian_champions_league", fetch_guardian_champions_league_rss),
+        ("guardian_europa_league", fetch_guardian_europa_league_rss),
         ("sky_sports", fetch_sky_sports_premier_league_rss),
         ("sky_sports_football", fetch_sky_sports_football_rss),
     ]

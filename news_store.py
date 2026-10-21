@@ -75,6 +75,16 @@ MATCH_CLASSIFICATION_PATTERNS = {
     ],
 }
 
+# UEFA club competitions get a large score bonus so they sort to the top of the
+# queue (list_news_queue orders by relevance_score desc) and get translated.
+# Matched on title + summary only: a Premier League story that merely mentions
+# "Champions League qualification" deep in the body should not get the bonus.
+UEFA_COMPETITION_PATTERNS = {
+    "competition:champions_league": [r"\bchampions league\b"],
+    "competition:europa_league": [r"\beuropa league\b"],
+}
+UEFA_COMPETITION_SCORE_BONUS = 20
+
 PREDICTION_PATTERNS = [
     re.compile(r"((?:prediction|predicts?|predicted)\s*[:\-]?\s*[^.?!]+)", re.IGNORECASE),
     re.compile(r"([A-Z][A-Za-z'&.\- ]+\s+\d+\s*[-–]\s*\d+\s+[A-Z][A-Za-z'&.\- ]+)", re.IGNORECASE),
@@ -107,6 +117,8 @@ WOMENS_FOOTBALL_PATTERNS = [
 
 INCLUDE_TERMS = [
     "premier league",
+    "champions league",
+    "europa league",
     "world cup",
     "fifa world cup",
     "world cup qualifier",
@@ -352,7 +364,13 @@ def get_intelligent_news_analysis(title, summary, story=None):
     if "gossip" in text or "reportedly" in text:
         tags.add("topic:gossip")
         score += 2
-    
+
+    headline_text = f"{title} {summary}".lower()
+    for competition_tag, patterns in UEFA_COMPETITION_PATTERNS.items():
+        if any(re.search(pattern, headline_text) for pattern in patterns):
+            tags.add(competition_tag)
+            score += UEFA_COMPETITION_SCORE_BONUS
+
     return sorted(list(tags)), score
 
 

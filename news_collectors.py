@@ -232,6 +232,18 @@ GUARDIAN_PREMIER_LEAGUE_SOURCE = {
     "source_url": "https://www.theguardian.com/football/premierleague/rss",
 }
 
+GUARDIAN_CHAMPIONS_LEAGUE_SOURCE = {
+    "source_key": "guardian_champions_league_rss",
+    "source_name": "The Guardian Champions League",
+    "source_url": "https://www.theguardian.com/football/championsleague/rss",
+}
+
+GUARDIAN_EUROPA_LEAGUE_SOURCE = {
+    "source_key": "guardian_europa_league_rss",
+    "source_name": "The Guardian Europa League",
+    "source_url": "https://www.theguardian.com/football/europaleague/rss",
+}
+
 SKY_SPORTS_PREMIER_LEAGUE_SOURCE = {
     "source_key": "sky_sports_premier_league_rss",
     "source_name": "Sky Sports Premier League",
@@ -905,6 +917,14 @@ def fetch_bbc_football_rss():
 
 def fetch_guardian_premier_league_rss():
     return _fetch_rss_source(GUARDIAN_PREMIER_LEAGUE_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
+
+
+def fetch_guardian_champions_league_rss():
+    return _fetch_rss_source(GUARDIAN_CHAMPIONS_LEAGUE_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
+
+
+def fetch_guardian_europa_league_rss():
+    return _fetch_rss_source(GUARDIAN_EUROPA_LEAGUE_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
 
 
 def fetch_sky_sports_premier_league_rss():
