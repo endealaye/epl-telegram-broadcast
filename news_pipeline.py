@@ -535,44 +535,50 @@ def fetch_news_items():
     fetched_total = 0
     active_followups = list_follow_up_requests(status="active")
 
-    try:  # TEMPORARY Sky probe, remove once story extraction is fixed
+    try:  # TEMPORARY Sky probe v3, remove once story extraction is fixed
+        import re as _re
         import requests as _rq
-        from news_collectors import ARTICLE_BODY_PATTERNS, PARAGRAPH_PATTERNS, fetch_article_html
+        from bs4 import BeautifulSoup as _BS
+        from news_collectors import extract_article_story, excluded_news_match, fetch_article_html
         for _src, _raw in collected_batches:
             if not str(_src.get("source_key", "")).startswith("sky_sports_football"):
                 continue
             _it = next((x for x in _raw if "/football/news/" in (x.get("article_url") or "")), _raw[0])
-            _story = _it.get("story") or ""
-            _probe = {
-                "url": _it.get("article_url"),
-                "item_keys": sorted(_it.keys()),
-                "story_len": len(_story),
-                "summary_len": len(_it.get("summary") or ""),
-                "story_head": _story[:300],
-                "story_tail": _story[-300:],
-                "nav_pos": _story.find("Women's Super League"),
-                "store_pos": _story.find("Store Locator"),
-            }
             with _rq.Session() as _s:
                 _s.headers.update({"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0 Safari/537.36"})
                 _body, _resolved = fetch_article_html(_it.get("article_url"), _s)
-            _probe["page_len"] = len(_body or "")
-            _probe["resolved_url"] = _resolved
-            if _body:
-                _m = ARTICLE_BODY_PATTERNS[0].search(_body)
-                _probe["articleBody_match_len"] = len(_m.group(1)) if _m else None
-                _probe["articleBody_head"] = _m.group(1)[:200] if _m else None
-                _probe["p_tag_count"] = len(PARAGRAPH_PATTERNS[1].findall(_body))
-                _probe["testid_paragraph_count"] = len(PARAGRAPH_PATTERNS[0].findall(_body))
-                import re as _re
-                _probe["markers"] = {k: _body.count(k) for k in ["sdc-article-body", "article-body", "articleBody", "application/ld+json", "og:description", "__NEXT_DATA__", "window.__"]}
-                _i = _body.find("sdc-article-body")
-                _probe["sdc_excerpt"] = _re.sub(r"\s+", " ", _body[_i:_i + 700]) if _i >= 0 else None
-                _og = _re.search(r'property=["\']og:description["\'] content=["\']([^"\']*)', _body)
-                _probe["og_description"] = _og.group(1)[:200] if _og else None
-                _probe["ld_types"] = _re.findall(r'"@type"\s*:\s*"([A-Za-z]+)"', _body)[:12]
-                _ps = [_re.sub(r"<[^>]+>", "", x).strip() for x in PARAGRAPH_PATTERNS[1].findall(_body)]
-                _probe["p_samples"] = [x[:120] for x in _ps[:8]]
+            _soup = _BS(_body or "", "html.parser")
+            _fresh = extract_article_story(_body, title=_it.get("title"), summary=_it.get("summary"))
+            _probe = {
+                "url": _it.get("article_url"),
+                "item_story_len": len(_it.get("story") or ""),
+                "fresh_story_len": len(_fresh or ""),
+                "fresh_story_head": (_fresh or "")[:200],
+                "fresh_has_nav": "Women's Super League" in (_fresh or ""),
+                "fresh_excluded": str(excluded_news_match({"title": _it.get("title"), "summary": _it.get("summary"), "story": _fresh, "article_url": _it.get("article_url")}))[:200],
+            }
+            _cont = _soup.select("[class*='sdc-article-body']")
+            _probe["containers"] = [
+                {"tag": c.name, "cls": " ".join(c.get("class", []))[:80], "p": len(c.find_all("p")), "text_len": len(c.get_text(" ", strip=True))}
+                for c in _cont[:6]
+            ]
+            _skel = []
+            if _cont:
+                for n in _cont[0].find_all(True)[:400]:
+                    if n.name in ("p", "h1", "h2", "h3", "li", "div", "section", "aside", "figure", "ul"):
+                        _t = n.get_text(" ", strip=True)
+                        if n.name in ("p", "h2", "h3") or len(_t) > 400:
+                            _skel.append(f"{n.name}.{'.'.join(n.get('class', []))[:40]}|{len(_t)}|{_t[:60]}")
+                    if len(_skel) >= 45:
+                        break
+            _probe["skeleton"] = _skel
+            _nav = _soup.find(string=_re.compile(r"Women.s Super League"))
+            _chain = []
+            _node = _nav.parent if _nav else None
+            while _node is not None and getattr(_node, "name", None) and len(_chain) < 12:
+                _chain.append(f"{_node.name}.{'.'.join(_node.get('class', []))[:50]}")
+                _node = _node.parent
+            _probe["nav_ancestors"] = _chain
             source_health["_sky_probe"] = _probe
             break
     except Exception as _exc:
