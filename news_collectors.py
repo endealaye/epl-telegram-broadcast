@@ -241,8 +241,15 @@ GUARDIAN_CHAMPIONS_LEAGUE_SOURCE = {
 GUARDIAN_EUROPA_LEAGUE_SOURCE = {
     "source_key": "guardian_europa_league_rss",
     "source_name": "The Guardian Europa League",
-    "source_url": "https://www.theguardian.com/football/europaleague/rss",
+    "source_url": "https://www.theguardian.com/football/europa-league/rss",
 }
+# The Guardian's Europa League tag slug is unverified; try these in order and
+# use the first that responds (/football/europaleague/rss was a 404).
+GUARDIAN_EUROPA_LEAGUE_URL_CANDIDATES = [
+    "https://www.theguardian.com/football/europa-league/rss",
+    "https://www.theguardian.com/football/uefa-europa-league/rss",
+    "https://www.theguardian.com/football/uefaeuropaleague/rss",
+]
 
 SKY_SPORTS_PREMIER_LEAGUE_SOURCE = {
     "source_key": "sky_sports_premier_league_rss",
@@ -924,7 +931,16 @@ def fetch_guardian_champions_league_rss():
 
 
 def fetch_guardian_europa_league_rss():
-    return _fetch_rss_source(GUARDIAN_EUROPA_LEAGUE_SOURCE, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
+    last_error = None
+    for url in GUARDIAN_EUROPA_LEAGUE_URL_CANDIDATES:
+        source = {**GUARDIAN_EUROPA_LEAGUE_SOURCE, "source_url": url}
+        try:
+            return _fetch_rss_source(source, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
+        except requests.HTTPError as exc:
+            if getattr(exc.response, "status_code", None) != 404:
+                raise
+            last_error = exc
+    raise last_error
 
 
 def fetch_sky_sports_premier_league_rss():
