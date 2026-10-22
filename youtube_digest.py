@@ -1,11 +1,13 @@
 """
 Merged YouTube videos: several broadcast stories joined into one long video.
 
-Two entry points share one builder:
-- build_and_upload_batch(item_ids): the stories published by one translation
-  run (called at the end of process_automated_news).
+Entry points share one builder:
+- build_and_send_category_videos(): every published story not yet in a video,
+  grouped by category, one video per category (called at the end of
+  process_automated_news). Tracked in news_items.video_batch_id.
 - build_and_upload_digest(): everything broadcast since the last digest
   (manual / optional nightly run: `telegram_broadcast.py youtube-digest`).
+  It does not stamp video_batch_id.
 
 Stories are re-rendered from the stored Amharic text (TTS + image), so nothing
 has to be kept between workflow runs.
@@ -16,7 +18,12 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from news_store import get_news_item, list_published_news_since
+from news_store import (
+    get_news_item,
+    list_published_news_since,
+    list_unmerged_published_news,
+    stamp_video_batch,
+)
 from store import get_bot_state_value, set_bot_state_value
 from tts_service import (
     concat_videos,
@@ -26,13 +33,23 @@ from tts_service import (
     synthesize_news_audio,
     with_signature,
 )
+from video_batches import (
+    CATEGORY_TITLES,
+    MIN_MERGED_STORIES,
+    POOL_WINDOW_HOURS,
+    batch_id,
+    group_by_category,
+    split_by_size,
+)
 from youtube_uploader import upload_news_video, youtube_enabled
 
 DIGEST_STATE_KEY = "youtube_digest_last_run"
-DIGEST_MAX_ITEMS = int(os.getenv("YOUTUBE_DIGEST_MAX_ITEMS", "25"))
-# Hard floor: a merged video never has fewer than this many usable stories
-# (image + Amharic text). Neither the env var nor a caller's min_items can lower it.
-MIN_MERGED_STORIES = 5
+# 0 = no cap. A video holds every story it is given; it is only split when the
+# file would be too big to upload (see split_by_size), never by story count.
+DIGEST_MAX_ITEMS = int(os.getenv("YOUTUBE_DIGEST_MAX_ITEMS", "0"))
+# MIN_MERGED_STORIES (video_batches.py) is a hard floor: a merged video never has
+# fewer usable stories (image + Amharic text). Neither the env var nor a caller's
+# min_items can lower it.
 BATCH_MIN_ITEMS = max(MIN_MERGED_STORIES, int(os.getenv("YOUTUBE_BATCH_MIN_ITEMS", str(MIN_MERGED_STORIES))))
 DIGEST_DEFAULT_WINDOW_HOURS = 24
 DIGEST_MAX_WINDOW_HOURS = 48
@@ -104,6 +121,49 @@ def _send_merged_to_telegram(merged_path, title, chapter_lines, story_count, tot
     }
 
 
+def _send_clips_to_telegram(work_dir, clips, chapters_input, used_ids, title, chat_id):
+    """Join the rendered clips and send them to Telegram.
+
+    Normally one video holding every story. Only if the file would exceed Telegram's
+    upload limit is it split, by file size into balanced consecutive parts, never by
+    story count. `item_ids` lists the stories in parts that were actually sent, so
+    the caller stamps only those."""
+    sizes = [Path(clip).stat().st_size for clip in clips]
+    parts = split_by_size(sizes, int(TELEGRAM_VIDEO_LIMIT_BYTES * 0.97))
+    results, sent_ids = [], []
+    for number, indexes in enumerate(parts, start=1):
+        merged = work_dir / f"merged_{number}.mp4"
+        try:
+            concat_videos([clips[i] for i in indexes], merged)
+            seconds = media_duration(merged)
+            part_title = f"{title} ({number}/{len(parts)})" if len(parts) > 1 else title
+            result = _send_merged_to_telegram(
+                merged, part_title, build_chapters([chapters_input[i] for i in indexes]),
+                len(indexes), seconds, chat_id,
+            )
+        except Exception as exc:
+            result = {"success": False, "items": len(indexes), "message": f"{type(exc).__name__}: {exc}"}
+        finally:
+            merged.unlink(missing_ok=True)
+        results.append(result)
+        if result.get("success"):
+            sent_ids.extend(used_ids[i] for i in indexes)
+
+    failures = [r for r in results if not r.get("success")]
+    outcome = {
+        "success": bool(results) and not failures,
+        "items": len(sent_ids),
+        "parts": len(parts),
+        "item_ids": sent_ids,
+        "seconds": sum(r.get("seconds", 0) for r in results),
+        "destination": "telegram",
+        "chat_id": str(chat_id),
+    }
+    if failures:
+        outcome["message"] = failures[0].get("message", "Telegram send failed.")
+    return outcome
+
+
 def _render_and_upload(items, title, dry_run=False, destination="youtube", chat_id=None):
     """Render each story, join them, then upload to YouTube or send to Telegram.
     Returns a result dict."""
@@ -148,15 +208,12 @@ def _render_and_upload(items, title, dry_run=False, destination="youtube", chat_
         if not clips:
             return {"success": False, "items": 0, "message": "No clips could be rendered."}
 
+        if destination == "telegram":
+            return _send_clips_to_telegram(work_dir, clips, chapters_input, used_ids, title, chat_id)
+
         merged_path = work_dir / "merged.mp4"
         concat_videos(clips, merged_path)
         total_seconds = media_duration(merged_path)
-
-        if destination == "telegram":
-            return _send_merged_to_telegram(
-                merged_path, title, build_chapters(chapters_input),
-                len(clips), total_seconds, chat_id,
-            )
 
         sources = sorted({i.get("source_name") for i in items if i.get("source_name")})
         description = "\n".join(
@@ -208,36 +265,50 @@ def build_and_upload_batch(item_ids, min_items=BATCH_MIN_ITEMS):
     return _render_and_upload(items, f"{DIGEST_TITLE} | {stamp}")
 
 
-def build_and_send_batch_telegram(item_ids, min_items=BATCH_MIN_ITEMS, chat_id=None):
-    """Merge the stories published by one translation run into a single video and
-    send it to Telegram (the news channel unless MERGED_VIDEO_CHAT_ID / chat_id
-    says otherwise). No YouTube needed. Best-effort: callers wrap this so it can
-    never affect publishing, but a failed merge alerts the admin."""
+def build_and_send_category_videos(chat_id=None, now=None):
+    """Build one merged video per category from every published story that is not
+    yet in a video (video_batch_id is null), and send them to Telegram.
+
+    - A category needs MIN_MERGED_STORIES stories; fewer wait for a later run.
+    - A video holds every story in its category: no cap on the number of stories.
+    - Stories are stamped with video_batch_id only after their video was sent, so a
+      failed render or send retries them on the next run and nothing is merged twice.
+    - Stories older than POOL_WINDOW_HOURS (env VIDEO_POOL_WINDOW_HOURS, default 72)
+      leave the pool so stale news is not merged.
+    Best-effort: callers wrap this so it can never affect publishing."""
     from bot_config import TELEGRAM_CHAT_ID
     from commands import send_admin_alert
 
-    if not item_ids:
-        return {"success": True, "skipped": "nothing to merge."}
     target = chat_id or os.getenv("MERGED_VIDEO_CHAT_ID", "").strip() or TELEGRAM_CHAT_ID
     if not target:
         return {"success": False, "message": "No Telegram chat: set TELEGRAM_CHAT_ID or MERGED_VIDEO_CHAT_ID."}
 
-    min_items = max(min_items, MIN_MERGED_STORIES)
-    rows = [row for row in (get_news_item(i) for i in item_ids) if row]
-    items = select_items(rows)
-    if len(items) < min_items:
-        return {"success": True, "skipped": f"only {len(items)} usable stories (minimum {min_items})."}
+    now = now or datetime.now(timezone.utc)
+    since = now - timedelta(hours=POOL_WINDOW_HOURS)
+    pool = select_items(list_unmerged_published_news(since.isoformat()), max_items=0)
+    summary = {"success": True, "pool": len(pool), "videos": [], "waiting": {}}
 
-    stamp = datetime.now(timezone.utc).astimezone(EAT).strftime("%d %b %Y %H:%M")
-    result = _render_and_upload(
-        items, f"{DIGEST_TITLE} | {stamp}", destination="telegram", chat_id=target
-    )
-    if not result.get("success"):
+    for category, items in group_by_category(pool).items():
+        if len(items) < MIN_MERGED_STORIES:
+            summary["waiting"][category] = len(items)
+            continue
+        stamp = now.astimezone(EAT).strftime("%d %b %Y %H:%M")
+        title = f"{CATEGORY_TITLES[category]} | {stamp}"
         try:
-            send_admin_alert(f"Merged video was not sent: {result.get('message', result)}")
-        except Exception as alert_exc:
-            print(f"Could not send merged-video failure alert: {alert_exc!r}")
-    return result
+            result = _render_and_upload(items, title, destination="telegram", chat_id=target)
+        except Exception as exc:
+            result = {"success": False, "message": f"{type(exc).__name__}: {exc}"}
+        sent_ids = result.get("item_ids") or []
+        if sent_ids:
+            result["stamped"] = stamp_video_batch(sent_ids, batch_id(now, category))
+        summary["videos"].append({"category": category, **result})
+        if not result.get("success"):
+            summary["success"] = False
+            try:
+                send_admin_alert(f"Merged video ({category}) was not fully sent: {result.get('message', result)}")
+            except Exception as alert_exc:
+                print(f"Could not send merged-video failure alert: {alert_exc!r}")
+    return summary
 
 
 def build_and_upload_digest(dry_run=False):

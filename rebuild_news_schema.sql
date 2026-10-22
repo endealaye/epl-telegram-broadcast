@@ -22,9 +22,11 @@ CREATE TABLE IF NOT EXISTS news_items (
     content_hash TEXT NOT NULL UNIQUE,
     raw_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
     fetched_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    reviewed_at TIMESTAMPTZ
+    reviewed_at TIMESTAMPTZ,
+    video_batch_id TEXT
 );
 
 CREATE INDEX IF NOT EXISTS news_items_review_status_idx ON news_items (review_status);
 CREATE INDEX IF NOT EXISTS news_items_published_at_idx ON news_items (published_at DESC);
 CREATE INDEX IF NOT EXISTS news_items_source_key_idx ON news_items (source_key);
+CREATE INDEX IF NOT EXISTS news_items_video_batch_id_idx ON news_items (video_batch_id);

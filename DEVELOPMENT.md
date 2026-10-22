@@ -162,6 +162,7 @@ Core fields:
 - `translated_title_am`
 - `translated_story_am`
 - `content_hash`
+- `video_batch_id` (null until the story is in a merged video; see below)
 
 ## Runtime Execution Model
 
@@ -429,3 +430,23 @@ Checks:
 - Consider separating `commands` from broadcast-oriented schedules if Telegram polling latency becomes a problem.
 - Replace string-based datetime storage with a native timestamp column if schema changes are acceptable.
 - Add an explicit schema migration and keep this document aligned with it.
+
+## Merged videos
+
+After each `automated-news` run, `youtube_digest.build_and_send_category_videos` builds
+merged videos and sends them to Telegram:
+
+- Pool: every `published` story with an image and Amharic text whose `video_batch_id`
+  is null and that was broadcast in the last `VIDEO_POOL_WINDOW_HOURS` (default 72).
+- Category (`video_batches.story_category`): the `competition:` tag, else the source feed,
+  else Premier League for transfer gossip, else `general`. One video per category.
+- Minimum 3 stories per video (`MIN_MERGED_STORIES`, a hard floor). A category with fewer
+  waits for a later run.
+- No maximum number of stories. A video is only split if the file would exceed Telegram's
+  50 MB limit, then by file size into balanced consecutive parts, never by story count.
+- `video_batch_id` (for example `20261022-0540-champions_league`) is written only after
+  the video was sent, so a failed send retries and a story is never merged twice.
+- The manual `youtube-digest` / `telegram-digest` modes are separate and do not stamp
+  `video_batch_id`.
+
+The column is created by `add_video_batch_id_column.sql`.

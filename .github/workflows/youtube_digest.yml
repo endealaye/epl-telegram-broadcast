@@ -1,8 +1,9 @@
 name: YouTube Digest (manual)
 
-# Merged videos are now built after every news translation run (see
-# news_translator.process_automated_news). This workflow is manual only: it
-# merges everything broadcast since the last manual/digest run.
+# Category merged videos are built after every news run (see
+# news_translator.process_automated_news and youtube_digest.build_and_send_category_videos).
+# This workflow is manual only: it merges everything broadcast since the last
+# manual/digest run, regardless of category, and does not stamp video_batch_id.
 on:
   workflow_dispatch:
     inputs:
