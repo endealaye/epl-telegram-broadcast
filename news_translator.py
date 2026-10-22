@@ -46,7 +46,6 @@ def process_automated_news():
     queue = get_review_queue(limit=limit, require_translation=True)
     processed = 0
     failed = 0
-    published_ids = []
 
     for index, item in enumerate(queue):
         try:
@@ -59,7 +58,6 @@ def process_automated_news():
             if not published:
                 raise RuntimeError(f"Item {item['id']} was not recorded as published.")
             processed += 1
-            published_ids.append(item["id"])
         except Exception as exc:
             failed += 1
             print(f"Failed to publish item {item.get('id')}: {exc}")
@@ -67,19 +65,21 @@ def process_automated_news():
             if index < len(queue) - 1:
                 time.sleep(NEWS_ITEM_DELAY_SECONDS)
 
-    # One merged video per run, sent to Telegram. Telegram is already done, so this must
-    # never raise or change the run's result.
-    merged_video = None
-    if published_ids:
-        try:
-            from youtube_digest import build_and_send_batch_telegram
-            merged_video = build_and_send_batch_telegram(published_ids)
-            print(f"Merged video: {merged_video}")
-        except Exception as exc:
-            print(f"Merged video failed: {exc!r}")
-        finally:
-            from tts_service import clear_story_media_cache
-            clear_story_media_cache()
+    # Merged videos, one per category, from every published story not yet in a video
+    # (news_items.video_batch_id is null), not just this run's. Categories below the
+    # minimum wait for a later run. Telegram is already done, so this must never raise
+    # or change the run's result. It runs every time because a previous run may have
+    # left stories waiting or failed to send.
+    merged_videos = None
+    try:
+        from youtube_digest import build_and_send_category_videos
+        merged_videos = build_and_send_category_videos()
+        print(f"Merged videos: {merged_videos}")
+    except Exception as exc:
+        print(f"Merged videos failed: {exc!r}")
+    finally:
+        from tts_service import clear_story_media_cache
+        clear_story_media_cache()
 
     return {
         "success": True,
@@ -88,7 +88,7 @@ def process_automated_news():
         "fetched": fetch_result.get("stored_count", 0),
         "stopped_reason": None,
         "fetch_error": fetch_error,
-        "merged_video": merged_video,
+        "merged_videos": merged_videos,
         "message": (
             f"Fetched {fetch_result.get('stored_count', 0)} items, published {processed}, "
             f"{failed} failed and left in queue."
