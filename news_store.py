@@ -724,12 +724,48 @@ def list_published_news_since(since_iso, limit=50):
     return res.data or []
 
 
+def list_unmerged_published_news(since_iso, limit=200):
+    """Published items that are not yet part of a merged video (video_batch_id is
+    empty), oldest first. A story stays here until a video containing it is sent."""
+    if not supabase:
+        return []
+    query = (
+        supabase.table("news_items")
+        .select(
+            "id,source_key,source_name,title,image_url,relevance_score,topic_tags,"
+            "translated_title_am,translated_story_am,reviewed_at"
+        )
+        .eq("review_status", "published")
+        .is_("video_batch_id", "null")
+        .gte("reviewed_at", since_iso)
+        .order("reviewed_at", desc=False)
+        .limit(limit)
+    )
+    res = _safe_execute(query, default=None, context="list_unmerged_published_news")
+    if res is None:
+        return []
+    return res.data or []
+
+
+def set_video_batch_id(item_ids, batch_id):
+    """Record which merged video the given stories went into. Returns True on success."""
+    ids = [i for i in (item_ids or []) if i is not None]
+    if not supabase or not ids or not batch_id:
+        return False
+    res = _safe_execute(
+        supabase.table("news_items").update({"video_batch_id": batch_id}).in_("id", ids),
+        default=None,
+        context=f"set_video_batch_id:{batch_id}",
+    )
+    return res is not None
+
+
 def get_news_item(item_id):
     if not supabase:
         return None
     res = _safe_execute(
         supabase.table("news_items").select(
-            "id,source_name,source_url,article_url,image_url,title,summary,story,author,published_at,review_status,"
+            "id,source_key,source_name,source_url,article_url,image_url,title,summary,story,author,published_at,review_status,"
             "relevance_score,topic_tags,translated_title_am,translated_story_am,notes,raw_payload"
         ).eq("id", item_id).limit(1),
         default=None,

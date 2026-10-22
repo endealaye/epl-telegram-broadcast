@@ -67,13 +67,15 @@ def process_automated_news():
             if index < len(queue) - 1:
                 time.sleep(NEWS_ITEM_DELAY_SECONDS)
 
-    # One merged video per run, sent to Telegram. Telegram is already done, so this must
-    # never raise or change the run's result.
+    # Merged videos, one per category, sent to Telegram. This covers every published
+    # story not yet in a video (not just this run's), so a category that was short of
+    # the minimum earlier is picked up once a later run completes it. Telegram is
+    # already done, so this must never raise or change the run's result.
     merged_video = None
     if published_ids:
         try:
-            from youtube_digest import build_and_send_batch_telegram
-            merged_video = build_and_send_batch_telegram(published_ids)
+            from youtube_digest import build_and_send_pending_batches_telegram
+            merged_video = build_and_send_pending_batches_telegram()
             print(f"Merged video: {merged_video}")
         except Exception as exc:
             print(f"Merged video failed: {exc!r}")
