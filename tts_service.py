@@ -241,6 +241,12 @@ def synthesize_news_audio(title, story, signature=True):
     return _synthesize_text(f"{title}. {story}{suffix}")
 
 
+def synthesize_announcement(text):
+    """Voice a short announcement (e.g. a section intro in a merged video).
+    No sign-off is added. Returns an mp3 path the caller must delete, or None."""
+    return _synthesize_text(text)
+
+
 _signature_audio = None  # one signature clip per process, voiced once
 
 

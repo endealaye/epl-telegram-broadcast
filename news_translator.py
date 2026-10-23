@@ -67,9 +67,10 @@ def process_automated_news():
             if index < len(queue) - 1:
                 time.sleep(NEWS_ITEM_DELAY_SECONDS)
 
-    # Merged videos, one per category, sent to Telegram. This covers every published
-    # story not yet in a video (not just this run's), so a category that was short of
-    # the minimum earlier is picked up once a later run completes it. Telegram is
+    # One merged video per fetch, sent to Telegram: Premier League, Champions League,
+    # Europa League, then other news, each section introduced by a spoken count. This
+    # covers every published story not yet in a video (not just this run's), so a run
+    # that is short of the 3-story minimum is picked up by the next one. Telegram is
     # already done, so this must never raise or change the run's result.
     merged_video = None
     if published_ids:

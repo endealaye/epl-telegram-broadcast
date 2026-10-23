@@ -3,9 +3,10 @@ Merged YouTube videos: several broadcast stories joined into one long video.
 
 Entry points share one builder:
 - build_and_send_pending_batches_telegram(): every published story not yet in a
-  video (video_batch_id empty), one video per category, minimum 3 stories each,
-  no maximum. Called at the end of process_automated_news and by the manual
-  `telegram_broadcast.py telegram-digest`.
+  video (video_batch_id empty), merged into ONE video per fetch, minimum 3 stories
+  in total, no maximum. Sorted Premier League, Champions League, Europa League,
+  other; each non-empty section opens with a spoken/on-screen intro. Called at the
+  end of process_automated_news and by the manual `telegram_broadcast.py telegram-digest`.
 - build_and_upload_digest(): everything broadcast since the last digest, as one
   YouTube video (manual / optional nightly run: `telegram_broadcast.py youtube-digest`).
 
@@ -82,6 +83,69 @@ def category_title(category, stamp):
     if not label:
         return f"{DIGEST_TITLE} | {stamp}"
     return f"{label} ዜና ማጠቃለያ | {stamp}"
+
+
+# One merged video per fetch, stories sorted into these sections in this order.
+# A section with no stories is left out entirely (no intro either).
+# Conference League, World Cup and anything else fall under "other".
+SECTION_ORDER = ["premier_league", "champions_league", "europa_league", "other"]
+SECTION_LABELS_AM = {
+    "premier_league": "ፕሪሚየር ሊግ",
+    "champions_league": "ቻምፒየንስ ሊግ",
+    "europa_league": "ዩሮፓ ሊግ",
+    "other": "ሌሎች የእግር ኳስ ዜናዎች",
+}
+_NUMBER_WORDS_AM = {
+    1: "አንድ", 2: "ሁለት", 3: "ሦስት", 4: "አራት", 5: "አምስት", 6: "ስድስት", 7: "ሰባት",
+    8: "ስምንት", 9: "ዘጠኝ", 10: "አስር", 11: "አስራ አንድ", 12: "አስራ ሁለት",
+    13: "አስራ ሦስት", 14: "አስራ አራት", 15: "አስራ አምስት", 16: "አስራ ስድስት",
+    17: "አስራ ሰባት", 18: "አስራ ስምንት", 19: "አስራ ዘጠኝ", 20: "ሃያ",
+}
+
+
+def story_section(item):
+    """Section a story is sorted into inside the single merged video."""
+    category = story_category(item)
+    return category if category in SECTION_ORDER else "other"
+
+
+def group_by_section(items):
+    """Ordered [(section, [items])] for the sections that have stories.
+    Order inside a section is the broadcast order of `items`."""
+    buckets = {}
+    for item in items:
+        buckets.setdefault(story_section(item), []).append(item)
+    return [(section, buckets[section]) for section in SECTION_ORDER if buckets.get(section)]
+
+
+def section_intro_text(section, count):
+    """What the narrator says before a section: 'the next N stories are about X'."""
+    label = SECTION_LABELS_AM[section]
+    if count == 1:
+        return f"የሚቀጥለው ዜና ስለ {label} ነው።" if section != "other" else "የሚቀጥለው ዜና ሌላ የእግር ኳስ ዜና ነው።"
+    number = _NUMBER_WORDS_AM.get(count, str(count))
+    if section == "other":
+        return f"የሚቀጥሉት {number} ዜናዎች ሌሎች የእግር ኳስ ዜናዎች ናቸው።"
+    return f"የሚቀጥሉት {number} ዜናዎች ስለ {label} ናቸው።"
+
+
+def _make_section_card(section, count, out_path):
+    """1920x1080 title card shown while the section intro is spoken."""
+    from PIL import Image, ImageDraw
+
+    from standings import _load_font  # lazy: pulls in the Ethiopic font loader
+
+    width, height = 1920, 1080
+    image = Image.new("RGB", (width, height), (14, 22, 33))
+    draw = ImageDraw.Draw(image)
+    label = SECTION_LABELS_AM[section]
+    sub = f"{_NUMBER_WORDS_AM.get(count, count)} ዜና" if count == 1 else f"{_NUMBER_WORDS_AM.get(count, count)} ዜናዎች"
+    for text, size, y, color in ((label, 150, 400, (255, 255, 255)), (sub, 80, 620, (170, 190, 215))):
+        font = _load_font(size, bold=True)
+        box = draw.textbbox((0, 0), text, font=font)
+        draw.text(((width - (box[2] - box[0])) / 2 - box[0], y), text, font=font, fill=color)
+    image.save(out_path, "PNG")
+    return out_path
 # Telegram's bot API rejects uploads over 50 MB.
 TELEGRAM_VIDEO_LIMIT_BYTES = 49 * 1024 * 1024
 
@@ -148,46 +212,89 @@ def _send_merged_to_telegram(merged_path, title, chapter_lines, story_count, tot
     }
 
 
-def _render_and_upload(items, title, dry_run=False, destination="youtube", chat_id=None):
+def _render_section_intro(section, count, index, work_dir):
+    """Clip announcing a section ('the next N stories are about X'), voiced and on a
+    title card. Returns (clip_path, seconds) or None if it could not be made; a
+    missing intro never blocks the stories themselves."""
+    from tts_service import synthesize_announcement
+
+    audio_path = card_path = None
+    try:
+        audio_path = synthesize_announcement(section_intro_text(section, count))
+        if not audio_path:
+            raise RuntimeError("no audio produced")
+        card_path = _make_section_card(section, count, work_dir / f"card_{index:02d}.png")
+        clip_path = work_dir / f"intro_{index:02d}.mp4"
+        render_news_video(audio_path, clip_path, image_path=card_path)
+        return clip_path, media_duration(clip_path)
+    except Exception as exc:
+        print(f"Merged video: no intro for section {section}: {exc!r}")
+        return None
+    finally:
+        for temp in (audio_path, card_path):
+            if temp:
+                Path(temp).unlink(missing_ok=True)
+
+
+def _render_and_upload(items, title, dry_run=False, destination="youtube", chat_id=None, sectioned=False):
     """Render each story, join them, then upload to YouTube or send to Telegram.
-    Returns a result dict."""
+    With sectioned=True the stories are sorted Premier League, Champions League,
+    Europa League, other, and each non-empty section starts with a spoken and
+    on-screen intro giving its story count. Returns a result dict."""
     from news_pipeline import create_watermarked_image, send_admin_alert  # heavy import, kept lazy
 
     work_dir = Path(tempfile.mkdtemp(prefix="yt_digest_"))
     clips, chapters_input, used_ids = [], [], []
+    sections = group_by_section(items) if sectioned else [(None, items)]
+    last_item = [i for _, group in sections for i in group][-1]
+    clip_index = 0
     try:
-        for index, item in enumerate(items):
-            is_last = index == len(items) - 1
-            image_path = audio_path = None
-            cached = get_cached_story_media(item["id"])  # set when this run just published the story
-            try:
-                if cached:
-                    # Reuse the narration and image from publishing: no new TTS, no re-download.
-                    body_audio, image_path = cached
-                    audio_path = with_signature(body_audio) if is_last else body_audio
-                else:
-                    image_path = create_watermarked_image(item["image_url"])
-                    audio_path = synthesize_news_audio(
-                        item["translated_title_am"], item["translated_story_am"], signature=is_last
-                    )
-                if not audio_path:
-                    raise RuntimeError("no audio produced")
-                clip_path = work_dir / f"clip_{index:02d}.mp4"
-                render_news_video(audio_path, clip_path, image_path=image_path)
-                clips.append(clip_path)
-                chapters_input.append((item["translated_title_am"], media_duration(clip_path)))
-                used_ids.append(item["id"])
-            except Exception as exc:
-                print(f"Merged video: skipping item {item.get('id')}: {exc!r}")
-            finally:
-                # Cached files stay until the run's cache is cleared; only delete what we made here.
-                if cached:
-                    if is_last and audio_path:
-                        Path(audio_path).unlink(missing_ok=True)  # the signed copy
-                else:
-                    for temp in (image_path, audio_path):
-                        if temp:
-                            Path(temp).unlink(missing_ok=True)
+        for section, group in sections:
+            section_clips, section_chapters, section_ids = [], [], []
+            for item in group:
+                clip_index += 1
+                is_last = item is last_item
+                image_path = audio_path = None
+                cached = get_cached_story_media(item["id"])  # set when this run just published the story
+                try:
+                    if cached:
+                        # Reuse the narration and image from publishing: no new TTS, no re-download.
+                        body_audio, image_path = cached
+                        audio_path = with_signature(body_audio) if is_last else body_audio
+                    else:
+                        image_path = create_watermarked_image(item["image_url"])
+                        audio_path = synthesize_news_audio(
+                            item["translated_title_am"], item["translated_story_am"], signature=is_last
+                        )
+                    if not audio_path:
+                        raise RuntimeError("no audio produced")
+                    clip_path = work_dir / f"clip_{clip_index:02d}.mp4"
+                    render_news_video(audio_path, clip_path, image_path=image_path)
+                    section_clips.append(clip_path)
+                    section_chapters.append((item["translated_title_am"], media_duration(clip_path)))
+                    section_ids.append(item["id"])
+                except Exception as exc:
+                    print(f"Merged video: skipping item {item.get('id')}: {exc!r}")
+                finally:
+                    # Cached files stay until the run's cache is cleared; only delete what we made here.
+                    if cached:
+                        if is_last and audio_path:
+                            Path(audio_path).unlink(missing_ok=True)  # the signed copy
+                    else:
+                        for temp in (image_path, audio_path):
+                            if temp:
+                                Path(temp).unlink(missing_ok=True)
+            if not section_clips:
+                continue  # every story in this section failed: no intro for an empty section
+            if section:
+                # The count is of stories that actually rendered, so the narrator never overpromises.
+                intro = _render_section_intro(section, len(section_clips), clip_index, work_dir)
+                if intro:
+                    clips.append(intro[0])
+                    chapters_input.append((SECTION_LABELS_AM[section], intro[1]))
+            clips.extend(section_clips)
+            chapters_input.extend(section_chapters)
+            used_ids.extend(section_ids)
 
         if not clips:
             return {"success": False, "items": 0, "message": "No clips could be rendered."}
@@ -199,7 +306,7 @@ def _render_and_upload(items, title, dry_run=False, destination="youtube", chat_
         if destination == "telegram":
             result = _send_merged_to_telegram(
                 merged_path, title, build_chapters(chapters_input),
-                len(clips), total_seconds, chat_id,
+                len(used_ids), total_seconds, chat_id,
             )
             result["item_ids"] = used_ids
             return result
@@ -217,7 +324,7 @@ def _render_and_upload(items, title, dry_run=False, destination="youtube", chat_
             kept = work_dir.parent / "yt_digest_dry_run.mp4"
             shutil.copy(merged_path, kept)
             return {
-                "success": True, "dry_run": True, "items": len(clips),
+                "success": True, "dry_run": True, "items": len(used_ids),
                 "seconds": round(total_seconds), "file": str(kept),
                 "title": title, "description": description,
             }
@@ -225,13 +332,13 @@ def _render_and_upload(items, title, dry_run=False, destination="youtube", chat_
         result = upload_news_video(merged_path, title, description)
         try:
             send_admin_alert(
-                f"YouTube merged video ({result['privacy']}, {len(clips)} stories, "
+                f"YouTube merged video ({result['privacy']}, {len(used_ids)} stories, "
                 f"{_timestamp(total_seconds)}): {result['url']}"
             )
         except Exception as alert_exc:
             print(f"Could not send merged-video admin alert: {alert_exc!r}")
         return {
-            "success": True, "items": len(clips), "seconds": round(total_seconds),
+            "success": True, "items": len(used_ids), "seconds": round(total_seconds),
             "url": result["url"], "privacy": result["privacy"], "item_ids": used_ids,
         }
     finally:
@@ -287,7 +394,8 @@ def build_and_send_batch_telegram(item_ids, min_items=BATCH_MIN_ITEMS, chat_id=N
 
 
 def group_pending_by_category(rows):
-    """Usable stories (image + Amharic text) in broadcast order, grouped by category."""
+    """Usable stories (image + Amharic text) in broadcast order, grouped by category.
+    Kept for callers that want the per-category split; the cron uses one video."""
     groups = {}
     for item in select_items(rows, max_items=0):  # no cap: every story goes into a video
         groups.setdefault(story_category(item), []).append(item)
@@ -295,11 +403,15 @@ def group_pending_by_category(rows):
 
 
 def build_and_send_pending_batches_telegram(chat_id=None, min_items=MIN_MERGED_STORIES):
-    """Merge every published story that is not yet in a video, one video per category.
+    """Merge every published story that is not yet in a video into ONE video.
 
-    A category with fewer than min_items usable stories is left alone and waits for
-    a later run to reach the minimum. Stories are stamped with video_batch_id only
-    after their video is sent, so a failed merge is retried on the next run.
+    Stories are sorted Premier League, Champions League, Europa League, then other
+    football news. Each section that has stories opens with a spoken and on-screen
+    intro ('the next N stories are about X'); a section with none is skipped.
+
+    If fewer than min_items usable stories are pending in total, nothing is made and
+    they wait for the next fetch. Stories are stamped with video_batch_id only after
+    the video is sent, so a failed merge is retried on the next run.
     Best-effort: callers wrap this so it can never affect publishing."""
     from bot_config import TELEGRAM_CHAT_ID
     from commands import send_admin_alert
@@ -308,42 +420,38 @@ def build_and_send_pending_batches_telegram(chat_id=None, min_items=MIN_MERGED_S
     if not target:
         return {"success": False, "message": "No Telegram chat: set TELEGRAM_CHAT_ID or MERGED_VIDEO_CHAT_ID."}
 
-    min_items = max(1, min_items)
+    min_items = max(MIN_MERGED_STORIES, min_items)
     now = datetime.now(timezone.utc)
     since = now - timedelta(hours=PENDING_LOOKBACK_HOURS)
-    groups = group_pending_by_category(list_unmerged_published_news(since.isoformat()))
-    if not groups:
+    items = select_items(list_unmerged_published_news(since.isoformat()), max_items=0)
+    if not items:
         return {"success": True, "videos": [], "waiting": {}, "skipped": "no unmerged stories."}
+    if len(items) < min_items:
+        return {"success": True, "videos": [], "waiting": {"all": len(items)}}
 
     local = now.astimezone(EAT)
     stamp = local.strftime("%d %b %Y %H:%M")
-    videos, waiting = [], {}
-    for category in _CATEGORY_ORDER:
-        items = groups.get(category)
-        if not items:
-            continue
-        if len(items) < min_items:
-            waiting[category] = len(items)
-            continue
-        batch_id = f"{local.strftime('%Y%m%d-%H%M')}-{category}"
-        result = _render_and_upload(
-            items, category_title(category, stamp), destination="telegram", chat_id=target
-        )
-        if result.get("success") and result.get("item_ids"):
-            if not set_video_batch_id(result["item_ids"], batch_id):
-                # The video is already out; without the stamp these stories would be
-                # merged again, so tell the admin rather than hide it.
-                try:
-                    send_admin_alert(f"Merged video {batch_id} was sent but video_batch_id could not be saved.")
-                except Exception as alert_exc:
-                    print(f"Could not send batch-stamp alert: {alert_exc!r}")
-            videos.append({"category": category, "batch_id": batch_id, "items": len(result["item_ids"])})
-        else:
+    batch_id = local.strftime("%Y%m%d-%H%M")
+    sections = {section: len(group) for section, group in group_by_section(items)}
+    result = _render_and_upload(
+        items, f"{DIGEST_TITLE} | {stamp}", destination="telegram", chat_id=target, sectioned=True
+    )
+    videos = []
+    if result.get("success") and result.get("item_ids"):
+        if not set_video_batch_id(result["item_ids"], batch_id):
+            # The video is already out; without the stamp these stories would be
+            # merged again, so tell the admin rather than hide it.
             try:
-                send_admin_alert(f"Merged video ({category}) was not sent: {result.get('message', result)}")
+                send_admin_alert(f"Merged video {batch_id} was sent but video_batch_id could not be saved.")
             except Exception as alert_exc:
-                print(f"Could not send merged-video failure alert: {alert_exc!r}")
-    return {"success": True, "videos": videos, "waiting": waiting}
+                print(f"Could not send batch-stamp alert: {alert_exc!r}")
+        videos.append({"batch_id": batch_id, "items": len(result["item_ids"]), "sections": sections})
+    else:
+        try:
+            send_admin_alert(f"Merged video was not sent: {result.get('message', result)}")
+        except Exception as alert_exc:
+            print(f"Could not send merged-video failure alert: {alert_exc!r}")
+    return {"success": True, "videos": videos, "waiting": {}}
 
 
 def build_and_upload_digest(dry_run=False):
