@@ -58,8 +58,14 @@ CATEGORY_LABELS_AM = {
     "europa_league": "ዩሮፓ ሊግ",
     "conference_league": "ኮንፈረንስ ሊግ",
     "world_cup": "የዓለም ዋንጫ",
+    "la_liga": "ላ ሊጋ",
+    "serie_a": "ሴሪ ኤ",
+    "bundesliga": "ቡንደስሊጋ",
 }
-_CATEGORY_ORDER = ["champions_league", "europa_league", "conference_league", "world_cup", "premier_league"]
+_CATEGORY_ORDER = [
+    "champions_league", "europa_league", "conference_league", "world_cup",
+    "la_liga", "serie_a", "bundesliga", "premier_league",
+]
 
 
 def story_category(item):
@@ -88,11 +94,17 @@ def category_title(category, stamp):
 # One merged video per fetch, stories sorted into these sections in this order.
 # A section with no stories is left out entirely (no intro either).
 # Conference League, World Cup and anything else fall under "other".
-SECTION_ORDER = ["premier_league", "champions_league", "europa_league", "other"]
+SECTION_ORDER = [
+    "premier_league", "champions_league", "europa_league",
+    "la_liga", "serie_a", "bundesliga", "other",
+]
 SECTION_LABELS_AM = {
     "premier_league": "ፕሪሚየር ሊግ",
     "champions_league": "ቻምፒየንስ ሊግ",
     "europa_league": "ዩሮፓ ሊግ",
+    "la_liga": "ላ ሊጋ",
+    "serie_a": "ሴሪ ኤ",
+    "bundesliga": "ቡንደስሊጋ",
     "other": "ሌሎች የእግር ኳስ ዜናዎች",
 }
 _NUMBER_WORDS_AM = {

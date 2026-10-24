@@ -85,6 +85,39 @@ UEFA_COMPETITION_PATTERNS = {
 }
 UEFA_COMPETITION_SCORE_BONUS = 20
 
+# Bundesliga, La Liga and Serie A are major categories like the Premier League: no
+# score bonus, so pre-match, post-match, injury and transfer stories score exactly as
+# they do for the Premier League (get_intelligent_news_analysis is league-blind).
+# The tag comes from the feed (source_key) or from the headline only; matching the
+# body would tag every Premier League story that mentions a player's old La Liga club.
+DOMESTIC_LEAGUE_PATTERNS = {
+    "competition:bundesliga": [r"\bbundesliga\b"],
+    "competition:la_liga": [r"\bla ?liga\b"],
+    "competition:serie_a": [r"\bserie a\b"],
+}
+DOMESTIC_LEAGUE_SOURCE_KEYS = {
+    "competition:bundesliga": "bundesliga",
+    "competition:la_liga": "la_liga",
+    "competition:serie_a": "serie_a",
+}
+
+
+def domestic_league_tags(title, summary, source_key=None):
+    # summary is accepted for call-site symmetry but deliberately unused: summaries
+    # carry body text, which is what the comment above says not to match on.
+    source_key = (source_key or "").lower()
+    title_text = (title or "").lower()
+    tags = set()
+    for tag, patterns in DOMESTIC_LEAGUE_PATTERNS.items():
+        if DOMESTIC_LEAGUE_SOURCE_KEYS[tag] in source_key or any(re.search(p, title_text) for p in patterns):
+            tags.add(tag)
+    return tags
+
+
+def is_domestic_league_feed(source_key):
+    source_key = (source_key or "").lower()
+    return any(fragment in source_key for fragment in DOMESTIC_LEAGUE_SOURCE_KEYS.values())
+
 PREDICTION_PATTERNS = [
     re.compile(r"((?:prediction|predicts?|predicted)\s*[:\-]?\s*[^.?!]+)", re.IGNORECASE),
     re.compile(r"([A-Z][A-Za-z'&.\- ]+\s+\d+\s*[-–]\s*\d+\s+[A-Z][A-Za-z'&.\- ]+)", re.IGNORECASE),
@@ -119,6 +152,10 @@ INCLUDE_TERMS = [
     "premier league",
     "champions league",
     "europa league",
+    "bundesliga",
+    "la liga",
+    "laliga",
+    "serie a",
     "world cup",
     "fifa world cup",
     "world cup qualifier",
@@ -374,9 +411,10 @@ def get_intelligent_news_analysis(title, summary, story=None):
     return sorted(list(tags)), score
 
 
-def derive_topic_tags(title, summary, story=None, image_url=None):
+def derive_topic_tags(title, summary, story=None, image_url=None, source_key=None):
     tags, _ = get_intelligent_news_analysis(title, summary, story)
-    
+    tags = list(tags) + sorted(domestic_league_tags(title, summary, source_key))
+
     # Still keep match metadata as it is highly structured
     match_metadata = extract_match_metadata(title, summary, story, image_url=image_url)
     match_type = match_metadata.get("match_type")
@@ -478,7 +516,7 @@ def extract_match_metadata(title, summary, story=None, image_url=None):
     }
 
 
-def should_include_item(title, summary, article_url, story=None):
+def should_include_item(title, summary, article_url, story=None, source_key=None):
     haystack = build_news_haystack(title, summary, story)
     article_url = (article_url or "").lower()
 
@@ -490,6 +528,11 @@ def should_include_item(title, summary, article_url, story=None):
 
     if any(re.search(pattern, haystack) for pattern in EXCLUDE_PATTERNS):
         return False
+
+    # A Bundesliga/La Liga/Serie A feed is already on topic, and its stories name
+    # clubs (Bayern, Napoli, Girona) that INCLUDE_TERMS does not list.
+    if is_domestic_league_feed(source_key):
+        return True
 
     return any(term in haystack for term in INCLUDE_TERMS)
 
@@ -538,7 +581,7 @@ def normalize_news_item(source_key, source_name, source_url, item, followups=Non
     story = sanitize_copy_text(raw_story) or summary
     title = sanitize_copy_text(item.get("title") or "")
     match_metadata = extract_match_metadata(title, summary, story, image_url=item.get("image_url"))
-    derived_tags = derive_topic_tags(title, summary, story, image_url=item.get("image_url"))
+    derived_tags = derive_topic_tags(title, summary, story, image_url=item.get("image_url"), source_key=source_key)
     follow_up_matches = match_follow_up_requests(title, summary, story, followups=followups)
     if follow_up_matches:
         derived_tags = sorted(set(derived_tags + ["followup:matched"]))
@@ -547,7 +590,7 @@ def normalize_news_item(source_key, source_name, source_url, item, followups=Non
             if request_type:
                 derived_tags.append(f"followup:{request_type}")
         derived_tags = sorted(set(derived_tags))
-    review_status = "filtered" if (should_include_item(title, summary, article_url, story) or follow_up_matches) else "rejected"
+    review_status = "filtered" if (should_include_item(title, summary, article_url, story, source_key=source_key) or follow_up_matches) else "rejected"
     raw_payload = dict(item or {})
     raw_payload["match_metadata"] = match_metadata
     raw_payload["follow_up_matches"] = follow_up_matches

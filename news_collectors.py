@@ -251,6 +251,41 @@ GUARDIAN_EUROPA_LEAGUE_URL_CANDIDATES = [
     "https://www.theguardian.com/football/uefaeuropaleague/rss",
 ]
 
+# Domestic leagues beyond the Premier League. The Guardian tag slugs below could not
+# be checked from the build environment (the feeds were blocked there), so each league
+# lists candidates and the fetcher uses the first one that does not 404, same as the
+# Europa League feed above. Source keys carry the league name ("bundesliga", "la_liga",
+# "serie_a") because youtube_digest.story_category and news_store both read it.
+GUARDIAN_BUNDESLIGA_SOURCE = {
+    "source_key": "guardian_bundesliga_rss",
+    "source_name": "The Guardian Bundesliga",
+    "source_url": "https://www.theguardian.com/football/bundesligafootball/rss",
+}
+GUARDIAN_BUNDESLIGA_URL_CANDIDATES = [
+    "https://www.theguardian.com/football/bundesligafootball/rss",
+    "https://www.theguardian.com/football/bundesliga/rss",
+]
+
+GUARDIAN_LA_LIGA_SOURCE = {
+    "source_key": "guardian_la_liga_rss",
+    "source_name": "The Guardian La Liga",
+    "source_url": "https://www.theguardian.com/football/laligafootball/rss",
+}
+GUARDIAN_LA_LIGA_URL_CANDIDATES = [
+    "https://www.theguardian.com/football/laligafootball/rss",
+    "https://www.theguardian.com/football/la-liga/rss",
+]
+
+GUARDIAN_SERIE_A_SOURCE = {
+    "source_key": "guardian_serie_a_rss",
+    "source_name": "The Guardian Serie A",
+    "source_url": "https://www.theguardian.com/football/serie-a/rss",
+}
+GUARDIAN_SERIE_A_URL_CANDIDATES = [
+    "https://www.theguardian.com/football/serie-a/rss",
+    "https://www.theguardian.com/football/serieafootball/rss",
+]
+
 SKY_SPORTS_PREMIER_LEAGUE_SOURCE = {
     "source_key": "sky_sports_premier_league_rss",
     "source_name": "Sky Sports Premier League",
@@ -941,6 +976,31 @@ def fetch_guardian_europa_league_rss():
                 raise
             last_error = exc
     raise last_error
+
+
+def _fetch_first_working_rss(source_config, url_candidates):
+    """Try each candidate URL in order; only a 404 moves on to the next one."""
+    last_error = None
+    for url in url_candidates:
+        try:
+            return _fetch_rss_source({**source_config, "source_url": url}, enrich=True, max_items=RSS_MAX_ITEMS_CORE)
+        except requests.HTTPError as exc:
+            if getattr(exc.response, "status_code", None) != 404:
+                raise
+            last_error = exc
+    raise last_error
+
+
+def fetch_guardian_bundesliga_rss():
+    return _fetch_first_working_rss(GUARDIAN_BUNDESLIGA_SOURCE, GUARDIAN_BUNDESLIGA_URL_CANDIDATES)
+
+
+def fetch_guardian_la_liga_rss():
+    return _fetch_first_working_rss(GUARDIAN_LA_LIGA_SOURCE, GUARDIAN_LA_LIGA_URL_CANDIDATES)
+
+
+def fetch_guardian_serie_a_rss():
+    return _fetch_first_working_rss(GUARDIAN_SERIE_A_SOURCE, GUARDIAN_SERIE_A_URL_CANDIDATES)
 
 
 def fetch_sky_sports_premier_league_rss():

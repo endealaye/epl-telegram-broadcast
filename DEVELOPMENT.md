@@ -255,7 +255,10 @@ Implemented in `youtube_digest.py`, called at the end of `process_automated_news
 
 - One merged video per fetch run, never one per category. It contains every published story not yet in a video (`video_batch_id` is null, last 48 hours).
 - Minimum 3 stories in total (`MIN_MERGED_STORIES`, not lowerable by env). No maximum. Fewer than 3 pending: no video, the stories wait for the next fetch.
-- Section order: Premier League, Champions League, Europa League, other (Conference League, World Cup, anything else). Transfer gossip counts as Premier League; stories with no competition tag default to Premier League.
+- Section order: Premier League, Champions League, Europa League, La Liga, Serie A, Bundesliga, other (Conference League, World Cup, anything else). Transfer gossip counts as Premier League; stories with no competition tag default to Premier League.
+- La Liga, Serie A and Bundesliga stories are tagged `competition:la_liga` / `competition:serie_a` / `competition:bundesliga` from their Guardian feed (`guardian_la_liga_rss`, `guardian_serie_a_rss`, `guardian_bundesliga_rss`) or from the headline. A Champions or Europa League tag wins over a domestic-league tag.
+- Scoring is identical for every league: transfer +5, injury +7, gossip +2, pre-match and post-match +0. Only Champions League and Europa League headlines get the +20 bonus. The new leagues get none, so they sort with the Premier League.
+- The three league feeds skip the `INCLUDE_TERMS` club check (their stories name clubs the list does not have). Exclusion patterns still apply.
 - Each section that has stories opens with a voiced, on-screen intro: "the next N stories are about <competition>" (`section_intro_text`, `_make_section_card`). A section with no stories is skipped with no intro. N counts stories that actually rendered.
 - Stories inside a section keep broadcast order (`reviewed_at` ascending). YouTube chapters list each section heading.
 - After the video is sent, its stories are stamped with `video_batch_id`. A failed send leaves them unstamped and the next run retries.

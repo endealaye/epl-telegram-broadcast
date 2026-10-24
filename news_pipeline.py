@@ -24,9 +24,12 @@ from youtube_uploader import upload_news_video, youtube_enabled
 
 from news_collectors import (
     fetch_bbc_football_rss,
+    fetch_guardian_bundesliga_rss,
     fetch_guardian_champions_league_rss,
     fetch_guardian_europa_league_rss,
+    fetch_guardian_la_liga_rss,
     fetch_guardian_premier_league_rss,
+    fetch_guardian_serie_a_rss,
     fetch_sky_sports_football_rss,
     fetch_sky_sports_premier_league_rss,
     excluded_news_match,
@@ -244,6 +247,12 @@ def _extract_league_hashtags(item):
         tags.append("#EuropaLeague")
     if re.search(r"\buefa conference league\b|\bconference league\b", haystack, re.IGNORECASE):
         tags.append("#ConferenceLeague")
+    if "competition:bundesliga" in topic_tags or re.search(r"\bbundesliga\b", haystack, re.IGNORECASE):
+        tags.append("#Bundesliga")
+    if "competition:la_liga" in topic_tags or re.search(r"\bla liga\b|\blaliga\b", haystack, re.IGNORECASE):
+        tags.append("#LaLiga")
+    if "competition:serie_a" in topic_tags or re.search(r"\bserie a\b", haystack, re.IGNORECASE):
+        tags.append("#SerieA")
     return _ordered_unique(tags)
 
 
@@ -492,6 +501,9 @@ def fetch_news_items():
         ("guardian", fetch_guardian_premier_league_rss),
         ("guardian_champions_league", fetch_guardian_champions_league_rss),
         ("guardian_europa_league", fetch_guardian_europa_league_rss),
+        ("guardian_bundesliga", fetch_guardian_bundesliga_rss),
+        ("guardian_la_liga", fetch_guardian_la_liga_rss),
+        ("guardian_serie_a", fetch_guardian_serie_a_rss),
         ("sky_sports", fetch_sky_sports_premier_league_rss),
         ("sky_sports_football", fetch_sky_sports_football_rss),
     ]
