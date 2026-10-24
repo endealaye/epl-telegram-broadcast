@@ -71,6 +71,9 @@ def _load_fitted(path_str, max_width, max_height):
     else:
         with Image.open(path) as image:
             logo = image.convert("RGBA")
+    bbox = logo.getchannel("A").getbbox()  # trim transparent margins so the plate hugs the logo
+    if bbox:
+        logo = logo.crop(bbox)
     scale = min(max_width / logo.width, max_height / logo.height)
     size = (max(1, round(logo.width * scale)), max(1, round(logo.height * scale)))
     return logo.resize(size, Image.LANCZOS)

@@ -365,7 +365,7 @@ def build_league_logo_overlay(width, height, category):
     watermark is top-right). Fully transparent when there is no logo for the category."""
     overlay = Image.new("RGBA", (width, height), (255, 255, 255, 0))
     box = min(max(int(width * WATERMARK_WIDTH_RATIO), WATERMARK_MIN_WIDTH), WATERMARK_MAX_WIDTH)
-    logo = load_league_logo(category, box, box)
+    logo = load_league_logo(category, int(box * 1.5), box)  # wider than tall: Premier League is a wide logo
     if logo is None:
         return overlay
     margin = max(24, int(width * WATERMARK_MARGIN_RATIO))
