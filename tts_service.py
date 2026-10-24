@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 import shutil
 import tempfile
 import subprocess
@@ -14,8 +15,24 @@ TTS_RETRY_DELAY_SECONDS = float(os.getenv("TTS_RETRY_DELAY_SECONDS", "3"))
 # am-ET-AmehaNeural (male, default) or am-ET-MekdesNeural (female)
 EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "am-ET-AmehaNeural")
 EDGE_TTS_TIMEOUT_SECONDS = int(os.getenv("EDGE_TTS_TIMEOUT_SECONDS", "120"))
-TTS_SPEED = float(os.getenv("TTS_SPEED", "1.15"))  # ffmpeg atempo accepts 0.5 to 100
+TTS_SPEED = float(os.getenv("TTS_SPEED", "1.0"))  # 1.0 = normal speed, no ffmpeg tempo change
+# Silence inserted between sentences so the narration doesn't run together.
+TTS_SENTENCE_PAUSE_SECONDS = float(os.getenv("TTS_SENTENCE_PAUSE_SECONDS", "0.6"))
 _tts_alert_sent = False
+
+# Sentence enders: Ethiopic full stop and question mark, plus ! ? . (only before whitespace,
+# so "3.5" stays intact). Newlines always break a sentence.
+_SENTENCE_BREAK = re.compile(r"(?<=[።፧!?.])\s+|\n+")
+
+
+def split_sentences(text):
+    """Split text into trimmed, non-empty sentences."""
+    return [part.strip() for part in _SENTENCE_BREAK.split(text or "") if part and part.strip()]
+
+
+def space_sentences(text, separator="\n\n"):
+    """Put each sentence on its own block, e.g. a blank line between sentences."""
+    return separator.join(split_sentences(text))
 
 
 def _synthesize_edge(text, out_path):
@@ -199,37 +216,72 @@ def render_news_video(audio_path, video_path, image_path=None):
 SIGNATURE_TEXT = "ይህ ዜና የቀረበላችሁ በካታንጋ ቻናል ነው"
 
 
+def _join_with_pauses(part_paths, out_path):
+    """Join sentence clips into one mp3 with TTS_SENTENCE_PAUSE_SECONDS of silence after each
+    clip except the last."""
+    n = len(part_paths)
+    inputs, chains = [], []
+    for i, path in enumerate(part_paths):
+        inputs += ["-i", str(path)]
+        # Normalise every clip to the same rate/layout so concat accepts them.
+        chain = f"[{i}:a]aresample=24000,aformat=sample_fmts=fltp:channel_layouts=mono"
+        if i < n - 1:
+            chain += f",apad=pad_dur={TTS_SENTENCE_PAUSE_SECONDS}"
+        chains.append(f"{chain}[s{i}]")
+    labels = "".join(f"[s{i}]" for i in range(n))
+    filter_complex = ";".join(chains) + f";{labels}concat=n={n}:v=0:a=1[a]"
+    cmd = [
+        "ffmpeg", "-y", "-loglevel", "error", *inputs,
+        "-filter_complex", filter_complex, "-map", "[a]", str(out_path),
+    ]
+    subprocess.run(cmd, check=True, capture_output=True, timeout=VIDEO_TIMEOUT_SECONDS)
+
+
 def _synthesize_text(full_text):
-    """Edge-TTS the text, then speed it up with ffmpeg (TTS_SPEED). Returns an mp3 path or None."""
-    # Temporary files for processing
+    """Edge-TTS the text one sentence at a time with a pause between sentences, at normal
+    speed unless TTS_SPEED says otherwise. Returns an mp3 path or None."""
     temp_dir = Path(tempfile.gettempdir())
-    raw_audio = temp_dir / f"tts_raw_{os.urandom(4).hex()}.mp3"
-    fast_audio = temp_dir / f"tts_fast_{os.urandom(4).hex()}.mp3"
+    token = os.urandom(4).hex()
+    part_paths = []
+    joined_audio = temp_dir / f"tts_joined_{token}.mp3"
+    final_audio = temp_dir / f"tts_final_{token}.mp3"
 
     try:
-        # 1. Synthesize text to speech (edge-tts only)
-        engine = _synthesize_speech(full_text, raw_audio)
-        if not engine:
-            return None
-        print(f"TTS engine used: {engine}")
+        # 1. Synthesize each sentence (edge-tts only)
+        sentences = split_sentences(full_text) or [full_text]
+        for i, sentence in enumerate(sentences):
+            part = temp_dir / f"tts_part_{token}_{i:03d}.mp3"
+            part_paths.append(part)
+            engine = _synthesize_speech(sentence, part)
+            if not engine:
+                return None
+        print(f"TTS engine used: edge-tts ({len(sentences)} sentences)")
 
-        # 2. Speed up using ffmpeg (TTS_SPEED, default 1.15x)
-        # atempo speeds up audio without changing pitch
-        cmd = [
-            "ffmpeg", "-y", "-i", str(raw_audio),
-            "-filter:a", f"atempo={TTS_SPEED}",
-            str(fast_audio)
-        ]
-        subprocess.run(cmd, check=True, capture_output=True)
+        # 2. Join with silence between sentences
+        if len(part_paths) == 1:
+            shutil.copy(part_paths[0], joined_audio)
+        else:
+            _join_with_pauses(part_paths, joined_audio)
 
-        return fast_audio
+        # 3. Only touch the speed when it was changed from 1x
+        if abs(TTS_SPEED - 1.0) < 1e-6:
+            joined_audio.replace(final_audio)
+        else:
+            cmd = [
+                "ffmpeg", "-y", "-loglevel", "error", "-i", str(joined_audio),
+                "-filter:a", f"atempo={TTS_SPEED}",
+                str(final_audio),
+            ]
+            subprocess.run(cmd, check=True, capture_output=True)
+
+        return final_audio
     except Exception as e:
         _alert_tts_failure("ffmpeg/other", e)
+        final_audio.unlink(missing_ok=True)
         return None
     finally:
-        # Clean up raw file immediately
-        if raw_audio.exists():
-            raw_audio.unlink()
+        for path in (*part_paths, joined_audio):
+            Path(path).unlink(missing_ok=True)
 
 
 def synthesize_news_audio(title, story, signature=True):

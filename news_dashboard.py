@@ -10,6 +10,7 @@ from news_store import (
     update_follow_up_request,
 )
 from telegram_limits import TELEGRAM_NEWS_CAPTION_TARGET, TELEGRAM_NEWS_MAX_LINES, telegram_limit_status
+from tts_service import space_sentences
 
 app = Flask(__name__)
 
@@ -25,7 +26,7 @@ def build_amharic_preview_text(title, story):
     if story:
         if parts:
             parts.append("")
-        parts.append(story)
+        parts.append(space_sentences(story))
     return "\n".join(parts)
 
 

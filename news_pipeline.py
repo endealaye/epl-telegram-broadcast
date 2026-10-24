@@ -17,6 +17,7 @@ from tts_service import (
     media_duration,
     render_news_short,
     render_news_video,
+    space_sentences,
     synthesize_news_audio,
     with_signature,
 )
@@ -437,7 +438,7 @@ def format_news_broadcast(item):
         lines.append("━━━━━━━━━━━━━━━━━━━━")
     
     if story:
-        lines.append(escape_telegram_markdown(story))
+        lines.append(escape_telegram_markdown(space_sentences(story)))
         
     if source_line:
         if lines:
