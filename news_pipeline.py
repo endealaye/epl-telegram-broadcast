@@ -11,6 +11,7 @@ import requests
 from PIL import Image, ImageDraw
 
 from commands import send_admin_alert, send_telegram_message, send_telegram_photo, send_telegram_photo_file, send_telegram_audio_file, send_telegram_video_file
+from league_logos import load_league_logo
 from tts_service import (
     SHORT_MAX_SECONDS,
     cache_story_media,
@@ -359,7 +360,39 @@ def build_watermark_overlay(width, height):
     return overlay
 
 
-def create_watermarked_image(image_url):
+def build_league_logo_overlay(width, height, category):
+    """Transparent overlay with the league logo in the top-left corner (the channel
+    watermark is top-right). Fully transparent when there is no logo for the category."""
+    overlay = Image.new("RGBA", (width, height), (255, 255, 255, 0))
+    box = min(max(int(width * WATERMARK_WIDTH_RATIO), WATERMARK_MIN_WIDTH), WATERMARK_MAX_WIDTH)
+    logo = load_league_logo(category, box, box)
+    if logo is None:
+        return overlay
+    margin = max(24, int(width * WATERMARK_MARGIN_RATIO))
+    x, y = margin, margin
+    draw = ImageDraw.Draw(overlay)
+    draw.rounded_rectangle(
+        (x - WATERMARK_BG_PADDING, y - WATERMARK_BG_PADDING,
+         x + logo.width + WATERMARK_BG_PADDING, y + logo.height + WATERMARK_BG_PADDING),
+        radius=WATERMARK_BG_RADIUS,
+        fill=(255, 255, 255, 225),  # light plate: league logos are coloured and often dark
+    )
+    overlay.paste(logo, (x, y), logo)
+    return overlay
+
+
+def story_league_category(item):
+    """Competition a story belongs to (same rule as the merged video sections), or None."""
+    try:
+        from youtube_digest import story_category  # lazy import avoids a circular import
+
+        return story_category(item)
+    except Exception as exc:
+        print(f"Could not work out league for item {item.get('id')}: {exc!r}")
+        return None
+
+
+def create_watermarked_image(image_url, category=None):
     response = requests.get(image_url, timeout=NEWS_IMAGE_TIMEOUT, stream=True)
     response.raise_for_status()
 
@@ -396,6 +429,11 @@ def create_watermarked_image(image_url):
         base = original.convert("RGBA")
 
     overlay = build_watermark_overlay(*base.size)
+    if category:
+        try:  # a logo problem must never stop the story from being posted
+            overlay = Image.alpha_composite(overlay, build_league_logo_overlay(*base.size, category))
+        except Exception as logo_exc:
+            print(f"League logo skipped for {category}: {logo_exc!r}")
     watermarked = Image.alpha_composite(base, overlay).convert("RGB")
 
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
@@ -807,7 +845,9 @@ def mark_review_item(
     
     if payload["image_url"]:
         try:
-            watermarked_image_path = create_watermarked_image(payload["image_url"])
+            watermarked_image_path = create_watermarked_image(
+                payload["image_url"], category=story_league_category(item)
+            )
             local_image_path = watermarked_image_path
             sent_message = send_telegram_photo_file(watermarked_image_path, payload["caption"], return_message=True)
         except Exception as exc:

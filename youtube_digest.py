@@ -147,12 +147,26 @@ def _make_section_card(section, count, out_path):
 
     from standings import _load_font  # lazy: pulls in the Ethiopic font loader
 
+    from league_logos import load_league_logo
+
     width, height = 1920, 1080
     image = Image.new("RGB", (width, height), (14, 22, 33))
     draw = ImageDraw.Draw(image)
     label = SECTION_LABELS_AM[section]
     sub = f"{_NUMBER_WORDS_AM.get(count, count)} ዜና" if count == 1 else f"{_NUMBER_WORDS_AM.get(count, count)} ዜናዎች"
-    for text, size, y, color in ((label, 150, 400, (255, 255, 255)), (sub, 80, 620, (170, 190, 215))):
+    # The league's logo replaces the text label; with no logo (or the "other" section) keep the text.
+    logo = load_league_logo(section, 640, 440)
+    if logo is not None:
+        # White plate so dark logos stay readable on the dark card.
+        pad = 36
+        plate_w, plate_h = logo.width + 2 * pad, logo.height + 2 * pad
+        px, py = (width - plate_w) // 2, 170
+        draw.rounded_rectangle((px, py, px + plate_w, py + plate_h), radius=36, fill=(255, 255, 255))
+        image.paste(logo, (px + pad, py + pad), logo)
+        lines = ((sub, 80, py + plate_h + 70, (170, 190, 215)),)
+    else:
+        lines = ((label, 150, 400, (255, 255, 255)), (sub, 80, 620, (170, 190, 215)))
+    for text, size, y, color in lines:
         font = _load_font(size, bold=True)
         box = draw.textbbox((0, 0), text, font=font)
         draw.text(((width - (box[2] - box[0])) / 2 - box[0], y), text, font=font, fill=color)
@@ -274,7 +288,7 @@ def _render_and_upload(items, title, dry_run=False, destination="youtube", chat_
                         body_audio, image_path = cached
                         audio_path = with_signature(body_audio) if is_last else body_audio
                     else:
-                        image_path = create_watermarked_image(item["image_url"])
+                        image_path = create_watermarked_image(item["image_url"], category=story_category(item))
                         audio_path = synthesize_news_audio(
                             item["translated_title_am"], item["translated_story_am"], signature=is_last
                         )
