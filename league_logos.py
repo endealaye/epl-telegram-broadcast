@@ -14,7 +14,11 @@ from PIL import Image
 REPO_ROOT = Path(__file__).resolve().parent
 # First directory with a match wins. The older logo/ and repo-root files are fallbacks.
 LOGO_DIRS = (REPO_ROOT / "assets" / "logos", REPO_ROOT / "logo", REPO_ROOT)
-LOGO_EXTENSIONS = (".svg", ".png", ".webp", ".jpg", ".jpeg")
+# Raster first: it always loads exactly as drawn. SVG is the fallback, see _load_fitted.
+LOGO_EXTENSIONS = (".png", ".webp", ".jpg", ".jpeg", ".svg")
+# cairosvg ignores these SVG features and draws garbage (the Europa League SVG is a raster
+# wrapped in a filter and a mask), so such files are skipped instead of rendered wrongly.
+_UNSUPPORTED_SVG = re.compile(r"<(filter|mask|image|foreignObject)[\s>]", re.IGNORECASE)
 
 # Matched against the file name with everything but letters and digits removed, lower-cased.
 LEAGUE_LOGO_KEYWORDS = {
@@ -34,7 +38,7 @@ def _normalize(name):
 
 
 def find_league_logos(category):
-    """Logo files for a category, best first (SVG before raster). Empty list if none."""
+    """Logo files for a category, best first (raster before SVG). Empty list if none."""
     keywords = LEAGUE_LOGO_KEYWORDS.get(category)
     if not keywords:
         return []
@@ -57,6 +61,9 @@ def _load_fitted(path_str, max_width, max_height):
     path = Path(path_str)
     if path.suffix.lower() == ".svg":
         import cairosvg  # imported here so a missing cairosvg only disables SVG logos
+
+        if _UNSUPPORTED_SVG.search(path.read_text(encoding="utf-8", errors="ignore")):
+            raise ValueError("SVG uses filters/masks/embedded images that cairosvg can't draw; use a PNG")
 
         png = cairosvg.svg2png(url=str(path), output_width=max_width * 2)
         with Image.open(BytesIO(png)) as image:
