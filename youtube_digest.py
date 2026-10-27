@@ -14,6 +14,7 @@ Stories are re-rendered from the stored Amharic text (TTS + image), so nothing
 has to be kept between workflow runs.
 """
 import os
+import re
 import shutil
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -68,11 +69,55 @@ _CATEGORY_ORDER = [
 ]
 
 
+# Club / league names matched against the headline (then the summary) when a story has no
+# competition tag and comes from a general football feed. Body text is deliberately not used:
+# a Premier League story that mentions a player's old La Liga club must stay Premier League.
+_LEAGUE_TEXT_PATTERNS = {
+    "premier_league": re.compile(
+        r"\bpremier league\b|\barsenal\b|\baston villa\b|\bbournemouth\b|\bbrentford\b|"
+        r"\bbrighton\b|\bburnley\b|\bchelsea\b|\bcrystal palace\b|\beverton\b|\bfulham\b|"
+        r"\bleeds\b|\bliverpool\b|\bman(?:chester)? city\b|\bman(?:chester)? u(?:td|nited)\b|"
+        r"\bnewcastle\b|\bnottingham forest\b|\bsunderland\b|\bspurs\b|\btottenham\b|"
+        r"\bwest ham\b|\bwolves\b|\bwolverhampton\b",
+        re.IGNORECASE,
+    ),
+    "la_liga": re.compile(
+        r"\bla ?liga\b|\bcl[aá]sico\b|\breal madrid\b|\bbarcelona\b|\bbar[cç]a\b|"
+        r"\batl[eé]tico madrid\b|\bsevilla\b|\bvillarreal\b|\breal sociedad\b|\breal betis\b|"
+        r"\bathletic club\b|\bgirona\b",
+        re.IGNORECASE,
+    ),
+    "serie_a": re.compile(
+        r"\bserie a\b|\bjuventus\b|\binter milan\b|\bac milan\b|\bnapoli\b|\blazio\b|"
+        r"\batalanta\b|\bas roma\b",
+        re.IGNORECASE,
+    ),
+    "bundesliga": re.compile(
+        r"\bbundesliga\b|\bbayern\b|\bdortmund\b|\bleverkusen\b|\brb leipzig\b",
+        re.IGNORECASE,
+    ),
+}
+
+
+def _league_from_text(item):
+    """League named in the headline, else in the summary. None when nothing is named or
+    when more than one league is (a mixed story gets no league logo rather than a wrong one)."""
+    for field in ("title", "summary"):
+        text = item.get(field) or ""
+        hits = [league for league, pattern in _LEAGUE_TEXT_PATTERNS.items() if pattern.search(text)]
+        if len(hits) == 1:
+            return hits[0]
+        if len(hits) > 1:
+            return None
+    return None
+
+
 def story_category(item):
     """Category a story is grouped under for merged videos.
 
-    Uses the competition tag, then the feed it came from. Everything else,
-    including transfer rumours (gossip), counts as Premier League."""
+    Uses the competition tag, then the feed it came from, then the league named in the
+    headline/summary. A story with no evidence of any league is "other" (no league logo);
+    it is never assumed to be Premier League."""
     tags = {str(t) for t in (item.get("topic_tags") or [])}
     for category in _CATEGORY_ORDER:
         if f"competition:{category}" in tags:
@@ -81,7 +126,7 @@ def story_category(item):
     for category in _CATEGORY_ORDER:
         if category in source:
             return category
-    return "premier_league"
+    return _league_from_text(item) or "other"
 
 
 def category_title(category, stamp):
