@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import partial
 import json
 import os
 import re
@@ -25,6 +26,8 @@ from tts_service import (
 from youtube_uploader import upload_news_video, youtube_enabled
 
 from news_collectors import (
+    PREMIER_LEAGUE_CLUB_RSS_SOURCES,
+    RSS_MAX_ITEMS_CLUB,
     fetch_bbc_football_rss,
     fetch_guardian_bundesliga_rss,
     fetch_guardian_champions_league_rss,
@@ -32,6 +35,7 @@ from news_collectors import (
     fetch_guardian_la_liga_rss,
     fetch_guardian_premier_league_rss,
     fetch_guardian_serie_a_rss,
+    fetch_rss_source,
     fetch_sky_sports_football_rss,
     fetch_sky_sports_premier_league_rss,
     excluded_news_match,
@@ -552,6 +556,17 @@ def fetch_news_items():
         attempted_sources.append(source_name)
         jobs.append((source_name, collector))
 
+    # Club feeds carry team news and starting XIs. Each club is its own job so one
+    # dead feed is recorded in source health without taking the others down.
+    for club_config in PREMIER_LEAGUE_CLUB_RSS_SOURCES:
+        club_job_name = club_config["source_key"]
+        attempted_sources.append(club_job_name)
+        jobs.append(
+            (
+                club_job_name,
+                partial(fetch_rss_source, club_config, enrich=True, max_items=RSS_MAX_ITEMS_CLUB),
+            )
+        )
 
 
     max_workers = max(1, min(NEWS_FETCH_MAX_WORKERS, len(jobs) or 1))
