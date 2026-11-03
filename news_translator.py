@@ -4,6 +4,7 @@ import time
 from orchestrator import route_event_dict
 
 NEWS_ITEM_DELAY_SECONDS = float(os.getenv("NEWS_ITEM_DELAY_SECONDS", "2"))
+MIN_VIDEO_STORIES = 3  # same floor as youtube_digest.MIN_MERGED_STORIES
 
 
 def process_automated_news():
@@ -40,48 +41,66 @@ def process_automated_news():
             )
         except Exception as record_exc:
             print(f"Could not record fetch error: {record_exc}")
-    from tts_service import enable_story_media_cache
-    enable_story_media_cache()  # merged video reuses each story's narration
-    limit = max(1, int(os.getenv("NEWS_PUBLISH_BATCH_SIZE", os.getenv("NEWS_TRANSLATION_BATCH_SIZE", "12"))))
-    queue = get_review_queue(limit=limit, require_translation=True)
+    from tts_service import clear_story_media_cache, enable_story_media_cache
+
+    # One run publishes up to NEWS_PUBLISH_BATCHES_PER_RUN batches of
+    # NEWS_PUBLISH_BATCH_SIZE stories (2 x 12 by default). Each batch gets its own
+    # merged video; a batch with fewer than MIN_MERGED_STORIES published stories is
+    # still published to Telegram but gets no video.
+    batch_size = max(1, int(os.getenv("NEWS_PUBLISH_BATCH_SIZE", os.getenv("NEWS_TRANSLATION_BATCH_SIZE", "12"))))
+    batches_per_run = max(1, int(os.getenv("NEWS_PUBLISH_BATCHES_PER_RUN", "2")))
+    queue = get_review_queue(limit=batch_size * batches_per_run, require_translation=True)
+    batches = [queue[i:i + batch_size] for i in range(0, len(queue), batch_size)]
+
     processed = 0
     failed = 0
     published_ids = []
+    videos = []
+    skipped_videos = []
 
-    for index, item in enumerate(queue):
+    for batch_number, batch in enumerate(batches, start=1):
+        batch_ids = []
+        enable_story_media_cache()  # the batch video reuses each story's narration
         try:
-            published = mark_review_item(
-                item_id=item["id"],
-                status="published",
-                translated_title_am=item["translated_title_am"].strip(),
-                translated_story_am=item["translated_story_am"].strip(),
-            )
-            if not published:
-                raise RuntimeError(f"Item {item['id']} was not recorded as published.")
-            processed += 1
-            published_ids.append(item["id"])
-        except Exception as exc:
-            failed += 1
-            print(f"Failed to publish item {item.get('id')}: {exc}")
-        finally:
-            if index < len(queue) - 1:
-                time.sleep(NEWS_ITEM_DELAY_SECONDS)
+            for index, item in enumerate(batch):
+                try:
+                    published = mark_review_item(
+                        item_id=item["id"],
+                        status="published",
+                        translated_title_am=item["translated_title_am"].strip(),
+                        translated_story_am=item["translated_story_am"].strip(),
+                    )
+                    if not published:
+                        raise RuntimeError(f"Item {item['id']} was not recorded as published.")
+                    processed += 1
+                    batch_ids.append(item["id"])
+                except Exception as exc:
+                    failed += 1
+                    print(f"Failed to publish item {item.get('id')}: {exc}")
+                finally:
+                    if index < len(batch) - 1:
+                        time.sleep(NEWS_ITEM_DELAY_SECONDS)
+            published_ids.extend(batch_ids)
 
-    # One merged video per fetch, sent to Telegram: Premier League, Champions League,
-    # Europa League, then other news, each section introduced by a spoken count. This
-    # covers every published story not yet in a video (not just this run's), so a run
-    # that is short of the 3-story minimum is picked up by the next one. Telegram is
-    # already done, so this must never raise or change the run's result.
-    merged_video = None
-    if published_ids:
-        try:
-            from youtube_digest import build_and_send_pending_batches_telegram
-            merged_video = build_and_send_pending_batches_telegram()
-            print(f"Merged video: {merged_video}")
-        except Exception as exc:
-            print(f"Merged video failed: {exc!r}")
+            # One merged video per batch, sent to Telegram: Premier League, Champions
+            # League, Europa League, then other news, each section introduced by a
+            # spoken count. Telegram is already done, so this must never raise or
+            # change the run's result.
+            if len(batch_ids) < MIN_VIDEO_STORIES:
+                if batch_ids:
+                    skipped_videos.append({"batch": batch_number, "ids": batch_ids})
+                    print(f"Batch {batch_number}: {len(batch_ids)} stories published, fewer than 3, no video.")
+                continue
+            try:
+                from youtube_digest import build_and_send_pending_batches_telegram
+                result = build_and_send_pending_batches_telegram(
+                    item_ids=batch_ids, batch_suffix=f"-{batch_number}"
+                )
+                videos.append(result)
+                print(f"Merged video (batch {batch_number}): {result}")
+            except Exception as exc:
+                print(f"Merged video failed (batch {batch_number}): {exc!r}")
         finally:
-            from tts_service import clear_story_media_cache
             clear_story_media_cache()
 
     return {
@@ -91,7 +110,8 @@ def process_automated_news():
         "fetched": fetch_result.get("stored_count", 0),
         "stopped_reason": None,
         "fetch_error": fetch_error,
-        "merged_video": merged_video,
+        "merged_videos": videos,
+        "batches_without_video": skipped_videos,
         "message": (
             f"Fetched {fetch_result.get('stored_count', 0)} items, published {processed}, "
             f"{failed} failed and left in queue."
