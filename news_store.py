@@ -790,6 +790,29 @@ def list_unmerged_published_news(since_iso, limit=200):
     return res.data or []
 
 
+def list_unmerged_published_news_by_ids(item_ids):
+    """Published stories from item_ids that are not yet in a merged video, oldest
+    first. Used to build the video for one publish batch of a run."""
+    ids = [i for i in (item_ids or []) if i is not None]
+    if not supabase or not ids:
+        return []
+    query = (
+        supabase.table("news_items")
+        .select(
+            "id,source_key,source_name,title,image_url,relevance_score,topic_tags,"
+            "translated_title_am,translated_story_am,reviewed_at"
+        )
+        .in_("id", ids)
+        .eq("review_status", "published")
+        .is_("video_batch_id", "null")
+        .order("reviewed_at", desc=False)
+    )
+    res = _safe_execute(query, default=None, context="list_unmerged_published_news_by_ids")
+    if res is None:
+        return []
+    return res.data or []
+
+
 def set_video_batch_id(item_ids, batch_id):
     """Record which merged video the given stories went into. Returns True on success."""
     ids = [i for i in (item_ids or []) if i is not None]

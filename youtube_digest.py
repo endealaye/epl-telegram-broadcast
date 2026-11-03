@@ -24,6 +24,7 @@ from news_store import (
     get_news_item,
     list_published_news_since,
     list_unmerged_published_news,
+    list_unmerged_published_news_by_ids,
     set_video_batch_id,
 )
 from store import get_bot_state_value, set_bot_state_value
@@ -473,8 +474,16 @@ def group_pending_by_category(rows):
     return groups
 
 
-def build_and_send_pending_batches_telegram(chat_id=None, min_items=MIN_MERGED_STORIES):
-    """Merge every published story that is not yet in a video into ONE video.
+def build_and_send_pending_batches_telegram(
+    chat_id=None, min_items=MIN_MERGED_STORIES, item_ids=None, batch_suffix=""
+):
+    """Merge published stories that are not yet in a video into ONE video.
+
+    With item_ids, only those stories are merged (one publish batch of a run); a
+    batch with fewer than min_items usable stories gets no video and its stories
+    stay published without one. Without item_ids, every unmerged story from the
+    lookback window is merged (manual telegram-digest). batch_suffix keeps the
+    batch ids of two videos made in the same minute distinct.
 
     Stories are sorted Premier League, Champions League, Europa League, then other
     football news. Each section that has stories opens with a spoken and on-screen
@@ -494,7 +503,11 @@ def build_and_send_pending_batches_telegram(chat_id=None, min_items=MIN_MERGED_S
     min_items = max(MIN_MERGED_STORIES, min_items)
     now = datetime.now(timezone.utc)
     since = now - timedelta(hours=PENDING_LOOKBACK_HOURS)
-    items = select_items(list_unmerged_published_news(since.isoformat()), max_items=0)
+    if item_ids is not None:
+        rows = list_unmerged_published_news_by_ids(item_ids)
+    else:
+        rows = list_unmerged_published_news(since.isoformat())
+    items = select_items(rows, max_items=0)
     if not items:
         return {"success": True, "videos": [], "waiting": {}, "skipped": "no unmerged stories."}
     if len(items) < min_items:
@@ -502,7 +515,7 @@ def build_and_send_pending_batches_telegram(chat_id=None, min_items=MIN_MERGED_S
 
     local = now.astimezone(EAT)
     stamp = local.strftime("%d %b %Y %H:%M")
-    batch_id = local.strftime("%Y%m%d-%H%M")
+    batch_id = local.strftime("%Y%m%d-%H%M") + batch_suffix
     sections = {section: len(group) for section, group in group_by_section(items)}
     result = _render_and_upload(
         items, f"{DIGEST_TITLE} | {stamp}", destination="telegram", chat_id=target, sectioned=True
