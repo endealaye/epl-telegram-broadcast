@@ -126,24 +126,11 @@ EXCLUDED_NEWS_PATTERNS = [
     re.compile(r"\bwsl\b", re.IGNORECASE),
     re.compile(r"\buwcl\b", re.IGNORECASE),
     re.compile(r"\blionesses\b", re.IGNORECASE),
-    re.compile(r"\bunder[\s-]?21s?\b", re.IGNORECASE),
-    re.compile(r"\bu[\s-]?21s?\b", re.IGNORECASE),
-    re.compile(r"\bunder[\s-]?(?:1[0-9]|2[0-3])s?\b", re.IGNORECASE),
-    re.compile(r"\bu[\s-]?(?:1[0-9]|2[0-3])s?\b", re.IGNORECASE),
     re.compile(r"\bpl2\b", re.IGNORECASE),
     re.compile(r"\bpremier league 2\b", re.IGNORECASE),
-    re.compile(r"\bacademy\b", re.IGNORECASE),
     re.compile(r"\bdevelopment squad\b", re.IGNORECASE),
     re.compile(r"\byouth team\b", re.IGNORECASE),
-    re.compile(r"\bjunior\b", re.IGNORECASE),
-    re.compile(r"\bretail\b", re.IGNORECASE),
-    re.compile(r"\bclub shop\b", re.IGNORECASE),
-    re.compile(r"\bshop\b", re.IGNORECASE),
-    re.compile(r"\bstore\b", re.IGNORECASE),
-    re.compile(r"\bmerch(?:andise)?\b", re.IGNORECASE),
     re.compile(r"\bseason tickets?\b", re.IGNORECASE),
-    re.compile(r"\bmembership\b", re.IGNORECASE),
-    re.compile(r"\bhospitality\b", re.IGNORECASE),
     re.compile(r"\bstadium tour\b", re.IGNORECASE),
     re.compile(r"\bavailable now\b", re.IGNORECASE),
     re.compile(r"\btv information\b", re.IGNORECASE),
@@ -180,7 +167,6 @@ EXCLUDED_NEWS_PATTERNS = [
     re.compile(r"\blong beyond next season\b", re.IGNORECASE),
     re.compile(r"\bthings to know if going to\b", re.IGNORECASE),
     re.compile(r"\bwaiting list open\b", re.IGNORECASE),
-    re.compile(r"\bfoundation\b", re.IGNORECASE),
     re.compile(r"\bcommunity patron\b", re.IGNORECASE),
     re.compile(r"\bmascot experience\b", re.IGNORECASE),
     re.compile(r"\btour de midlands\b", re.IGNORECASE),
@@ -188,6 +174,25 @@ EXCLUDED_NEWS_PATTERNS = [
     re.compile(r"/sounds/play/", re.IGNORECASE),
     re.compile(r"/media-audio/", re.IGNORECASE),
     re.compile(r"/retail[-/]", re.IGNORECASE),
+]
+# Words that are ambiguous inside article text (an "academy graduate", a player named
+# Junior, a "merchandise store" aside) but a reliable signal in the headline or summary.
+# Checked against title + summary + url + tags only, never the full story.
+HEADLINE_ONLY_EXCLUDED_PATTERNS = [
+    re.compile(r"\bunder[\s-]?21s?\b", re.IGNORECASE),
+    re.compile(r"\bu[\s-]?21s?\b", re.IGNORECASE),
+    re.compile(r"\bunder[\s-]?(?:1[0-9]|2[0-3])s?\b", re.IGNORECASE),
+    re.compile(r"\bu[\s-]?(?:1[0-9]|2[0-3])s?\b", re.IGNORECASE),
+    re.compile(r"\bacademy\b", re.IGNORECASE),
+    re.compile(r"\bjunior\b", re.IGNORECASE),
+    re.compile(r"\bretail\b", re.IGNORECASE),
+    re.compile(r"\bclub shop\b", re.IGNORECASE),
+    re.compile(r"\bshop\b", re.IGNORECASE),
+    re.compile(r"\bstore\b", re.IGNORECASE),
+    re.compile(r"\bmerch(?:andise)?\b", re.IGNORECASE),
+    re.compile(r"\bmembership\b", re.IGNORECASE),
+    re.compile(r"\bhospitality\b", re.IGNORECASE),
+    re.compile(r"\bfoundation\b", re.IGNORECASE),
 ]
 BYLINE_PATTERN = re.compile(
     r"^[A-Z][A-Za-z\s'-]+(?:reporter|writer|correspondent|editor)\s*"
@@ -683,7 +688,10 @@ def is_excluded_news_item(item):
     topic_tags = item.get("topic_tags") or []
     tags_text = " ".join(str(tag) for tag in topic_tags)
     corpus = " ".join([title, summary, story, article_url, tags_text])
-    return any(pattern.search(corpus) for pattern in EXCLUDED_NEWS_PATTERNS)
+    if any(pattern.search(corpus) for pattern in EXCLUDED_NEWS_PATTERNS):
+        return True
+    headline_corpus = " ".join([title, summary, article_url, tags_text])
+    return any(pattern.search(headline_corpus) for pattern in HEADLINE_ONLY_EXCLUDED_PATTERNS)
 
 
 def excluded_news_match(item):
@@ -695,8 +703,11 @@ def excluded_news_match(item):
         "url": item.get("article_url") or "",
         "tags": " ".join(str(tag) for tag in (item.get("topic_tags") or [])),
     }
-    for pattern in EXCLUDED_NEWS_PATTERNS:
-        for field, text in fields.items():
+    headline_fields = {name: text for name, text in fields.items() if name != "story"}
+    checks = [(pattern, fields) for pattern in EXCLUDED_NEWS_PATTERNS]
+    checks += [(pattern, headline_fields) for pattern in HEADLINE_ONLY_EXCLUDED_PATTERNS]
+    for pattern, searchable in checks:
+        for field, text in searchable.items():
             match = pattern.search(text)
             if match:
                 start = max(0, match.start() - 40)
