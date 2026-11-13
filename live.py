@@ -28,6 +28,12 @@ from store import (
 )
 
 
+# Kickoff dates (EAT, YYYY-MM-DD) of matches finalized during the current live run.
+# _finalize_match marks result_sent=True, which makes broadcast_results() bail out
+# before it reaches maybe_send_auto_standings, so the live job has to trigger the
+# table itself once it has finalized a match.
+_FINALIZED_DATES = set()
+
 LIVE_COMPETITIONS = {
     "Premier League",
     "UEFA Champions League",
@@ -395,6 +401,9 @@ def _finalize_match(db_match, h_score, a_score, send_message=True):
         last_broadcast_score=f"{h_score}-{a_score}",
         result_sent=True,
     )
+    kickoff = parse_eat_datetime(db_match.get('dateeat'))
+    if kickoff:
+        _FINALIZED_DATES.add(kickoff.strftime("%Y-%m-%d"))
 
 
 def _score_entry_for_match(score_map, db_match, competition_name):
@@ -523,7 +532,33 @@ def _needs_live_processing(now):
     return False
 
 
+def _send_standings_for_finalized_dates():
+    if not _FINALIZED_DATES:
+        return
+    dates = sorted(_FINALIZED_DATES)
+    _FINALIZED_DATES.clear()
+    try:
+        from broadcasts import maybe_send_auto_standings
+
+        for date_string in dates:
+            day_fixtures = fetch_fixtures_for_dates([date_string])
+            result = maybe_send_auto_standings(day_fixtures, today=date_string)
+            print(f"Auto standings for {date_string}: {result.get('reason')}")
+    except Exception as exc:
+        error_msg = f"Auto standings after live finalize error: {exc}"
+        print(error_msg)
+        send_admin_alert(error_msg)
+
+
 def process_live_updates():
+    _FINALIZED_DATES.clear()
+    try:
+        _process_live_updates()
+    finally:
+        _send_standings_for_finalized_dates()
+
+
+def _process_live_updates():
     if not supabase:
         return
     now = get_eat_now().replace(tzinfo=None)
