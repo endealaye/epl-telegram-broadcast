@@ -1,3 +1,4 @@
+import os
 import re
 from datetime import timedelta
 
@@ -36,6 +37,20 @@ LIVE_COMPETITIONS = {
     "FIFA World Cup",
     "World Cup",
 }
+# Set when this run sent at least one final-score message. The live workflow
+# reads it from $GITHUB_OUTPUT to decide whether to dispatch the results
+# broadcast right away instead of waiting for the next 10-minute cron.
+_finalized_this_run = False
+
+
+def _emit_github_output(key, value):
+    path = os.getenv("GITHUB_OUTPUT")
+    if not path:
+        return
+    with open(path, "a", encoding="utf-8") as fh:
+        fh.write(f"{key}={value}\n")
+
+
 FIFA_WORLD_CUP_CALENDAR_URL = "https://api.fifa.com/api/v3/calendar/matches"
 FIFA_WORLD_CUP_COMPETITION_ID = "17"
 FIFA_WORLD_CUP_SEASON_ID = "285023"
@@ -379,7 +394,9 @@ def _send_score_card_with_caption(db_match, h_score, a_score, caption):
         print(f"Score card broadcast failed for match {db_match.get('matchnumber')}: {e}")
 
 def _finalize_match(db_match, h_score, a_score, send_message=True):
+    global _finalized_this_run
     if send_message:
+        _finalized_this_run = True
         competition_title, home_am, away_am = _format_match_title(db_match)
         caption = (
             f"🏁 የመጨረሻ ውጤት\n\n"
@@ -524,6 +541,15 @@ def _needs_live_processing(now):
 
 
 def process_live_updates():
+    global _finalized_this_run
+    _finalized_this_run = False
+    try:
+        _process_live_updates()
+    finally:
+        _emit_github_output("finalized", "true" if _finalized_this_run else "false")
+
+
+def _process_live_updates():
     if not supabase:
         return
     now = get_eat_now().replace(tzinfo=None)
