@@ -124,6 +124,8 @@ STRUCTURED_DATA_PATTERNS = [
 EXCLUDED_NEWS_PATTERNS = [
     re.compile(r"\bwomen(?:'s|s)?\b", re.IGNORECASE),
     re.compile(r"\bwsl\b", re.IGNORECASE),
+    re.compile(r"\bgays?\b", re.IGNORECASE),
+    re.compile(r"\blesbians?\b", re.IGNORECASE),
     re.compile(r"\buwcl\b", re.IGNORECASE),
     re.compile(r"\blionesses\b", re.IGNORECASE),
     re.compile(r"\bunder[\s-]?21s?\b", re.IGNORECASE),
