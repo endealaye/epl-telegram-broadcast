@@ -229,7 +229,7 @@ Image handling for publishing with photo now includes safety limits:
 - Enforces max download size (default 8MB; env `NEWS_IMAGE_MAX_BYTES`)
 - Enforces max decoded pixel area (default 40,000,000; env `NEWS_IMAGE_MAX_PIXELS`)
 
-The default initial filter is Premier League-oriented and excludes low-priority categories such as generic features, podcasts, videos, women's football, and non-target domestic leagues.
+The default initial filter is Premier League-oriented and excludes low-priority categories such as generic features, podcasts, videos, women's football, death notices (obituaries, tributes, funerals), and non-target domestic leagues.
 
 News source aggregation:
 

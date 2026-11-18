@@ -124,6 +124,17 @@ STRUCTURED_DATA_PATTERNS = [
 EXCLUDED_NEWS_PATTERNS = [
     re.compile(r"\bwomen(?:'s|s)?\b", re.IGNORECASE),
     re.compile(r"\bwsl\b", re.IGNORECASE),
+    # Death notices (obituaries, tributes, funerals)
+    re.compile(r"\b(?:dies|died|death|deaths)\b", re.IGNORECASE),
+    re.compile(r"\bpass(?:es|ed)\s+away\b", re.IGNORECASE),
+    re.compile(r"\bpassing of\b", re.IGNORECASE),
+    re.compile(r"\bobituar(?:y|ies)\b", re.IGNORECASE),
+    re.compile(r"\bfunerals?\b", re.IGNORECASE),
+    re.compile(r"\bcondolences\b", re.IGNORECASE),
+    re.compile(r"\bmourn\w*", re.IGNORECASE),
+    re.compile(r"\brest in peace\b", re.IGNORECASE),
+    re.compile(r"\bpa(?:y|ys|id|ying)\s+(?:their\s+)?tributes?\b", re.IGNORECASE),
+    re.compile(r"\btributes?\s+(?:paid|pour|flood)\w*", re.IGNORECASE),
     re.compile(r"\bgays?\b", re.IGNORECASE),
     re.compile(r"\blesbians?\b", re.IGNORECASE),
     re.compile(r"\blgbt\w*", re.IGNORECASE),
