@@ -211,6 +211,21 @@ EXCLUDED_NEWS_PATTERNS = [
     re.compile(r"/sounds/play/", re.IGNORECASE),
     re.compile(r"/media-audio/", re.IGNORECASE),
     re.compile(r"/retail[-/]", re.IGNORECASE),
+    # Highlights / video-link items (iPlayer, video pages): the story is a link, not news
+    re.compile(r"/iplayer/", re.IGNORECASE),
+    re.compile(r"/sport/av/", re.IGNORECASE),
+    re.compile(r"/sport/[^\s]*/video/", re.IGNORECASE),
+    re.compile(r"/videos?/", re.IGNORECASE),
+]
+# Matched against the title only, so a body that merely mentions "highlights"
+# or "Match of the Day" doesn't get a real story dropped.
+EXCLUDED_TITLE_PATTERNS = [
+    re.compile(r"^\s*watch\b", re.IGNORECASE),
+    re.compile(r"\bhighlights\b", re.IGNORECASE),
+    re.compile(r"^\s*match of the day\b", re.IGNORECASE),
+    re.compile(r"\bmotd\b", re.IGNORECASE),
+    re.compile(r"\bfull[\s-]?match replay\b", re.IGNORECASE),
+    re.compile(r"\bgoals? and highlights\b", re.IGNORECASE),
 ]
 BYLINE_PATTERN = re.compile(
     r"^[A-Z][A-Za-z\s'-]+(?:reporter|writer|correspondent|editor)\s*"
@@ -706,6 +721,8 @@ def is_excluded_news_item(item):
     topic_tags = item.get("topic_tags") or []
     tags_text = " ".join(str(tag) for tag in topic_tags)
     corpus = " ".join([title, summary, story, article_url, tags_text])
+    if any(pattern.search(title) for pattern in EXCLUDED_TITLE_PATTERNS):
+        return True
     return any(pattern.search(corpus) for pattern in EXCLUDED_NEWS_PATTERNS)
 
 
@@ -718,6 +735,15 @@ def excluded_news_match(item):
         "url": item.get("article_url") or "",
         "tags": " ".join(str(tag) for tag in (item.get("topic_tags") or [])),
     }
+    for pattern in EXCLUDED_TITLE_PATTERNS:
+        match = pattern.search(fields["title"])
+        if match:
+            return {
+                "pattern": pattern.pattern,
+                "field": "title",
+                "context": fields["title"],
+                "story_len": len(fields["story"]),
+            }
     for pattern in EXCLUDED_NEWS_PATTERNS:
         for field, text in fields.items():
             match = pattern.search(text)
