@@ -5,7 +5,7 @@ Entry points share one builder:
 - build_and_send_pending_batches_telegram(): every published story not yet in a
   video (video_batch_id empty), merged into ONE video per fetch, minimum 3 stories
   in total, no maximum. Sorted Premier League, Champions League, Europa League,
-  other; each non-empty section opens with a spoken intro (logo card, no on-screen text). Called at the
+  other; each non-empty section opens with a spoken intro (no section card, no on-screen text). Called at the
   end of process_automated_news and by the manual `telegram_broadcast.py telegram-digest`.
 - build_and_upload_digest(): everything broadcast since the last digest, as one
   YouTube video (manual / optional nightly run: `telegram_broadcast.py youtube-digest`).
@@ -186,27 +186,6 @@ def section_intro_text(section, count):
     return f"የሚቀጥሉት {number} ዜናዎች ስለ {label} ናቸው።"
 
 
-def _make_section_card(section, count, out_path):
-    """1920x1080 card shown while the section intro is spoken (league logo, no text)."""
-    from PIL import Image, ImageDraw
-
-    from league_logos import load_league_logo
-
-    width, height = 1920, 1080
-    image = Image.new("RGB", (width, height), (14, 22, 33))
-    draw = ImageDraw.Draw(image)
-    # No on-screen text: the story count and section name are only spoken. The card
-    # shows the league logo alone (centred); a section with no logo gets a plain card.
-    logo = load_league_logo(section, 640, 440)
-    if logo is not None:
-        # White plate so dark logos stay readable on the dark card.
-        pad = 36
-        plate_w, plate_h = logo.width + 2 * pad, logo.height + 2 * pad
-        px, py = (width - plate_w) // 2, (height - plate_h) // 2
-        draw.rounded_rectangle((px, py, px + plate_w, py + plate_h), radius=36, fill=(255, 255, 255))
-        image.paste(logo, (px + pad, py + pad), logo)
-    image.save(out_path, "PNG")
-    return out_path
 # Telegram's bot API rejects uploads over 50 MB.
 TELEGRAM_VIDEO_LIMIT_BYTES = 49 * 1024 * 1024
 
@@ -273,26 +252,31 @@ def _send_merged_to_telegram(merged_path, title, chapter_lines, story_count, tot
     }
 
 
-def _render_section_intro(section, count, index, work_dir):
-    """Clip announcing a section ('the next N stories are about X'), voiced and on a
-    title card. Returns (clip_path, seconds) or None if it could not be made; a
-    missing intro never blocks the stories themselves."""
+def _render_section_intro(section, count, index, work_dir, first_item):
+    """Clip announcing a section ('the next N stories are about X'). It is voiced over
+    the section's first story image (which already carries the league logo), with no
+    title card and no on-screen text. Returns (clip_path, seconds) or None if it could
+    not be made; a missing intro never blocks the stories themselves."""
+    from news_pipeline import create_watermarked_image
     from tts_service import synthesize_announcement
 
-    audio_path = card_path = None
+    audio_path = image_path = None
     try:
         audio_path = synthesize_announcement(section_intro_text(section, count))
         if not audio_path:
             raise RuntimeError("no audio produced")
-        card_path = _make_section_card(section, count, work_dir / f"card_{index:02d}.png")
+        try:
+            image_path = create_watermarked_image(first_item["image_url"], category=story_category(first_item))
+        except Exception as exc:  # no usable image: the intro still plays over a plain frame
+            print(f"Merged video: intro image for section {section} unavailable: {exc!r}")
         clip_path = work_dir / f"intro_{index:02d}.mp4"
-        render_news_video(audio_path, clip_path, image_path=card_path)
+        render_news_video(audio_path, clip_path, image_path=image_path)
         return clip_path, media_duration(clip_path)
     except Exception as exc:
         print(f"Merged video: no intro for section {section}: {exc!r}")
         return None
     finally:
-        for temp in (audio_path, card_path):
+        for temp in (audio_path, image_path):
             if temp:
                 Path(temp).unlink(missing_ok=True)
 
@@ -349,7 +333,7 @@ def _render_and_upload(items, title, dry_run=False, destination="youtube", chat_
                 continue  # every story in this section failed: no intro for an empty section
             if section:
                 # The count is of stories that actually rendered, so the narrator never overpromises.
-                intro = _render_section_intro(section, len(section_clips), clip_index, work_dir)
+                intro = _render_section_intro(section, len(section_clips), clip_index, work_dir, group[0])
                 if intro:
                     clips.append(intro[0])
                     chapters_input.append((SECTION_LABELS_AM[section], intro[1]))
