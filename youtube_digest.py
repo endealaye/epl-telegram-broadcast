@@ -5,7 +5,7 @@ Entry points share one builder:
 - build_and_send_pending_batches_telegram(): every published story not yet in a
   video (video_batch_id empty), merged into ONE video per fetch, minimum 3 stories
   in total, no maximum. Sorted Premier League, Champions League, Europa League,
-  other; each non-empty section opens with a spoken/on-screen intro. Called at the
+  other; each non-empty section opens with a spoken intro (logo card, no on-screen text). Called at the
   end of process_automated_news and by the manual `telegram_broadcast.py telegram-digest`.
 - build_and_upload_digest(): everything broadcast since the last digest, as one
   YouTube video (manual / optional nightly run: `telegram_broadcast.py youtube-digest`).
@@ -187,34 +187,24 @@ def section_intro_text(section, count):
 
 
 def _make_section_card(section, count, out_path):
-    """1920x1080 title card shown while the section intro is spoken."""
+    """1920x1080 card shown while the section intro is spoken (league logo, no text)."""
     from PIL import Image, ImageDraw
-
-    from standings import _load_font  # lazy: pulls in the Ethiopic font loader
 
     from league_logos import load_league_logo
 
     width, height = 1920, 1080
     image = Image.new("RGB", (width, height), (14, 22, 33))
     draw = ImageDraw.Draw(image)
-    label = SECTION_LABELS_AM[section]
-    sub = f"{_NUMBER_WORDS_AM.get(count, count)} ዜና" if count == 1 else f"{_NUMBER_WORDS_AM.get(count, count)} ዜናዎች"
-    # The league's logo replaces the text label; with no logo (or the "other" section) keep the text.
+    # No on-screen text: the story count and section name are only spoken. The card
+    # shows the league logo alone (centred); a section with no logo gets a plain card.
     logo = load_league_logo(section, 640, 440)
     if logo is not None:
         # White plate so dark logos stay readable on the dark card.
         pad = 36
         plate_w, plate_h = logo.width + 2 * pad, logo.height + 2 * pad
-        px, py = (width - plate_w) // 2, 170
+        px, py = (width - plate_w) // 2, (height - plate_h) // 2
         draw.rounded_rectangle((px, py, px + plate_w, py + plate_h), radius=36, fill=(255, 255, 255))
         image.paste(logo, (px + pad, py + pad), logo)
-        lines = ((sub, 80, py + plate_h + 70, (170, 190, 215)),)
-    else:
-        lines = ((label, 150, 400, (255, 255, 255)), (sub, 80, 620, (170, 190, 215)))
-    for text, size, y, color in lines:
-        font = _load_font(size, bold=True)
-        box = draw.textbbox((0, 0), text, font=font)
-        draw.text(((width - (box[2] - box[0])) / 2 - box[0], y), text, font=font, fill=color)
     image.save(out_path, "PNG")
     return out_path
 # Telegram's bot API rejects uploads over 50 MB.
@@ -310,8 +300,8 @@ def _render_section_intro(section, count, index, work_dir):
 def _render_and_upload(items, title, dry_run=False, destination="youtube", chat_id=None, sectioned=False):
     """Render each story, join them, then upload to YouTube or send to Telegram.
     With sectioned=True the stories are sorted Premier League, Champions League,
-    Europa League, other, and each non-empty section starts with a spoken and
-    on-screen intro giving its story count. Returns a result dict."""
+    Europa League, other, and each non-empty section starts with a spoken
+    intro giving its story count. Returns a result dict."""
     from news_pipeline import create_watermarked_image, send_admin_alert  # heavy import, kept lazy
 
     work_dir = Path(tempfile.mkdtemp(prefix="yt_digest_"))
@@ -477,7 +467,7 @@ def build_and_send_pending_batches_telegram(chat_id=None, min_items=MIN_MERGED_S
     """Merge every published story that is not yet in a video into ONE video.
 
     Stories are sorted Premier League, Champions League, Europa League, then other
-    football news. Each section that has stories opens with a spoken and on-screen
+    football news. Each section that has stories opens with a spoken
     intro ('the next N stories are about X'); a section with none is skipped.
 
     If fewer than min_items usable stories are pending in total, nothing is made and
